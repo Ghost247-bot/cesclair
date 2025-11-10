@@ -1,8 +1,5 @@
-"use client";
-
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 
 const categories = [
   {
@@ -44,88 +41,35 @@ const categories = [
 ];
 
 const CategoryGrid = () => {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 30, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        ease: [0.25, 0.1, 0.25, 1]
-      }
-    }
-  };
-
-  const titleVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        ease: [0.25, 0.1, 0.25, 1]
-      }
-    }
-  };
-
   return (
     <section className="bg-[#f7f7f7] py-8 sm:py-12 md:py-16">
       <div className="container px-4 sm:px-6">
-        <motion.h3 
-          variants={titleVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="mb-6 sm:mb-8 text-center text-xs sm:text-sm md:text-[14px] font-normal uppercase tracking-[0.1em] text-foreground"
-        >
+        <h3 className="mb-6 sm:mb-8 text-center text-xs sm:text-sm md:text-[14px] font-normal uppercase tracking-[0.1em] text-foreground">
           CLEAN LUXURY. BETTER FOR YOU.
-        </motion.h3>
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="flex snap-x snap-mandatory gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide md:grid md:grid-cols-3 md:gap-4 md:pb-0 lg:grid-cols-6"
-        >
-          {categories.map((category, index) => (
-            <motion.div
+        </h3>
+        <div className="flex snap-x snap-mandatory gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide md:grid md:grid-cols-3 md:gap-4 md:pb-0 lg:grid-cols-6">
+          {categories.map((category) => (
+            <div
               key={category.name}
-              variants={itemVariants}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
               className="w-[70%] flex-shrink-0 snap-start sm:w-2/5 md:w-auto"
             >
               <Link href={category.href} className="group block">
-                <motion.div 
-                  className="overflow-hidden bg-gray-200"
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                >
+                <div className="overflow-hidden bg-gray-200">
                   <Image
                     src={category.image}
                     alt={category.alt}
                     width={480}
                     height={640}
-                    className="aspect-[3/4] w-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-110"
+                    className="aspect-[3/4] w-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-102"
                   />
-                </motion.div>
+                </div>
                 <p className="mt-3 sm:mt-4 text-center text-xs sm:text-[13px] font-medium uppercase tracking-wider text-foreground transition-colors group-hover:text-link-hover">
                   {category.name}
                 </p>
               </Link>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

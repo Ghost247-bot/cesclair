@@ -9,6 +9,7 @@ export const user = pgTable("user", {
     .$defaultFn(() => false)
     .notNull(),
   image: text("image"),
+  phone: text("phone"), // Phone number for user profile
   role: text("role").notNull().default('member'),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())

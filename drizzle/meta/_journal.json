@@ -15,6 +15,13 @@
       "when": 1762697714710,
       "tag": "0001_fancy_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762799840095,
+      "tag": "0002_cheerful_blink",
+      "breakpoints": true
     }
   ]
 }
