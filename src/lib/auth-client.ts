@@ -2,13 +2,14 @@
 import { createAuthClient } from "better-auth/react"
 import { useEffect, useState } from "react"
 
-// Extend Better Auth types to include role
+// Extend Better Auth types to include role and phone
 export interface ExtendedUser {
   id: string;
   name: string;
   email: string;
   emailVerified: boolean;
   image?: string;
+  phone?: string | null;
   role?: string;
   createdAt: Date;
   updatedAt: Date;
