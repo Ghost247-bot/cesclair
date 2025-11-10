@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type FeatureCardProps = {
