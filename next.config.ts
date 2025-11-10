@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+    // Optimize images for Netlify
+    formats: ['image/avif', 'image/webp'],
   },
   // Production optimizations
   compress: true,
@@ -26,6 +28,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Ensure output is compatible with Netlify
+  // Don't use 'export' output mode - Netlify plugin handles this
+  output: undefined,
   // Temporarily disabled Turbopack custom loader to fix "Next.js package not found" error
   // turbopack: {
   //   rules: {

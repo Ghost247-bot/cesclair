@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -29,7 +29,7 @@ const steps = [
   { id: 'review', label: 'Review', icon: FileCheck },
 ];
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const step = searchParams.get('step') || 'cart';
@@ -302,6 +302,25 @@ export default function CheckoutPage() {
       </main>
       <Footer />
     </>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <>
+        <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
+          <div className="container mx-auto px-6 py-16">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }
 
