@@ -1,7 +1,7 @@
 # Netlify configuration for Next.js 15
+# The @netlify/plugin-nextjs handles publish directory and routing automatically
 [build]
   command = "npm run build"
-  # The @netlify/plugin-nextjs handles the publish directory automatically
 
 [build.environment]
   NODE_VERSION = "20"
@@ -13,7 +13,7 @@
 # - API routes as serverless functions
 # - Static page generation (SSG)
 # - Image optimization
-# - Routing and redirects
+# - Routing and redirects (DO NOT add manual redirects - plugin handles this)
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
@@ -23,6 +23,7 @@
   external_node_modules = ["@neondatabase/serverless"]
 
 # Headers for security and performance
+# Note: Headers are applied after the plugin processes requests
 [[headers]]
   for = "/*"
   [headers.values]
