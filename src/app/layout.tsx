@@ -5,9 +5,10 @@ import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import Script from "next/script";
 import RouteMessengerScript from "@/components/RouteMessengerScript";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Cesclair-Modern Fashion",
+  title: "Cesclair-Modern Fashion",  
   description: "fashion for everyone",
   viewport: {
     width: "device-width",
@@ -34,6 +35,7 @@ export default function RootLayout({
         <RouteMessengerScript />
         {children}
         <VisualEditsMessenger />
+        <Toaster />
       </body>
     </html>
   );
