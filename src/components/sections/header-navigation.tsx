@@ -218,17 +218,17 @@ const HeaderNavigation = () => {
               ))}
             </nav>
 
-            {/* Logo - Center (Mobile) / Left (Desktop) */}
+            {/* Logo - Centered on all screen sizes */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 lg:ml-0 z-0 pointer-events-auto"
+              className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto"
               style={{
                 maxWidth: 'calc(100% - 140px)'
               }}
             >
-              <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block">
+              <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
                 CESCLAIR
               </Link>
             </motion.div>
