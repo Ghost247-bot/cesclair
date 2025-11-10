@@ -11,10 +11,13 @@ import {
   Plus,
   Edit,
   Trash2,
-  FileSignature
+  FileSignature,
+  Loader2
 } from "lucide-react";
 import Footer from "@/components/sections/footer";
 import { SigningFrame } from "@/components/docusign/SigningFrame";
+import { authClient, useSession } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 interface Designer {
   id: number;
@@ -57,6 +60,7 @@ interface Contract {
 
 export default function DesignerDashboardPage() {
   const router = useRouter();
+  const { data: session, isPending: sessionPending, refetch } = useSession();
   const [designer, setDesigner] = useState<Designer | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -65,18 +69,63 @@ export default function DesignerDashboardPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "designs" | "contracts">("overview");
   const [signingContract, setSigningContract] = useState<Contract | null>(null);
 
+  // Check authentication and role
   useEffect(() => {
-    const designerData = localStorage.getItem("designer");
-    if (!designerData) {
-      router.push("/designers/login");
-      return;
+    if (!sessionPending) {
+      if (!session?.user) {
+        router.push("/designers/login");
+        return;
+      }
+
+      const role = session.user.role || 'member';
+      if (role !== 'designer') {
+        if (role === 'admin') {
+          router.push("/admin");
+        } else {
+          router.push("/cesworld/dashboard");
+        }
+        return;
+      }
+
+      // Fetch designer data by email
+      if (session.user.email) {
+        fetchDesignerByEmail(session.user.email);
+      }
     }
+  }, [session, sessionPending, router]);
 
-    const parsedDesigner = JSON.parse(designerData);
-    setDesigner(parsedDesigner);
+  const fetchDesignerByEmail = async (email: string) => {
+    try {
+      setLoading(true);
+      // Fetch designer by email from API
+      const response = await fetch(`/api/designers/by-email?email=${encodeURIComponent(email)}`, {
+        credentials: 'include',
+      });
 
-    fetchDashboardData(parsedDesigner.id);
-  }, [router]);
+      if (response.ok) {
+        const designerData = await response.json();
+        setDesigner(designerData);
+        if (designerData.id) {
+          fetchDashboardData(designerData.id);
+        } else {
+          setLoading(false);
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: "Failed to load designer profile" }));
+        if (response.status === 403 && errorData.code === 'NOT_APPROVED') {
+          toast.error("Your designer account is pending approval. Please wait for admin approval.");
+          router.push("/designers");
+        } else {
+          toast.error(errorData.error || "Failed to load designer profile");
+        }
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch designer:", error);
+      toast.error("Failed to load designer profile");
+      setLoading(false);
+    }
+  };
 
   const fetchDashboardData = async (designerId: number) => {
     try {
@@ -101,9 +150,16 @@ export default function DesignerDashboardPage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("designer");
-    router.push("/designers");
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut();
+      localStorage.removeItem("bearer_token");
+      refetch();
+      router.push("/designers");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to log out");
+    }
   };
 
   const deleteDesign = async (designId: number) => {
@@ -140,11 +196,11 @@ export default function DesignerDashboardPage() {
     setSigningContract(null);
   };
 
-  if (loading || !designer) {
+  if (sessionPending || loading || !designer) {
     return (
       <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
           <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
         </div>
       </main>

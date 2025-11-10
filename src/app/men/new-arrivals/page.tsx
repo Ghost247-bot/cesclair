@@ -1,11 +1,8 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
 import Footer from '@/components/sections/footer';
-import ProductCard from '@/components/product-card';
-import { getProductsByGender } from '@/lib/products';
+import ProductListClient from '@/components/product-list-client';
 
 export default function MenNewArrivalsPage() {
-  const products = getProductsByGender('men').slice(0, 16);
-
   return (
     <>
       <HeaderNavigation />
@@ -16,19 +13,7 @@ export default function MenNewArrivalsPage() {
             <p className="text-body-large text-secondary-text">Discover the latest styles</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-                colors={product.colors}
-                href={`/products/${product.id}`}
-              />
-            ))}
-          </div>
+          <ProductListClient limit={1000} sortBy="newest" />
         </div>
       </main>
       <Footer />

@@ -18,7 +18,10 @@ import {
   Calendar,
   Mail,
   ExternalLink,
-  FileText
+  FileText,
+  UserCog,
+  FileText as FileTextIcon,
+  ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,11 +34,13 @@ interface Designer {
   specialties: string | null;
   status: string;
   avatarUrl?: string;
+  bannerUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 interface Product {
+  id: number;
   name: string;
   price: string;
   description?: string;
@@ -43,30 +48,186 @@ interface Product {
   imageUrl?: string;
   stock?: number;
   sku?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Contract {
+  id: number;
+  designerId: number;
+  designId?: number;
+  title: string;
+  description?: string;
+  amount?: string;
+  status: string;
+  awardedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  envelopeId?: string;
+  envelopeStatus?: string;
+  signedAt?: string;
+  envelopeUrl?: string;
+  designer?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+interface AuditLog {
+  id: number;
+  action: string;
+  performedBy: string;
+  performedByName: string | null;
+  performedByEmail: string | null;
+  targetUserId: string | null;
+  details: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
 }
 
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"designers" | "products">("designers");
+  const [activeTab, setActiveTab] = useState<"designers" | "products" | "users" | "contracts" | "audit">("users");
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [filteredDesigners, setFilteredDesigners] = useState<Designer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [contractSearchQuery, setContractSearchQuery] = useState("");
+  const [contractStatusFilter, setContractStatusFilter] = useState<string>("all");
+  
+  // Modal states
+  const [showCreateDesignerModal, setShowCreateDesignerModal] = useState(false);
+  const [showEditDesignerModal, setShowEditDesignerModal] = useState(false);
+  const [editingDesigner, setEditingDesigner] = useState<Designer | null>(null);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showCreateContractModal, setShowCreateContractModal] = useState(false);
+  const [showEditContractModal, setShowEditContractModal] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showProductListView, setShowProductListView] = useState(true);
 
   const isAuthenticated = !sessionPending && session?.user;
-  const isAdmin = (session?.user as any)?.role === "admin";
-  const shouldShowContent = isAuthenticated && isAdmin;
-
-  // Fetch designers when admin is confirmed
+  // Get role from session, may need to fetch from database if not in session
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+  
+  // Fetch user role if not in session
   useEffect(() => {
-    if (shouldShowContent) {
-      fetchDesigners();
+    const fetchUserRole = async () => {
+      if (!session?.user) {
+        setRoleLoading(false);
+        return;
+      }
+      
+      // First check if role is in session
+      const sessionRole = (session.user as any)?.role;
+      if (sessionRole) {
+        setUserRole(sessionRole);
+        setRoleLoading(false);
+        return;
+      }
+      
+      // If not in session, fetch from database
+      try {
+        console.log('Fetching user role from API for user:', session.user.id);
+        const response = await fetch('/api/auth/check-role', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Role API response:', data);
+          const fetchedRole = data.role;
+          if (fetchedRole) {
+            setUserRole(fetchedRole);
+            console.log('Set user role to:', fetchedRole);
+          } else {
+            console.warn('No role in API response, defaulting to member');
+            setUserRole('member');
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Role API failed:', response.status, errorData);
+          // If API fails, don't assume role - let it stay null to show error state
+          // This prevents incorrect redirects
+          setUserRole(null);
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        // If error occurs, don't assume role - let it stay null to show error state
+        // This prevents incorrect redirects
+        setUserRole(null);
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+    
+    fetchUserRole();
+  }, [session]);
+  
+  const isAdmin = userRole === "admin";
+  const shouldShowContent = isAuthenticated && isAdmin && !roleLoading;
+
+  // Debug logging (remove in production)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Admin Page State:', {
+        sessionPending,
+        roleLoading,
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        sessionRole: (session?.user as any)?.role,
+        fetchedRole: userRole,
+        isAdmin,
+        shouldShowContent,
+      });
     }
-  }, [shouldShowContent]);
+  }, [sessionPending, roleLoading, session, userRole, isAdmin, shouldShowContent]);
+
+  // Fetch data when admin is confirmed
+  useEffect(() => {
+    if (!sessionPending && !roleLoading && session?.user && isAdmin) {
+      if (activeTab === "designers") {
+        fetchDesigners();
+      } else if (activeTab === "users") {
+        fetchUsers();
+      } else if (activeTab === "products") {
+        fetchProducts();
+      } else if (activeTab === "contracts") {
+        fetchContracts();
+      } else if (activeTab === "audit") {
+        fetchAuditLogs();
+      }
+    }
+  }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
 
   // Filter designers based on search and status
   useEffect(() => {
@@ -89,6 +250,65 @@ export default function AdminPage() {
     setFilteredDesigners(filtered);
   }, [designers, searchQuery, statusFilter]);
 
+  // Filter users based on search and role
+  useEffect(() => {
+    let filtered = users;
+
+    if (userSearchQuery) {
+      const query = userSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (u) =>
+          u.name.toLowerCase().includes(query) ||
+          u.email.toLowerCase().includes(query)
+      );
+    }
+
+    if (roleFilter !== "all") {
+      filtered = filtered.filter((u) => u.role === roleFilter);
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, userSearchQuery, roleFilter]);
+
+  // Filter products based on search
+  useEffect(() => {
+    let filtered = products;
+
+    if (productSearchQuery) {
+      const query = productSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query) ||
+          p.category?.toLowerCase().includes(query) ||
+          p.sku?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredProducts(filtered);
+  }, [products, productSearchQuery]);
+
+  // Filter contracts based on search and status
+  useEffect(() => {
+    let filtered = contracts;
+
+    if (contractSearchQuery) {
+      const query = contractSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.title.toLowerCase().includes(query) ||
+          c.description?.toLowerCase().includes(query) ||
+          c.designer?.name.toLowerCase().includes(query)
+      );
+    }
+
+    if (contractStatusFilter !== "all") {
+      filtered = filtered.filter((c) => c.status === contractStatusFilter);
+    }
+
+    setFilteredContracts(filtered);
+  }, [contracts, contractSearchQuery, contractStatusFilter]);
+
   const fetchDesigners = async () => {
     try {
       setLoading(true);
@@ -100,11 +320,24 @@ export default function AdminPage() {
         setDesigners(data);
         setFilteredDesigners(data);
       } else {
-        toast.error("Failed to load designers");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error || "Failed to load designers";
+        console.error("Failed to fetch designers:", errorData);
+        
+        // Check if it's a schema mismatch error
+        if (errorData?.code === 'SCHEMA_MISMATCH') {
+          toast.error(
+            "Database schema mismatch detected. The banner_url column is missing. " +
+            "Please run the migration or contact an administrator.",
+            { duration: 10000 }
+          );
+        } else {
+          toast.error(errorMessage);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch designers:", error);
-      toast.error("Failed to load designers");
+      toast.error("Failed to load designers. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -159,6 +392,505 @@ export default function AdminPage() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/users?limit=500", {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data || []);
+        setFilteredUsers(data || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to load users:", response.status, errorData);
+        toast.error(errorData.error || "Failed to load users");
+        setUsers([]);
+        setFilteredUsers([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      toast.error("Failed to load users. Please try again.");
+      setUsers([]);
+      setFilteredUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+      return;
+    }
+
+    try {
+      setChangingRoleUserId(userId);
+      const response = await fetch("/api/auth/update-role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ role: newRole, userId }),
+      });
+
+      if (response.ok) {
+        setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+        toast.success(`User role updated to ${newRole}`);
+        // Refresh audit logs to show the new entry
+        if (activeTab === "audit") {
+          fetchAuditLogs();
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update user role");
+      }
+    } catch (error) {
+      console.error("Failed to update user role:", error);
+      toast.error("Failed to update user role");
+    } finally {
+      setChangingRoleUserId(null);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/products?limit=500", {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data || []);
+        setFilteredProducts(data || []);
+      } else {
+        toast.error("Failed to load products");
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchContracts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/contracts?limit=500", {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setContracts(data || []);
+        setFilteredContracts(data || []);
+      } else {
+        toast.error("Failed to load contracts");
+      }
+    } catch (error) {
+      console.error("Failed to fetch contracts:", error);
+      toast.error("Failed to load contracts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/admin/audit-logs?limit=100", {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAuditLogs(data || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to load audit logs:", response.status, errorData);
+        toast.error(errorData.error || "Failed to load audit logs");
+        setAuditLogs([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch audit logs:", error);
+      toast.error("Failed to load audit logs. Please try again.");
+      setAuditLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDesigner = async (designerData: {
+    name: string;
+    email: string;
+    password: string;
+    bio?: string;
+    portfolioUrl?: string;
+    specialties?: string;
+    avatarUrl?: string;
+    bannerUrl?: string;
+    status?: string;
+  }) => {
+    try {
+      const response = await fetch("/api/admin/designers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(designerData),
+      });
+
+      if (response.ok) {
+        const newDesigner = await response.json();
+        setDesigners([newDesigner, ...designers]);
+        toast.success("Designer created successfully");
+        setShowCreateDesignerModal(false);
+        fetchDesigners();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create designer");
+      }
+    } catch (error) {
+      console.error("Failed to create designer:", error);
+      toast.error("Failed to create designer");
+    }
+  };
+
+  const updateDesignerDetails = async (id: number, updates: Partial<Designer> & { password?: string }) => {
+    try {
+      const response = await fetch(`/api/admin/designers?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setDesigners(designers.map((d) => (d.id === id ? updated : d)));
+        toast.success("Designer updated successfully");
+        setShowEditDesignerModal(false);
+        setEditingDesigner(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update designer");
+      }
+    } catch (error) {
+      console.error("Failed to update designer:", error);
+      toast.error("Failed to update designer");
+    }
+  };
+
+  const createUser = async (userData: {
+    name: string;
+    email: string;
+    password: string;
+    role?: string;
+    emailVerified?: boolean;
+  }) => {
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(userData),
+      });
+
+      if (response.ok) {
+        const newUser = await response.json();
+        setUsers([newUser, ...users]);
+        toast.success("User created successfully");
+        setShowCreateUserModal(false);
+        fetchUsers();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create user");
+      }
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      toast.error("Failed to create user");
+    }
+  };
+
+  const verifyUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/verify`, {
+        method: "PUT",
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setUsers(users.map((u) => (u.id === userId ? updated : u)));
+        toast.success("User verified successfully");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to verify user");
+      }
+    } catch (error) {
+      console.error("Failed to verify user:", error);
+      toast.error("Failed to verify user");
+    }
+  };
+
+  const updateProduct = async (id: number, updates: Partial<Product>) => {
+    try {
+      const response = await fetch(`/api/admin/products?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setProducts(products.map((p) => (p.id === id ? updated : p)));
+        toast.success("Product updated successfully");
+        setShowEditProductModal(false);
+        setEditingProduct(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update product");
+      }
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      toast.error("Failed to update product");
+    }
+  };
+
+  const deleteProduct = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/products?id=${id}`, {
+        method: "DELETE",
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setProducts(products.filter((p) => p.id !== id));
+        toast.success("Product deleted successfully");
+      } else {
+        toast.error("Failed to delete product");
+      }
+    } catch (error) {
+      console.error("Failed to delete product:", error);
+      toast.error("Failed to delete product");
+    }
+  };
+
+  const bulkDeleteProducts = async () => {
+    if (selectedProducts.length === 0) {
+      toast.error("Please select products to delete");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedProducts.length} product(s)?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/products/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ productIds: selectedProducts }),
+      });
+
+      if (response.ok) {
+        setProducts(products.filter((p) => !selectedProducts.includes(p.id)));
+        setSelectedProducts([]);
+        toast.success(`Successfully deleted ${selectedProducts.length} product(s)`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to delete products");
+      }
+    } catch (error) {
+      console.error("Failed to bulk delete products:", error);
+      toast.error("Failed to delete products");
+    }
+  };
+
+  const createContract = async (contractData: {
+    designerId: number;
+    designId?: number;
+    title: string;
+    description?: string;
+    amount?: string;
+    status?: string;
+  }) => {
+    try {
+      const response = await fetch("/api/admin/contracts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(contractData),
+      });
+
+      if (response.ok) {
+        const newContract = await response.json();
+        setContracts([newContract, ...contracts]);
+        toast.success("Contract created successfully");
+        setShowCreateContractModal(false);
+        fetchContracts();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to create contract");
+      }
+    } catch (error) {
+      console.error("Failed to create contract:", error);
+      toast.error("Failed to create contract");
+    }
+  };
+
+  const updateContract = async (id: number, updates: Partial<Contract>) => {
+    try {
+      const response = await fetch(`/api/admin/contracts/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setContracts(contracts.map((c) => (c.id === id ? updated : c)));
+        toast.success("Contract updated successfully");
+        setShowEditContractModal(false);
+        setEditingContract(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update contract");
+      }
+    } catch (error) {
+      console.error("Failed to update contract:", error);
+      toast.error("Failed to update contract");
+    }
+  };
+
+  const deleteContract = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this contract?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/contracts/${id}`, {
+        method: "DELETE",
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        setContracts(contracts.filter((c) => c.id !== id));
+        toast.success("Contract deleted successfully");
+      } else {
+        toast.error("Failed to delete contract");
+      }
+    } catch (error) {
+      console.error("Failed to delete contract:", error);
+      toast.error("Failed to delete contract");
+    }
+  };
+
+  // CSV parser that handles quoted fields
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+      
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // End of field
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add last field
+    result.push(current.trim());
+    return result;
+  };
+
+  // Download CSV template
+  const downloadCSVTemplate = () => {
+    // Full CSV format matching fashion.csv structure
+    const headers = [
+      'Tile-image Image',
+      'Product-tile__anchor URL',
+      'Product-tile__body-section',
+      'Price',
+      'Price',
+      'Tile-image Description',
+      'Swatch__icon--color Image',
+      'Swatch__icon--color Image',
+      'Product-tile__colors-counter',
+      'Product-tile__swatch URL',
+      'Swatch__icon--color Description',
+      'Product-tile__swatch (2) URL',
+      'Swatch__icon--color Description',
+      'Product-tile__color_count_mobile',
+      'Swatch__icon--color Image',
+      'Product-tile__swatch (3) URL',
+      'Swatch__icon--color Description',
+      'Swatch__icon--color Image',
+      'Product-tile__swatch (4) URL',
+      'Swatch__icon--color Description'
+    ];
+    
+    // Example row with required fields (first 6 columns are used for product data)
+    const exampleRow = [
+      'https://media.example.com/image/w_600/product.json',
+      'https://www.example.com/products/product-name/12345ABC.html',
+      'Example Product Name',
+      '$99.00',
+      '99.00',
+      'Example product description',
+      '', // Swatch images and additional columns are optional
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      ''
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      exampleRow.map(val => val ? `"${val}"` : '').join(',')
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'products-template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -175,34 +907,242 @@ export default function AdminPage() {
         return;
       }
 
-      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      // Parse header row
+      const headers = parseCSVLine(lines[0]);
       const products: Product[] = [];
+
+      // Check if this is the new Blm-product-search format
+      const isBlmFormat = headers.length >= 9 && (
+        headers[0]?.includes('Blm-product-search-image-container__image Image') ||
+        headers[0]?.includes('Blm-product-search') ||
+        headers[4]?.includes('Title') ||
+        headers[8]?.includes('Price')
+      );
+
+      // Check if this is the fashion.csv format (has specific column names)
+      // Detects format by checking for key header names
+      const isFashionFormat = !isBlmFormat && headers.length >= 6 && (
+        headers[0]?.includes('Tile-image Image') || headers[0]?.includes('Tile-image') ||
+        headers[1]?.includes('Product-tile__anchor URL') || headers[1]?.includes('Product-tile') ||
+        headers[2]?.includes('Product-tile__body-section') || headers[2]?.includes('Product-tile') ||
+        headers[5]?.includes('Tile-image Description') || headers[5]?.includes('Description')
+      );
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const values = line.split(",").map((v) => v.trim());
-        const product: any = {};
+        const values = parseCSVLine(line);
+        
+        let product: any = {};
 
-        headers.forEach((header, index) => {
-          if (values[index]) {
-            product[header] = values[index];
+        if (isBlmFormat) {
+          // Map Blm-product-search format to product schema
+          // Columns:
+          // 0: Blm-product-search-image-container__image Image (first image URL)
+          // 1: Blm-product-search-image-container__image (2) Image (second image URL, optional)
+          // 2: Blm-product-search-container URL (product URL)
+          // 3: Blm-product-search-image-container__image Description (SKU/slug)
+          // 4: Title (product name) - REQUIRED
+          // 5: Span (badge text like "New", "Selling Fast", "29% Off", etc.)
+          // 6: Blm-product-search-badge (usually empty)
+          // 7: Blm-product-search-sustainability (sustainability tags)
+          // 8: Price (current price with $) - REQUIRED
+          // 9: (Optional) Original price when on sale
+          
+          const imageUrl = values[0]?.replace(/^"|"$/g, '').trim() || '';
+          const secondImageUrl = values[1]?.replace(/^"|"$/g, '').trim() || '';
+          const productUrl = values[2]?.replace(/^"|"$/g, '').trim() || '';
+          const skuSlug = values[3]?.replace(/^"|"$/g, '').trim() || '';
+          const name = values[4]?.replace(/^"|"$/g, '').trim() || '';
+          const badge = values[5]?.replace(/^"|"$/g, '').trim() || '';
+          const sustainability = values[7]?.replace(/^"|"$/g, '').trim() || '';
+          const priceStr = values[8]?.replace(/^"|"$/g, '').trim() || '';
+          const originalPriceStr = values[9]?.replace(/^"|"$/g, '').trim() || '';
+          
+          // Clean price - remove $ and commas
+          let price = priceStr.replace(/[$,]/g, '').trim();
+          
+          // Validate price is a valid number
+          const priceNum = parseFloat(price);
+          if (isNaN(priceNum) || priceNum < 0) {
+            // Skip this product if price is invalid
+            continue;
           }
-        });
+          
+          // Extract SKU from slug or URL
+          let sku: string | undefined;
+          if (skuSlug) {
+            // Use the slug as SKU (e.g., "mens-cashmere-crew-heathered-mahogany")
+            sku = skuSlug;
+          } else if (productUrl) {
+            // Extract from URL if slug not available
+            const urlParts = productUrl.split('/');
+            const lastPart = urlParts[urlParts.length - 1];
+            if (lastPart) {
+              sku = lastPart.replace('.html', '');
+            }
+          }
+          
+          // Extract category from URL if possible (optional)
+          let category: string | undefined;
+          if (productUrl) {
+            // Try to extract category from URL path
+            const urlParts = productUrl.split('/');
+            const productsIndex = urlParts.findIndex(part => part === 'products');
+            if (productsIndex !== -1 && urlParts[productsIndex + 1]) {
+              const productPath = urlParts[productsIndex + 1];
+              // Extract category from product path (e.g., "mens-cashmere-crew" -> "sweaters" or "mens")
+              // For now, we'll try to infer from the path
+              if (productPath.includes('mens-')) {
+                category = undefined; // Could set to "mens" or specific category
+              } else if (productPath.includes('womens-')) {
+                category = undefined; // Could set to "womens" or specific category
+              }
+            }
+          }
+          
+          // Build description from sustainability tags and badge
+          let description: string | undefined;
+          const descriptionParts: string[] = [];
+          if (badge) {
+            descriptionParts.push(`Badge: ${badge}`);
+          }
+          if (sustainability) {
+            descriptionParts.push(`Sustainability: ${sustainability}`);
+          }
+          if (descriptionParts.length > 0) {
+            description = descriptionParts.join('. ');
+          }
+          
+          // Use first image URL, fallback to second if first is empty
+          const finalImageUrl = imageUrl || secondImageUrl;
+          
+          if (name && name.trim() && price && price.trim()) {
+            product = {
+              name: name.trim(),
+              price: price, // Keep as string for API
+              description: description || undefined,
+              imageUrl: finalImageUrl || undefined,
+              category: category,
+              sku: sku || undefined,
+              stock: 0, // Default stock
+            };
+          }
+        } else if (isFashionFormat) {
+          // Map fashion.csv format to product schema
+          // This format supports up to 20 columns, but only first 6 are used for product data:
+          // 0: Tile-image Image (product image URL)
+          // 1: Product-tile__anchor URL (product URL, used to extract SKU)
+          // 2: Product-tile__body-section (product name) - REQUIRED
+          // 3: Price (with $ symbol)
+          // 4: Price (numeric only) - REQUIRED
+          // 5: Tile-image Description (product description)
+          // 6-19: Additional swatch/color data (optional, not used for product creation)
+          
+          const imageUrl = values[0]?.replace(/^"|"$/g, '') || '';
+          const productUrl = values[1]?.replace(/^"|"$/g, '') || '';
+          const name = values[2]?.replace(/^"|"$/g, '') || '';
+          const priceWithDollar = values[3]?.replace(/^"|"$/g, '').trim() || '';
+          const priceWithoutDollar = values[4]?.replace(/^"|"$/g, '').trim() || '';
+          const description = values[5]?.replace(/^"|"$/g, '') || '';
+          
+          // Extract price (prefer the one without $, or remove $ from the one with $)
+          let price = priceWithoutDollar || priceWithDollar.replace('$', '').trim();
+          
+          // Clean up price - remove commas and $ signs
+          price = price.replace(/[$,]/g, '').trim();
+          
+          // Validate price is a valid number
+          const priceNum = parseFloat(price);
+          if (isNaN(priceNum) || priceNum < 0) {
+            // Skip this product if price is invalid
+            continue;
+          }
+          
+          // Extract category from URL if possible (optional)
+          let category: string | undefined;
+          if (productUrl) {
+            // Try to extract category from URL path
+            const urlParts = productUrl.split('/');
+            const productsIndex = urlParts.findIndex(part => part === 'products');
+            if (productsIndex !== -1 && urlParts[productsIndex + 1]) {
+              // Could use product type as category, but for now leave it null
+              category = undefined;
+            }
+          }
+          
+          // Generate SKU from product URL or name if available
+          let sku: string | undefined;
+          if (productUrl) {
+            // Extract SKU from URL (e.g., /products/cove-cashmere-oversized-crew/1316169WYM.html)
+            const skuMatch = productUrl.match(/\/(\d+[A-Z]+)\.html/);
+            if (skuMatch) {
+              sku = skuMatch[1];
+            }
+          }
+          
+          if (name && name.trim() && price && price.trim()) {
+            product = {
+              name: name.trim(),
+              price: price, // Keep as string for API
+              description: description.trim() || undefined,
+              imageUrl: imageUrl || undefined,
+              category: category,
+              sku: sku,
+              stock: 0, // Default stock
+            };
+          }
+        } else {
+          // Legacy format: map headers to product fields
+          headers.forEach((header, index) => {
+            if (values[index]) {
+              const cleanValue = values[index].replace(/^"|"$/g, '');
+              // Map common header names to product fields
+              const headerLower = header.toLowerCase();
+              if (headerLower.includes('name') || headerLower === 'product name') {
+                product.name = cleanValue;
+              } else if (headerLower.includes('price')) {
+                product.price = cleanValue.replace(/[$,]/g, '').trim();
+              } else if (headerLower.includes('description')) {
+                product.description = cleanValue;
+              } else if (headerLower.includes('image') || headerLower.includes('url')) {
+                product.imageUrl = cleanValue;
+              } else if (headerLower.includes('category')) {
+                product.category = cleanValue;
+              } else if (headerLower.includes('sku')) {
+                product.sku = cleanValue;
+              } else if (headerLower.includes('stock')) {
+                product.stock = parseInt(cleanValue) || 0;
+              } else {
+                // Fallback: use header name as key
+                product[header] = cleanValue;
+              }
+            }
+          });
+        }
 
-        if (product.name && product.price) {
-          products.push(product);
+        // Validate product has required fields and valid price
+        if (product.name && product.name.trim() && product.price && product.price.trim()) {
+          // Validate price is a valid number
+          const priceNum = parseFloat(product.price);
+          if (!isNaN(priceNum) && priceNum >= 0) {
+            products.push(product);
+          }
         }
       }
 
       if (products.length === 0) {
-        setUploadResult("No valid products found in CSV file.");
+        setUploadResult("No valid products found in CSV file. Make sure the file contains 'name' and 'price' fields.");
         toast.error("No valid products found");
         return;
       }
 
-      const response = await fetch("/api/products/bulk", {
+      // Debug: Log products being sent
+      console.log("Products to upload:", products);
+      console.log("Products count:", products.length);
+
+      const response = await fetch("/api/admin/products/bulk", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -213,20 +1153,36 @@ export default function AdminPage() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        setUploadResult(
-          `Successfully uploaded ${data.created} products. ${
-            data.failed > 0 ? `${data.failed} failed.` : ""
-          }`
-        );
-        toast.success("Products uploaded successfully");
+      if (response.ok || response.status === 207) {
+        // 207 is Multi-Status (partial success)
+        const failedMsg = data.failed > 0 ? `${data.failed} failed.` : "";
+        const errorDetails = data.errors && data.errors.length > 0 
+          ? `\nErrors: ${data.errors.map((e: any) => e.error).join(', ')}`
+          : "";
+        setUploadResult(`Successfully uploaded ${data.created} products. ${failedMsg}${errorDetails}`);
+        if (data.created > 0) {
+          toast.success(`Successfully uploaded ${data.created} product(s)`);
+        }
+        if (data.failed > 0) {
+          toast.warning(`${data.failed} product(s) failed to upload`);
+        }
+        // Refresh the products list
+        await fetchProducts();
+        // Switch to list view to see the uploaded products
+        setShowProductListView(true);
       } else {
-        setUploadResult(`Upload failed: ${data.error || "Unknown error"}`);
-        toast.error("Upload failed");
+        const errorMsg = data.error || data.message || "Unknown error";
+        const errorDetails = data.errors && data.errors.length > 0 
+          ? `\nErrors: ${data.errors.map((e: any) => e.error).join(', ')}`
+          : "";
+        setUploadResult(`Upload failed: ${errorMsg}${errorDetails}`);
+        toast.error(`Upload failed: ${errorMsg}`);
+        console.error("Upload error details:", data);
       }
     } catch (error) {
       setUploadResult(`Upload error: ${error instanceof Error ? error.message : "Unknown error"}`);
       toast.error("Upload error");
+      console.error("CSV upload error:", error);
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -235,17 +1191,23 @@ export default function AdminPage() {
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!sessionPending) {
-      if (!isAuthenticated) {
-        router.push("/cesworld/login");
-      } else if (!isAdmin) {
-        router.push("/");
-      }
+    if (sessionPending || roleLoading) return; // Wait for session and role to load
+    
+    if (!session?.user) {
+      router.push("/cesworld/login");
+      return;
     }
-  }, [sessionPending, isAuthenticated, isAdmin, router]);
+    
+    // Only redirect if we've confirmed the role is not admin
+    if (userRole && userRole !== "admin") {
+      console.log('User is not admin, role:', userRole, 'Redirecting to homepage');
+      router.push("/");
+      return;
+    }
+  }, [sessionPending, roleLoading, session, userRole, router]);
 
-  // Show loading state while checking session
-  if (sessionPending || (!isAuthenticated && !sessionPending)) {
+  // Handle loading and authentication states
+  if (sessionPending || roleLoading) {
     return (
       <>
         <HeaderNavigation />
@@ -260,16 +1222,14 @@ export default function AdminPage() {
     );
   }
 
-  // Show access denied if not admin (but only after session is loaded)
-  if (!shouldShowContent) {
+  if (!session?.user) {
     return (
       <>
         <HeaderNavigation />
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-2xl font-medium mb-2">Access Denied</h2>
-            <p className="text-body text-muted-foreground">You don't have permission to access this page.</p>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-body text-muted-foreground">Redirecting...</p>
           </div>
         </div>
         <Footer />
@@ -277,12 +1237,62 @@ export default function AdminPage() {
     );
   }
 
-  const statusCounts = {
-    all: designers.length,
-    pending: designers.filter((d) => d.status === "pending").length,
-    approved: designers.filter((d) => d.status === "approved").length,
-    rejected: designers.filter((d) => d.status === "rejected").length,
-  };
+  if (!roleLoading && userRole !== null && userRole !== "admin") {
+    return (
+      <>
+        <HeaderNavigation />
+        <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-body text-muted-foreground">Redirecting...</p>
+            {process.env.NODE_ENV === 'development' && (
+              <p className="text-xs text-muted-foreground mt-2">Role: {userRole}</p>
+            )}
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+  
+  if (!roleLoading && userRole === null && session?.user) {
+    return (
+      <>
+        <HeaderNavigation />
+        <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-2xl font-medium mb-2">Unable to Verify Role</h2>
+            <p className="text-body text-muted-foreground mb-4">
+              Could not verify your admin status. Please try refreshing the page.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+  
+  if (!isAdmin) {
+    return (
+      <>
+        <HeaderNavigation />
+        <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-body text-muted-foreground">Loading admin panel...</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -298,7 +1308,7 @@ export default function AdminPage() {
               <div>
                 <h1 className="text-3xl md:text-4xl font-medium">Admin Dashboard</h1>
                 <p className="text-body text-muted-foreground mt-1">
-                  Manage designers and products
+                  Manage users, designers, products, and view audit logs
                 </p>
               </div>
             </div>
@@ -315,6 +1325,17 @@ export default function AdminPage() {
           <div className="container mx-auto px-6 md:px-8">
             <div className="flex gap-1 overflow-x-auto">
               <button
+                onClick={() => setActiveTab("users")}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "users"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <UserCog className="w-4 h-4 inline mr-2" />
+                Users ({users.length})
+              </button>
+              <button
                 onClick={() => setActiveTab("designers")}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "designers"
@@ -323,7 +1344,7 @@ export default function AdminPage() {
                 }`}
               >
                 <Users className="w-4 h-4 inline mr-2" />
-                Designers ({statusCounts.all})
+                Designers ({designers.length})
               </button>
               <button
                 onClick={() => setActiveTab("products")}
@@ -334,7 +1355,29 @@ export default function AdminPage() {
                 }`}
               >
                 <Package className="w-4 h-4 inline mr-2" />
-                Products
+                Products ({products.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("contracts")}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "contracts"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <FileText className="w-4 h-4 inline mr-2" />
+                Contracts ({contracts.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("audit")}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "audit"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <FileTextIcon className="w-4 h-4 inline mr-2" />
+                Audit Logs
               </button>
             </div>
           </div>
@@ -343,33 +1386,256 @@ export default function AdminPage() {
         {/* Content Section */}
         <section className="py-8 md:py-12">
           <div className="container mx-auto px-6 md:px-8">
+            {/* Users Tab */}
+            {activeTab === "users" && (
+              <div>
+                {/* Header with Create Button */}
+                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search users by name or email..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Roles</option>
+                        <option value="member">Member ({users.filter(u => u.role === 'member').length})</option>
+                        <option value="designer">Designer ({users.filter(u => u.role === 'designer').length})</option>
+                        <option value="admin">Admin ({users.filter(u => u.role === 'admin').length})</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateUserModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    + Create User
+                  </button>
+                </div>
+
+                {/* Users List */}
+                {loading ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-body text-muted-foreground">Loading users...</p>
+                  </div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-border rounded-lg">
+                    <UserCog className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-body text-muted-foreground">
+                      {userSearchQuery || roleFilter !== "all"
+                        ? "No users match your filters."
+                        : "No users found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-start gap-4 mb-3">
+                              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                <UserCog className="w-6 h-6 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <h3 className="text-xl font-medium">{user.name}</h3>
+                                  <span
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                      user.role === "admin"
+                                        ? "bg-purple-100 text-purple-700"
+                                        : user.role === "designer"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                  >
+                                    {user.role.toUpperCase()}
+                                  </span>
+                                  {user.emailVerified && (
+                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700">
+                                      VERIFIED
+                                    </span>
+                                  )}
+                                  {!user.emailVerified && (
+                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                                      UNVERIFIED
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                                  <Mail className="w-4 h-4" />
+                                  <a
+                                    href={`mailto:${user.email}`}
+                                    className="hover:text-primary transition-colors"
+                                  >
+                                    {user.email}
+                                  </a>
+                                </div>
+                                <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 md:min-w-[200px]">
+                            <div className="relative">
+                              <select
+                                value={user.role}
+                                onChange={(e) => updateUserRole(user.id, e.target.value)}
+                                disabled={changingRoleUserId === user.id || user.id === session?.user?.id}
+                                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="member">Member</option>
+                                <option value="designer">Designer</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                              {changingRoleUserId === user.id && (
+                                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                              )}
+                            </div>
+                            {!user.emailVerified && (
+                              <button
+                                onClick={() => verifyUser(user.id)}
+                                className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors rounded-lg text-sm font-medium"
+                              >
+                                Verify Email
+                              </button>
+                            )}
+                            {user.id === session?.user?.id && (
+                              <p className="text-xs text-muted-foreground text-center">(Your account)</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Audit Logs Tab */}
+            {activeTab === "audit" && (
+              <div>
+                {loading ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-body text-muted-foreground">Loading audit logs...</p>
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-border rounded-lg">
+                    <FileTextIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-body text-muted-foreground">No audit logs found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {auditLogs.map((log) => {
+                      let details = null;
+                      try {
+                        details = log.details ? JSON.parse(log.details) : null;
+                      } catch (e) {
+                        // Invalid JSON, ignore
+                      }
+
+                      return (
+                        <div
+                          key={log.id}
+                          className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-sm font-medium text-primary">
+                                  {log.action.replace('_', ' ').toUpperCase()}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(log.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                <p>
+                                  <strong>Performed by:</strong> {log.performedByName || log.performedByEmail || log.performedBy}
+                                </p>
+                                {log.targetUserId && (
+                                  <p className="mt-1">
+                                    <strong>Target user:</strong> {details?.targetUserName || details?.targetUserEmail || log.targetUserId}
+                                  </p>
+                                )}
+                                {details && (
+                                  <div className="mt-2 p-3 bg-secondary rounded-lg">
+                                    {details.oldRole && details.newRole && (
+                                      <p className="text-sm">
+                                        <strong>Role change:</strong> {details.oldRole} → {details.newRole}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {log.ipAddress && (
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    IP: {log.ipAddress}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Designers Tab */}
             {activeTab === "designers" && (
               <div>
-                {/* Filters */}
-                <div className="mb-6 flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Search designers by name, email, or specialties..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
+                {/* Header with Create Button */}
+                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search designers by name, email, or specialties..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Status ({designers.length})</option>
+                        <option value="pending">Pending ({designers.filter((d) => d.status === "pending").length})</option>
+                        <option value="approved">Approved ({designers.filter((d) => d.status === "approved").length})</option>
+                        <option value="rejected">Rejected ({designers.filter((d) => d.status === "rejected").length})</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
-                    >
-                      <option value="all">All Status ({statusCounts.all})</option>
-                      <option value="pending">Pending ({statusCounts.pending})</option>
-                      <option value="approved">Approved ({statusCounts.approved})</option>
-                      <option value="rejected">Rejected ({statusCounts.rejected})</option>
-                    </select>
-                  </div>
+                  <button
+                    onClick={() => setShowCreateDesignerModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    + Create Designer
+                  </button>
                 </div>
 
                 {/* Designers List */}
@@ -480,6 +1746,15 @@ export default function AdminPage() {
                               </button>
                             )}
                             <button
+                              onClick={() => {
+                                setEditingDesigner(designer);
+                                setShowEditDesignerModal(true);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
                               onClick={() => deleteDesigner(designer.id)}
                               className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 transition-colors rounded-lg text-sm font-medium"
                             >
@@ -495,83 +1770,1058 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Products CSV Upload Tab */}
+            {/* Products Tab */}
             {activeTab === "products" && (
-              <div className="max-w-3xl mx-auto">
-                <div className="bg-white border border-border rounded-lg p-8">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-                      <Upload className="w-8 h-8 text-primary" />
-                    </div>
-                    <h2 className="text-2xl font-medium mb-2">Bulk Product Upload</h2>
-                    <p className="text-body text-muted-foreground">
-                      Upload a CSV file to add multiple products at once
-                    </p>
-                  </div>
-
-                  <div className="mb-8 p-6 bg-secondary rounded-lg">
-                    <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      CSV Format Requirements
-                    </h3>
-                    <div className="text-sm text-muted-foreground space-y-2 mb-4">
-                      <p><strong>Required columns:</strong> name, price</p>
-                      <p><strong>Optional columns:</strong> description, category, imageUrl, stock, sku</p>
-                      <p>• First row must contain column headers</p>
-                      <p>• Use comma (,) as delimiter</p>
-                    </div>
-                    <div className="p-4 bg-white border border-border rounded text-xs font-mono overflow-x-auto">
-                      <div className="text-muted-foreground mb-2">Example:</div>
-                      <div>name,price,description,category,stock,sku</div>
-                      <div>Product Name,99.99,Product description,category,10,SKU-001</div>
-                    </div>
-                  </div>
-
-                  <div className="mb-6">
-                    <label
-                      htmlFor="csv-upload"
-                      className="block w-full px-8 py-12 border-2 border-dashed border-border hover:border-primary transition-colors rounded-lg cursor-pointer text-center bg-secondary/50 hover:bg-secondary"
-                    >
-                      {uploading ? (
-                        <>
-                          <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-primary" />
-                          <span className="text-button-primary">Uploading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-                          <span className="text-button-primary block mb-2">Click to upload CSV file</span>
-                          <span className="text-xs text-muted-foreground">or drag and drop</span>
-                        </>
-                      )}
-                    </label>
-                    <input
-                      type="file"
-                      id="csv-upload"
-                      accept=".csv"
-                      onChange={handleCSVUpload}
-                      disabled={uploading}
-                      className="hidden"
-                    />
-                  </div>
-
-                  {uploadResult && (
-                    <div
-                      className={`p-4 rounded-lg ${
-                        uploadResult.includes("Successfully")
-                          ? "bg-green-50 border border-green-200 text-green-800"
-                          : "bg-red-50 border border-red-200 text-red-800"
+              <div>
+                {/* Toggle between List View and CSV Upload */}
+                <div className="mb-6 flex flex-col gap-4">
+                  <div className="flex gap-2 border-b border-border">
+                    <button
+                      onClick={() => setShowProductListView(true)}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        showProductListView
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {uploadResult}
-                    </div>
-                  )}
+                      Product List
+                    </button>
+                    <button
+                      onClick={() => setShowProductListView(false)}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        !showProductListView
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Bulk Upload (CSV)
+                    </button>
+                  </div>
                 </div>
+
+                {/* CSV Upload Section */}
+                {!showProductListView && (
+                  <div className="max-w-3xl mx-auto">
+                    <div className="bg-white border border-border rounded-lg p-8">
+                      <div className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
+                          <Upload className="w-8 h-8 text-primary" />
+                        </div>
+                        <h2 className="text-2xl font-medium mb-2">Bulk Product Upload</h2>
+                        <p className="text-body text-muted-foreground">
+                          Upload a CSV file to add multiple products at once
+                        </p>
+                      </div>
+
+                      <div className="mb-8 p-6 bg-secondary rounded-lg">
+                        <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          CSV Format Requirements
+                        </h3>
+                        <div className="text-sm text-muted-foreground space-y-4">
+                          <div>
+                            <p className="font-medium text-foreground mb-2">Supported Formats:</p>
+                            
+                            {/* Blm-product-search Format */}
+                            <div className="pl-3 border-l-2 border-primary mb-4">
+                              <p className="font-medium text-foreground mb-1">Blm-product-search Format</p>
+                              <p className="text-xs mb-2">This format supports 9-10 columns. All columns are used for product data.</p>
+                              <ul className="list-disc list-inside mt-1 ml-2 space-y-1 text-xs">
+                                <li><strong>Column 0:</strong> Blm-product-search-image-container__image Image (first image URL) - Optional</li>
+                                <li><strong>Column 1:</strong> Blm-product-search-image-container__image (2) Image (second image URL) - Optional</li>
+                                <li><strong>Column 2:</strong> Blm-product-search-container URL (product URL) - Optional</li>
+                                <li><strong>Column 3:</strong> Blm-product-search-image-container__image Description (SKU/slug) - Optional</li>
+                                <li><strong>Column 4:</strong> Title (product name) - <strong>Required</strong></li>
+                                <li><strong>Column 5:</strong> Span (badge text like "New", "Selling Fast", "29% Off") - Optional</li>
+                                <li><strong>Column 6:</strong> Blm-product-search-badge (usually empty) - Optional</li>
+                                <li><strong>Column 7:</strong> Blm-product-search-sustainability (sustainability tags) - Optional</li>
+                                <li><strong>Column 8:</strong> Price (current price with $) - <strong>Required</strong></li>
+                                <li><strong>Column 9:</strong> Original price when on sale (optional) - Optional</li>
+                              </ul>
+                              <p className="text-xs mt-2 text-muted-foreground">
+                                <strong>Note:</strong> SKU is extracted from Column 3 (Description/Slug). If not available, it's extracted from the product URL.
+                                Description is built from badge and sustainability tags.
+                              </p>
+                            </div>
+
+                            {/* Fashion CSV Format */}
+                            <div className="pl-3 border-l-2 border-primary">
+                              <p className="font-medium text-foreground mb-1">Fashion CSV Format (fashion.csv)</p>
+                              <p className="text-xs mb-2">This format supports up to 20 columns. The first 6 columns are used for product data.</p>
+                              <ul className="list-disc list-inside mt-1 ml-2 space-y-1 text-xs">
+                                <li><strong>Column 0:</strong> Tile-image Image (product image URL) - Optional</li>
+                                <li><strong>Column 1:</strong> Product-tile__anchor URL (product URL) - Optional</li>
+                                <li><strong>Column 2:</strong> Product-tile__body-section (product name) - <strong>Required</strong></li>
+                                <li><strong>Column 3:</strong> Price (with $ symbol) - Optional</li>
+                                <li><strong>Column 4:</strong> Price (numeric only) - <strong>Required</strong></li>
+                                <li><strong>Column 5:</strong> Tile-image Description (product description) - Optional</li>
+                                <li><strong>Columns 6-19:</strong> Additional swatch/color data (optional, not used for product creation)</li>
+                              </ul>
+                              <p className="text-xs mt-2 text-muted-foreground">
+                                <strong>Note:</strong> SKU is automatically extracted from the product URL (Column 1) if available.
+                                If the URL contains a pattern like <code className="bg-white px-1 rounded">/1316169WYM.html</code>, the SKU will be extracted as <code className="bg-white px-1 rounded">1316169WYM</code>.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="p-4 bg-white border border-border rounded text-xs font-mono overflow-x-auto mt-4">
+                            <div className="text-muted-foreground mb-2">Blm-product-search CSV Header Format:</div>
+                            <div className="text-[10px] leading-relaxed break-all">
+                              Blm-product-search-image-container__image Image,Blm-product-search-image-container__image (2) Image,Blm-product-search-container URL,Blm-product-search-image-container__image Description,Title,Span,Blm-product-search-badge,Blm-product-search-sustainability,Price
+                            </div>
+                            <div className="text-muted-foreground mb-2 mt-3">Example Blm-product-search CSV Row:</div>
+                            <div className="text-[10px] leading-relaxed break-all">
+                              "https://cdn.shopify.com/.../image1.jpg","https://cdn.shopify.com/.../image2.jpg","https://www.everlane.com/products/mens-cashmere-crew-heathered-mahogany","mens-cashmere-crew-heathered-mahogany","The Cashmere Crew","New","","Cleaner Chemistry, Renewed Materials","$199.28"
+                            </div>
+                            <div className="text-muted-foreground mb-2 mt-4">Fashion CSV Header Format:</div>
+                            <div className="text-[10px] leading-relaxed break-all">
+                              Tile-image Image,Product-tile__anchor URL,Product-tile__body-section,Price,Price,Tile-image Description,...
+                            </div>
+                            <div className="text-muted-foreground mb-2 mt-3">Example Fashion CSV Row:</div>
+                            <div className="text-[10px] leading-relaxed break-all">
+                              "https://media.example.com/image/w_600/product.json","https://www.example.com/products/product-name/1316169WYM.html","Product Name","$328.00","328","Product Description",...
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-6">
+                        <label
+                          htmlFor="csv-upload"
+                          className="block w-full px-8 py-12 border-2 border-dashed border-border hover:border-primary transition-colors rounded-lg cursor-pointer text-center bg-secondary/50 hover:bg-secondary"
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-primary" />
+                              <span className="text-button-primary">Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
+                              <span className="text-button-primary block mb-2">Click to upload CSV file</span>
+                              <span className="text-xs text-muted-foreground">or drag and drop</span>
+                            </>
+                          )}
+                        </label>
+                        <input
+                          type="file"
+                          id="csv-upload"
+                          accept=".csv"
+                          onChange={handleCSVUpload}
+                          disabled={uploading}
+                          className="hidden"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={downloadCSVTemplate}
+                          className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                        >
+                          Download CSV Template
+                        </button>
+                      </div>
+
+                      {uploadResult && (
+                        <div
+                          className={`mt-6 p-4 rounded-lg ${
+                            uploadResult.includes("Successfully")
+                              ? "bg-green-50 border border-green-200 text-green-800"
+                              : "bg-red-50 border border-red-200 text-red-800"
+                          }`}
+                        >
+                          {uploadResult}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product List View */}
+                {showProductListView && (
+                  <div>
+                    {/* Header with Bulk Actions */}
+                    <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search products by name, description, category, or SKU..."
+                          value={productSearchQuery}
+                          onChange={(e) => setProductSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        {selectedProducts.length > 0 && (
+                          <button
+                            onClick={bulkDeleteProducts}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                          >
+                            Delete Selected ({selectedProducts.length})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                {/* Products List */}
+                {loading ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-body text-muted-foreground">Loading products...</p>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-border rounded-lg">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-body text-muted-foreground">
+                      {productSearchQuery ? "No products match your search." : "No products found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="flex-1 flex gap-4">
+                            {product.imageUrl && (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-20 h-20 object-cover rounded-lg"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-xl font-medium">{product.name}</h3>
+                                {product.sku && (
+                                  <span className="text-xs px-2 py-1 bg-secondary rounded text-muted-foreground">
+                                    SKU: {product.sku}
+                                  </span>
+                                )}
+                              </div>
+                              {product.description && (
+                                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                  {product.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="font-medium">${product.price}</span>
+                                {product.category && (
+                                  <span className="text-muted-foreground">Category: {product.category}</span>
+                                )}
+                                <span className="text-muted-foreground">Stock: {product.stock || 0}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 md:min-w-[150px]">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedProducts.includes(product.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedProducts([...selectedProducts, product.id]);
+                                  } else {
+                                    setSelectedProducts(selectedProducts.filter(id => id !== product.id));
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span className="text-sm text-muted-foreground">Select</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setShowEditProductModal(true);
+                              }}
+                              className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteProduct(product.id)}
+                              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Contracts Tab */}
+            {activeTab === "contracts" && (
+              <div>
+                {/* Header with Create Button */}
+                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search contracts by title, description, or designer..."
+                        value={contractSearchQuery}
+                        onChange={(e) => setContractSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={contractStatusFilter}
+                        onChange={(e) => setContractStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="awarded">Awarded</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateContractModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    + Create Contract
+                  </button>
+                </div>
+
+                {/* Contracts List */}
+                {loading ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-body text-muted-foreground">Loading contracts...</p>
+                  </div>
+                ) : filteredContracts.length === 0 ? (
+                  <div className="text-center py-16 bg-white border border-border rounded-lg">
+                    <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-body text-muted-foreground">
+                      {contractSearchQuery || contractStatusFilter !== "all"
+                        ? "No contracts match your filters."
+                        : "No contracts found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredContracts.map((contract) => (
+                      <div
+                        key={contract.id}
+                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="text-xl font-medium">{contract.title}</h3>
+                              <span
+                                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                  contract.status === "completed"
+                                    ? "bg-green-100 text-green-700"
+                                    : contract.status === "awarded"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : contract.status === "cancelled"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-yellow-100 text-yellow-700"
+                                }`}
+                              >
+                                {contract.status.toUpperCase()}
+                              </span>
+                            </div>
+                            {contract.designer && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Designer:</strong> {contract.designer.name} ({contract.designer.email})
+                              </p>
+                            )}
+                            {contract.description && (
+                              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                {contract.description}
+                              </p>
+                            )}
+                            {contract.amount && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Amount:</strong> ${contract.amount}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              <span>Created: {new Date(contract.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 md:min-w-[150px]">
+                            <button
+                              onClick={() => {
+                                setEditingContract(contract);
+                                setShowEditContractModal(true);
+                              }}
+                              className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteContract(contract.id)}
+                              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </section>
       </main>
+
+      {/* Modals */}
+      {/* Create User Modal */}
+      {showCreateUserModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Create User</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                createUser({
+                  name: formData.get("name") as string,
+                  email: formData.get("email") as string,
+                  password: formData.get("password") as string,
+                  role: formData.get("role") as string || "member",
+                  emailVerified: formData.get("emailVerified") === "on",
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <select
+                  name="role"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="member">Member</option>
+                  <option value="designer">Designer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" name="emailVerified" id="emailVerified" />
+                <label htmlFor="emailVerified" className="text-sm">Email Verified</label>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateUserModal(false)}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Designer Modal */}
+      {showCreateDesignerModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Create Designer</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                createDesigner({
+                  name: formData.get("name") as string,
+                  email: formData.get("email") as string,
+                  password: formData.get("password") as string,
+                  bio: formData.get("bio") as string || undefined,
+                  portfolioUrl: formData.get("portfolioUrl") as string || undefined,
+                  specialties: formData.get("specialties") as string || undefined,
+                  avatarUrl: formData.get("avatarUrl") as string || undefined,
+                  bannerUrl: formData.get("bannerUrl") as string || undefined,
+                  status: formData.get("status") as string || "approved",
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Password *</label>
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Bio</label>
+                <textarea
+                  name="bio"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Portfolio URL</label>
+                <input
+                  type="url"
+                  name="portfolioUrl"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Specialties</label>
+                <input
+                  type="text"
+                  name="specialties"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Avatar URL</label>
+                <input
+                  type="url"
+                  name="avatarUrl"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Banner URL</label>
+                <input
+                  type="url"
+                  name="bannerUrl"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  name="status"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDesignerModal(false)}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Designer Modal */}
+      {showEditDesignerModal && editingDesigner && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Edit Designer</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                updateDesignerDetails(editingDesigner.id, {
+                  name: formData.get("name") as string,
+                  email: formData.get("email") as string,
+                  password: formData.get("password") as string || undefined,
+                  bio: formData.get("bio") as string || undefined,
+                  portfolioUrl: formData.get("portfolioUrl") as string || undefined,
+                  specialties: formData.get("specialties") as string || undefined,
+                  avatarUrl: formData.get("avatarUrl") as string || undefined,
+                  bannerUrl: formData.get("bannerUrl") as string || undefined,
+                  status: formData.get("status") as string,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={editingDesigner.name}
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  defaultValue={editingDesigner.email}
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Password (leave blank to keep current)</label>
+                <input
+                  type="password"
+                  name="password"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Bio</label>
+                <textarea
+                  name="bio"
+                  rows={3}
+                  defaultValue={editingDesigner.bio || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Portfolio URL</label>
+                <input
+                  type="url"
+                  name="portfolioUrl"
+                  defaultValue={editingDesigner.portfolioUrl || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Specialties</label>
+                <input
+                  type="text"
+                  name="specialties"
+                  defaultValue={editingDesigner.specialties || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Avatar URL</label>
+                <input
+                  type="url"
+                  name="avatarUrl"
+                  defaultValue={editingDesigner.avatarUrl || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Banner URL</label>
+                <input
+                  type="url"
+                  name="bannerUrl"
+                  defaultValue={editingDesigner.bannerUrl || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  name="status"
+                  defaultValue={editingDesigner.status}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Update
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditDesignerModal(false);
+                    setEditingDesigner(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Contract Modal */}
+      {showCreateContractModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Create Contract</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                createContract({
+                  designerId: parseInt(formData.get("designerId") as string),
+                  designId: formData.get("designId") ? parseInt(formData.get("designId") as string) : undefined,
+                  title: formData.get("title") as string,
+                  description: formData.get("description") as string || undefined,
+                  amount: formData.get("amount") as string || undefined,
+                  status: formData.get("status") as string || "pending",
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Designer ID *</label>
+                <input
+                  type="number"
+                  name="designerId"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Design ID (optional)</label>
+                <input
+                  type="number"
+                  name="designId"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Title *</label>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount</label>
+                <input
+                  type="text"
+                  name="amount"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  name="status"
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="awarded">Awarded</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Create
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateContractModal(false)}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contract Modal */}
+      {showEditContractModal && editingContract && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Edit Contract</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                updateContract(editingContract.id, {
+                  title: formData.get("title") as string,
+                  description: formData.get("description") as string || undefined,
+                  amount: formData.get("amount") as string || undefined,
+                  status: formData.get("status") as string,
+                  designerId: formData.get("designerId") ? parseInt(formData.get("designerId") as string) : undefined,
+                  designId: formData.get("designId") ? parseInt(formData.get("designId") as string) : undefined,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Designer ID</label>
+                <input
+                  type="number"
+                  name="designerId"
+                  defaultValue={editingContract.designerId}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Design ID</label>
+                <input
+                  type="number"
+                  name="designId"
+                  defaultValue={editingContract.designId || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Title *</label>
+                <input
+                  type="text"
+                  name="title"
+                  defaultValue={editingContract.title}
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  defaultValue={editingContract.description || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount</label>
+                <input
+                  type="text"
+                  name="amount"
+                  defaultValue={editingContract.amount || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  name="status"
+                  defaultValue={editingContract.status}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="awarded">Awarded</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Update
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditContractModal(false);
+                    setEditingContract(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditProductModal && editingProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Edit Product</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                updateProduct(editingProduct.id, {
+                  name: formData.get("name") as string,
+                  description: formData.get("description") as string || undefined,
+                  price: formData.get("price") as string,
+                  category: formData.get("category") as string || undefined,
+                  imageUrl: formData.get("imageUrl") as string || undefined,
+                  stock: formData.get("stock") ? parseInt(formData.get("stock") as string) : undefined,
+                  sku: formData.get("sku") as string || undefined,
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium mb-1">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  defaultValue={editingProduct.name}
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  defaultValue={editingProduct.description || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Price *</label>
+                <input
+                  type="text"
+                  name="price"
+                  defaultValue={editingProduct.price}
+                  required
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Category</label>
+                <input
+                  type="text"
+                  name="category"
+                  defaultValue={editingProduct.category || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Image URL</label>
+                <input
+                  type="url"
+                  name="imageUrl"
+                  defaultValue={editingProduct.imageUrl || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stock</label>
+                <input
+                  type="number"
+                  name="stock"
+                  defaultValue={editingProduct.stock || 0}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">SKU</label>
+                <input
+                  type="text"
+                  name="sku"
+                  defaultValue={editingProduct.sku || ""}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                >
+                  Update
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditProductModal(false);
+                    setEditingProduct(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </>
   );

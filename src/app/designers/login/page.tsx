@@ -1,19 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, LogIn } from "lucide-react";
+import { ArrowLeft, LogIn, Loader2 } from "lucide-react";
 import Footer from "@/components/sections/footer";
+import { authClient, useSession } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 export default function DesignerLoginPage() {
   const router = useRouter();
+  const { data: session, isPending, refetch } = useSession();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect if already logged in as designer
+  useEffect(() => {
+    if (!isPending && session?.user) {
+      const role = session.user.role || 'member';
+      if (role === 'designer') {
+        router.push("/designers/dashboard");
+      } else if (role === 'admin') {
+        router.push("/admin");
+      } else {
+        router.push("/cesworld/dashboard");
+      }
+    }
+  }, [session, isPending, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -29,27 +46,58 @@ export default function DesignerLoginPage() {
     setError(null);
 
     try {
-      const response = await fetch("/api/designers/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+      // Use better-auth for login
+      const { data, error: authError } = await authClient.signIn.email({
+        email: formData.email,
+        password: formData.password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+      if (authError) {
+        throw new Error(authError.message || "Login failed");
       }
 
-      // Store designer info in localStorage
-      localStorage.setItem("designer", JSON.stringify(data.designer));
-      
-      // Redirect to dashboard
+      if (!data) {
+        throw new Error("Login failed");
+      }
+
+      // Check if user has designer role
+      const userRole = data.user?.role || 'member';
+      if (userRole !== 'designer') {
+        throw new Error("You don't have designer access. Please apply to become a designer first.");
+      }
+
+      // Verify designer is approved in designers table
+      try {
+        const designerCheck = await fetch("/api/designers/check-status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: 'include',
+          body: JSON.stringify({ email: formData.email }),
+        });
+
+        if (designerCheck.ok) {
+          const designerData = await designerCheck.json();
+          if (designerData.status !== 'approved') {
+            throw new Error("Your designer account is pending approval. Please wait for admin approval.");
+          }
+        }
+      } catch (checkError) {
+        // If check fails, still allow login if role is designer (graceful degradation)
+        console.warn("Failed to check designer status:", checkError);
+      }
+
+      // Wait for session to be set
+      await new Promise(resolve => setTimeout(resolve, 200));
+      refetch();
+
+      toast.success("Welcome back, designer!");
       router.push("/designers/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -121,8 +169,15 @@ export default function DesignerLoginPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="p-4 bg-destructive/10 border border-destructive text-destructive text-body-small">
+                <div className="p-4 bg-destructive/10 border border-destructive text-destructive text-body-small rounded-lg">
                   {error}
+                </div>
+              )}
+
+              {/* Loading state */}
+              {isPending && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 </div>
               )}
 

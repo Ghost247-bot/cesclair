@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -115,7 +115,7 @@ export async function PUT(
 
     // Build update object with only provided fields
     const updates: Record<string, any> = {
-      updatedAt: new Date().toISOString(),
+      updatedAt: sql`now()`,
     };
 
     if (name !== undefined) updates.name = name.trim();

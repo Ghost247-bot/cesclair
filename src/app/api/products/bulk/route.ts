@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 interface ProductInput {
   name?: string;
@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
     const productsToCreate: ProductInput[] = body.products;
     const createdProducts: any[] = [];
     const errors: Array<{ index: number; sku?: string; error: string }> = [];
-    const timestamp = new Date().toISOString();
 
     // Validate each product and collect valid ones
     for (let i = 0; i < productsToCreate.length; i++) {
@@ -105,6 +104,7 @@ export async function POST(request: NextRequest) {
 
       // Prepare product for insertion
       try {
+        // Use sql template for timestamps to leverage database defaults
         const newProduct = await db
           .insert(products)
           .values({
@@ -115,8 +115,9 @@ export async function POST(request: NextRequest) {
             imageUrl: product.imageUrl?.trim() || null,
             stock: product.stock !== undefined ? product.stock : 0,
             sku: product.sku?.trim() || null,
-            createdAt: timestamp,
-            updatedAt: timestamp,
+            // Let database handle timestamps via now() function
+            createdAt: sql`now()`,
+            updatedAt: sql`now()`,
           })
           .returning();
 

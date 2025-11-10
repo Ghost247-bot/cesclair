@@ -1,11 +1,8 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
 import Footer from '@/components/sections/footer';
-import ProductCard from '@/components/product-card';
-import { getProductsByCategory } from '@/lib/products';
+import ProductListClient from '@/components/product-list-client';
 
 export default function MenOuterwearPage() {
-  const outerwear = getProductsByCategory('outerwear', 'men');
-
   return (
     <>
       <HeaderNavigation />
@@ -16,19 +13,7 @@ export default function MenOuterwearPage() {
             <p className="text-body-large text-secondary-text">Quality jackets for every season</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {outerwear.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-                colors={product.colors}
-                href={`/products/${product.id}`}
-              />
-            ))}
-          </div>
+          <ProductListClient category="outerwear" limit={1000} />
         </div>
       </main>
       <Footer />

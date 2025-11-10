@@ -17,7 +17,6 @@ export default function CesworldRegister() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "member",
     birthdayMonth: "",
     birthdayDay: "",
     agreeToTerms: false,
@@ -105,94 +104,75 @@ export default function CesworldRegister() {
       // Refetch session to get user data
       refetch();
 
-      // Update user role if not 'member'
-      if (formData.role !== 'member') {
-        try {
-          await fetch("/api/auth/update-role", {
+      toast.success("Account created successfully!");
+
+      // Create Cesworld member profile for all new registrations
+      try {
+        // Wait a bit more for session to be fully set
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Try to get session from authClient first
+        const currentSession = await authClient.getSession();
+        const userId = currentSession?.data?.user?.id;
+
+        if (userId) {
+          // Create Cesworld member profile
+          const memberData: any = {
+            userId: userId,
+          };
+
+          // Add birthday if provided
+          if (formData.birthdayMonth && formData.birthdayDay) {
+            memberData.birthdayMonth = parseInt(formData.birthdayMonth);
+            memberData.birthdayDay = parseInt(formData.birthdayDay);
+          }
+
+          await fetch("/api/cesworld/members", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             credentials: 'include',
-            body: JSON.stringify({ role: formData.role }),
+            body: JSON.stringify(memberData),
           });
-        } catch (error) {
-          console.error('Error updating role:', error);
-          // Continue even if role update fails
-        }
-      }
+        } else {
+          // Fallback: try to fetch from check-role endpoint
+          const sessionRes = await fetch("/api/auth/check-role", {
+            credentials: 'include',
+          });
 
-      toast.success("Account created successfully!");
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            const fallbackUserId = sessionData?.user?.id;
 
-      // Get the user session to get userId for member profile (only for 'member' role)
-      if (formData.role === 'member') {
-        try {
-          // Wait a bit more for session to be fully set
-          await new Promise(resolve => setTimeout(resolve, 300));
-          
-          // Try to get session from authClient first
-          const currentSession = await authClient.getSession();
-          const userId = currentSession?.data?.user?.id;
+            if (fallbackUserId) {
+              const memberData: any = {
+                userId: fallbackUserId,
+              };
 
-          if (userId) {
-            // Create Cesworld member profile
-            const memberData: any = {
-              userId: userId,
-            };
-
-            // Add birthday if provided
-            if (formData.birthdayMonth && formData.birthdayDay) {
-              memberData.birthdayMonth = parseInt(formData.birthdayMonth);
-              memberData.birthdayDay = parseInt(formData.birthdayDay);
-            }
-
-            await fetch("/api/cesworld/members", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: 'include',
-              body: JSON.stringify(memberData),
-            });
-          } else {
-            // Fallback: try to fetch from check-role endpoint
-            const sessionRes = await fetch("/api/auth/check-role", {
-              credentials: 'include',
-            });
-
-            if (sessionRes.ok) {
-              const sessionData = await sessionRes.json();
-              const fallbackUserId = sessionData?.user?.id;
-
-              if (fallbackUserId) {
-                const memberData: any = {
-                  userId: fallbackUserId,
-                };
-
-                if (formData.birthdayMonth && formData.birthdayDay) {
-                  memberData.birthdayMonth = parseInt(formData.birthdayMonth);
-                  memberData.birthdayDay = parseInt(formData.birthdayDay);
-                }
-
-                await fetch("/api/cesworld/members", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  credentials: 'include',
-                  body: JSON.stringify(memberData),
-                });
+              if (formData.birthdayMonth && formData.birthdayDay) {
+                memberData.birthdayMonth = parseInt(formData.birthdayMonth);
+                memberData.birthdayDay = parseInt(formData.birthdayDay);
               }
+
+              await fetch("/api/cesworld/members", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                credentials: 'include',
+                body: JSON.stringify(memberData),
+              });
             }
           }
-        } catch (error) {
-          console.error('Error creating member profile:', error);
-          // Continue with redirect even if member profile creation fails
         }
+      } catch (error) {
+        console.error('Error creating member profile:', error);
+        // Continue with redirect even if member profile creation fails
       }
 
-      // Redirect based on role
-      redirectBasedOnRole(formData.role);
+      // All new registrations are members - redirect to member dashboard
+      router.push("/cesworld/dashboard");
     } catch (error) {
       console.error("Registration error:", error);
       toast.error("An error occurred. Please try again.");
@@ -300,79 +280,58 @@ export default function CesworldRegister() {
               />
             </div>
 
-            {/* Role Selection */}
+            {/* Birthday (Optional) */}
             <div>
-              <label htmlFor="role" className="block text-label mb-2">
-                ACCOUNT TYPE
+              <label className="block text-label mb-2">
+                BIRTHDAY (OPTIONAL)
               </label>
-              <select
-                id="role"
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-                className="w-full px-4 py-3 border border-input focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="member">Member - Earn points and rewards</option>
-                <option value="designer">Designer - Submit and manage designs</option>
-                <option value="admin">Admin - Manage platform</option>
-              </select>
-            </div>
-
-            {/* Birthday (Optional) - Only show for members */}
-            {formData.role === 'member' && (
-              <div>
-                <label className="block text-label mb-2">
-                  BIRTHDAY (OPTIONAL)
-                </label>
-                <p className="text-caption text-muted-foreground mb-3">
-                  Receive a special gift on your birthday
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <select
-                      id="birthdayMonth"
-                      value={formData.birthdayMonth}
-                      onChange={(e) =>
-                        setFormData({ ...formData, birthdayMonth: e.target.value })
-                      }
-                      className="w-full px-4 py-3 border border-input focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="">Month</option>
-                      <option value="1">January</option>
-                      <option value="2">February</option>
-                      <option value="3">March</option>
-                      <option value="4">April</option>
-                      <option value="5">May</option>
-                      <option value="6">June</option>
-                      <option value="7">July</option>
-                      <option value="8">August</option>
-                      <option value="9">September</option>
-                      <option value="10">October</option>
-                      <option value="11">November</option>
-                      <option value="12">December</option>
-                    </select>
-                  </div>
-                  <div>
-                    <select
-                      id="birthdayDay"
-                      value={formData.birthdayDay}
-                      onChange={(e) =>
-                        setFormData({ ...formData, birthdayDay: e.target.value })
-                      }
-                      className="w-full px-4 py-3 border border-input focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                      <option value="">Day</option>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                        <option key={day} value={day}>
-                          {day}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <p className="text-caption text-muted-foreground mb-3">
+                Receive a special gift on your birthday
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <select
+                    id="birthdayMonth"
+                    value={formData.birthdayMonth}
+                    onChange={(e) =>
+                      setFormData({ ...formData, birthdayMonth: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-input focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">Month</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
+                </div>
+                <div>
+                  <select
+                    id="birthdayDay"
+                    value={formData.birthdayDay}
+                    onChange={(e) =>
+                      setFormData({ ...formData, birthdayDay: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border border-input focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">Day</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <option key={day} value={day}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="flex items-start">
               <input

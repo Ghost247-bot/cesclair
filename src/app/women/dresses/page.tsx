@@ -1,11 +1,8 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
 import Footer from '@/components/sections/footer';
-import ProductCard from '@/components/product-card';
-import { products } from '@/lib/products';
+import ProductListClient from '@/components/product-list-client';
 
 export default function WomenDressesPage() {
-  const dresses = products.filter(p => p.gender === 'women' && p.category === 'sweaters').slice(0, 8);
-
   return (
     <>
       <HeaderNavigation />
@@ -16,19 +13,7 @@ export default function WomenDressesPage() {
             <p className="text-body-large text-secondary-text">Effortless elegance for every occasion</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {dresses.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-                colors={product.colors}
-                href={`/products/${product.id}`}
-              />
-            ))}
-          </div>
+          <ProductListClient category="dresses" limit={1000} />
         </div>
       </main>
       <Footer />

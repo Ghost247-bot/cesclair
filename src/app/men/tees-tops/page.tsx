@@ -1,11 +1,8 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
 import Footer from '@/components/sections/footer';
-import ProductCard from '@/components/product-card';
-import { products } from '@/lib/products';
+import ProductListClient from '@/components/product-list-client';
 
 export default function MenTeesTopsPage() {
-  const tees = products.filter(p => p.gender === 'men' && (p.category === 'new-arrivals' || p.category === 'sweaters')).slice(0, 12);
-
   return (
     <>
       <HeaderNavigation />
@@ -16,19 +13,7 @@ export default function MenTeesTopsPage() {
             <p className="text-body-large text-secondary-text">Essentials for every day</p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-            {tees.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-                colors={product.colors}
-                href={`/products/${product.id}`}
-              />
-            ))}
-          </div>
+          <ProductListClient category="tees-tops" limit={1000} />
         </div>
       </main>
       <Footer />

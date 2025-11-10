@@ -77,8 +77,8 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Cesworld membership tables
-export const CesworldMembers = pgTable('Cesworld_members', {
+// Cesworld membership tables (using everworld_* table names that exist in database)
+export const CesworldMembers = pgTable('everworld_members', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().references(() => user.id),
   tier: text('tier').notNull().default('member'),
@@ -90,7 +90,7 @@ export const CesworldMembers = pgTable('Cesworld_members', {
   lastTierUpdate: timestamp('last_tier_update').notNull().defaultNow(),
 });
 
-export const CesworldTransactions = pgTable('Cesworld_transactions', {
+export const CesworldTransactions = pgTable('everworld_transactions', {
   id: serial('id').primaryKey(),
   memberId: integer('member_id').notNull().references(() => CesworldMembers.id),
   type: text('type').notNull(),
@@ -101,7 +101,7 @@ export const CesworldTransactions = pgTable('Cesworld_transactions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export const CesworldRewards = pgTable('Cesworld_rewards', {
+export const CesworldRewards = pgTable('everworld_rewards', {
   id: serial('id').primaryKey(),
   memberId: integer('member_id').notNull().references(() => CesworldMembers.id),
   rewardType: text('reward_type').notNull(),
@@ -124,6 +124,7 @@ export const designers = pgTable('designers', {
   specialties: text('specialties'),
   status: text('status').notNull().default('pending'),
   avatarUrl: text('avatar_url'),
+  bannerUrl: text('banner_url'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -243,5 +244,17 @@ export const orderItems = pgTable('order_items', {
   size: text('size'),
   color: text('color'),
   sku: text('sku'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Audit logs table for role changes and admin actions
+export const auditLogs = pgTable('audit_logs', {
+  id: serial('id').primaryKey(),
+  action: text('action').notNull(), // 'role_change', 'user_created', 'user_deleted', etc.
+  performedBy: text('performed_by').notNull().references(() => user.id), // Admin who performed the action
+  targetUserId: text('target_user_id').references(() => user.id), // User affected by the action
+  details: text('details'), // JSON string with action details (old role, new role, etc.)
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });

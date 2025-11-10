@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { designers } from '@/db/schema';
+import { designers, user, account } from '@/db/schema';
 import { eq, like, or } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
+import { nanoid } from 'nanoid';
+import { auth } from '@/lib/auth';
 
 // GET - List approved designers
 export async function GET(request: NextRequest) {
@@ -98,10 +101,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if email already exists in designers table
     const existingDesigner = await db.select()
       .from(designers)
-      .where(eq(designers.email, email.toLowerCase().trim()))
+      .where(eq(designers.email, normalizedEmail))
       .limit(1);
 
     if (existingDesigner.length > 0) {
@@ -111,16 +116,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password with bcrypt (10 salt rounds)
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Check if email already exists in user table
+    const existingUser = await db.select()
+      .from(user)
+      .where(eq(user.email, normalizedEmail))
+      .limit(1);
 
-    // Create new designer
-    const now = new Date().toISOString();
+    if (existingUser.length > 0) {
+      return NextResponse.json(
+        { error: 'Email already registered. Please use the regular login.', code: 'EMAIL_EXISTS' },
+        { status: 409 }
+      );
+    }
+
+    // Create user account with better-auth (role: designer)
+    const userId = nanoid();
+    const now = new Date();
+    
+    // Hash password with bcryptjs for better-auth (same as better-auth uses)
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Create user account
+    await db.insert(user).values({
+      id: userId,
+      name: name.trim(),
+      email: normalizedEmail,
+      role: 'designer',
+      emailVerified: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create account credentials for better-auth
+    await db.insert(account).values({
+      id: nanoid(),
+      accountId: normalizedEmail,
+      providerId: 'credential',
+      userId: userId,
+      password: hashedPassword,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Hash password with bcrypt for designers table (legacy compatibility)
+    const designerHashedPassword = await bcrypt.hash(password, 10);
+
+    // Create designer profile
     const newDesigner = await db.insert(designers)
       .values({
         name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
+        email: normalizedEmail,
+        password: designerHashedPassword,
         bio: bio?.trim() || null,
         portfolioUrl: portfolioUrl?.trim() || null,
         specialties: specialties?.trim() || null,

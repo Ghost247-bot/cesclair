@@ -32,7 +32,8 @@ export default function GiftGuidePage() {
         
         if (response.ok) {
           const data = await response.json();
-          setProducts(data.products || []);
+          // API returns products directly as an array, not wrapped in products property
+          setProducts(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error('Error fetching products:', error);

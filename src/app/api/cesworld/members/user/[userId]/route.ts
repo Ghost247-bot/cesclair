@@ -1,17 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { CesworldMembers } from '@/db/schema';
+import { CesworldMembers, user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  let trimmedUserId: string | null = null;
+  
   try {
-    const { userId } = await params;
+    // Parse params first (this might throw)
+    try {
+      const parsedParams = await params;
+      trimmedUserId = parsedParams?.userId?.trim() || null;
+    } catch (paramsError) {
+      console.error('Error parsing params:', paramsError);
+      return NextResponse.json(
+        {
+          error: 'Invalid request parameters',
+          code: 'INVALID_PARAMS',
+          details: process.env.NODE_ENV === 'development' 
+            ? (paramsError instanceof Error ? paramsError.message : String(paramsError))
+            : 'Invalid request',
+        },
+        { status: 400 }
+      );
+    }
 
     // Validate userId is provided
-    if (!userId || userId.trim() === '') {
+    if (!trimmedUserId || trimmedUserId === '') {
       return NextResponse.json(
         {
           error: 'Valid userId is required',
@@ -21,20 +40,43 @@ export async function GET(
       );
     }
 
-    // Trim and validate userId
-    const trimmedUserId = userId.trim();
+    // Check authentication
+    const session = await auth.api.getSession({ headers: request.headers });
+    
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
+
+    // Security: Users can only access their own member data, unless they're an admin
+    const userRole = (session.user as any)?.role;
+    const isAdmin = userRole === 'admin';
+    const isOwnData = session.user.id === trimmedUserId;
+
+    if (!isAdmin && !isOwnData) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden: You can only access your own member data',
+          code: 'FORBIDDEN',
+        },
+        { status: 403 }
+      );
+    }
 
     // Query Cesworld_members table by userId
-    // Using limit(1) to get only the first matching record
-    try {
-      const members = await db
+    const members = await db
       .select()
       .from(CesworldMembers)
-        .where(eq(CesworldMembers.userId, trimmedUserId))
+      .where(eq(CesworldMembers.userId, trimmedUserId))
       .limit(1);
 
     // Check if member exists
-      if (!members || members.length === 0) {
+    if (!members || members.length === 0) {
       return NextResponse.json(
         {
           error: 'Member not found',
@@ -44,51 +86,11 @@ export async function GET(
       );
     }
 
-      // Return first member object
-      return NextResponse.json(members[0], { status: 200 });
-    } catch (dbError: unknown) {
-      // Enhanced error logging for database errors
-      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-      const errorStack = dbError instanceof Error ? dbError.stack : undefined;
-      const errorName = dbError instanceof Error ? dbError.name : 'UnknownError';
-      
-      console.error('Database query error:', {
-        error: dbError,
-        message: errorMessage,
-        stack: errorStack,
-        name: errorName,
-        userId: trimmedUserId,
-        table: 'Cesworld_members',
-      });
-      
-      // Check for specific database errors and provide helpful messages
-      if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
-        return NextResponse.json(
-          {
-            error: 'Database table not found. Please check database setup.',
-            code: 'DATABASE_ERROR',
-            details: errorMessage,
-          },
-          { status: 500 }
-        );
-      }
-
-      if (errorMessage.includes('syntax error') || errorMessage.includes('invalid') || errorMessage.includes('Failed query')) {
-        return NextResponse.json(
-          {
-            error: 'Database query error',
-            code: 'QUERY_ERROR',
-            details: errorMessage,
-          },
-          { status: 500 }
-        );
-      }
-
-      // Generic database error - rethrow to be caught by outer catch
-      throw dbError;
-    }
+    // Return first member object
+    const member = members[0];
+    return NextResponse.json(member, { status: 200 });
   } catch (error: unknown) {
-    // Outer catch for all errors
+    // Outer catch for all errors (including params parsing, etc.)
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     const errorName = error instanceof Error ? error.name : 'UnknownError';
@@ -99,6 +101,17 @@ export async function GET(
       stack: errorStack,
       name: errorName,
     });
+    
+    // Check if it's a known error type
+    if (errorMessage.includes('UNAUTHORIZED') || errorMessage.includes('Not authenticated')) {
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
     
     // Return user-friendly error response
     return NextResponse.json(
