@@ -1,21 +1,12 @@
 [build]
   command = "npm run build"
-  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
 # Next.js plugin for optimal Next.js support on Netlify
+# This plugin automatically handles the build output and routing
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Function configuration for serverless functions
-[functions]
-  node_bundler = "esbuild"
-  included_files = [
-    ".next/**",
-    "node_modules/**",
-    "public/**"
-  ]
 
