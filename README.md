@@ -76,6 +76,49 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 - Update your Neon database connection string to allow connections from Vercel
 - The `BETTER_AUTH_SECRET` should be a strong, random string (at least 32 characters)
 
+### Deploy on Netlify
+
+Netlify provides excellent support for Next.js applications with serverless functions and edge computing.
+
+#### Steps:
+
+1. **Push your code to GitHub** (already done)
+   - Your code is already pushed to: `https://github.com/Ghost247-bot/cesclair`
+
+2. **Import your project to Netlify**
+   - Go to [Netlify](https://app.netlify.com/)
+   - Click "Add new site" → "Import an existing project"
+   - Connect to GitHub and select the `cesclair` repository
+   - Netlify will automatically detect Next.js from the `netlify.toml` file
+
+3. **Configure Build Settings**
+   - Build command: `npm run build` (auto-detected)
+   - Publish directory: `.next` (auto-detected)
+   - Node version: `20` (configured in netlify.toml)
+
+4. **Set Environment Variables**
+   In your Netlify project settings → Site settings → Environment variables, add:
+   - `DATABASE_URL` - Your Neon PostgreSQL connection string
+   - `BETTER_AUTH_SECRET` - Generate a secure secret (use: `openssl rand -base64 32`)
+   - `NEXT_PUBLIC_SITE_URL` - Your Netlify deployment URL (e.g., `https://your-app.netlify.app`)
+   - `DOCUSIGN_USER_ID` - (if using DocuSign)
+   - `DOCUSIGN_ACCOUNT_ID` - (if using DocuSign)
+   - `DOCUSIGN_BASE_PATH` - (if using DocuSign)
+   - `DOCUSIGN_INTEGRATION_KEY` - (if using DocuSign)
+   - `DOCUSIGN_PRIVATE_KEY` - (if using DocuSign)
+
+5. **Deploy**
+   - Click "Deploy site"
+   - Netlify will build and deploy your application
+   - Your app will be available at `https://your-app.netlify.app`
+
+#### Important Notes for Netlify:
+- Make sure your `NEXT_PUBLIC_SITE_URL` matches your Netlify deployment URL
+- Update your Neon database connection string to allow connections from Netlify
+- The `BETTER_AUTH_SECRET` should be a strong, random string (at least 32 characters)
+- Netlify uses the `@netlify/plugin-nextjs` plugin (configured in netlify.toml) for optimal Next.js support
+- After deployment, update `NEXT_PUBLIC_SITE_URL` with your actual Netlify URL if using a custom domain
+
 ### Other Deployment Options
 
 #### Docker Deployment
