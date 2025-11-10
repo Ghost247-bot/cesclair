@@ -1,0 +1,101 @@
+"use client";
+
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { Volume2, VolumeX } from "lucide-react";
+
+const VideoFeatureHome = () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const currentMuted = !videoRef.current.muted;
+      videoRef.current.muted = currentMuted;
+      setIsMuted(currentMuted);
+    }
+  };
+
+  return (
+    <section className="relative w-full overflow-hidden bg-secondary">
+      {/* Aspect ratio container forces the correct height */}
+      <div className="w-full aspect-[16/9]">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover bg-secondary"
+          playsInline
+          autoPlay
+          loop
+          muted
+          onError={(e) => {
+            // Handle video load errors gracefully
+            console.warn('Video failed to load, using fallback');
+            const video = e.target as HTMLVideoElement;
+            if (video) {
+              video.style.display = 'none';
+            }
+          }}
+        >
+          <source
+            src="https://www.everlane.com/cdn/shop/videos/c/vp/5babf13ddcd84b3d94b0fbffca621736/5babf13ddcd84b3d94b0fbffca621736.HD-1080p-7.2Mbps-61356965.mp4?v=0"
+            type="video/mp4"
+          />
+          Your browser does not support the video tag.
+        </video>
+        {/* Fallback gradient background if video fails to load */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 -z-10" />
+      </div>
+
+      {/* Gradient Overlay for text legibility */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent to-[60%]"></div>
+
+      {/* Content Overlay */}
+      <div className="absolute inset-0 flex items-center">
+        <div className="container px-4 sm:px-6">
+          <div className="text-white w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] font-normal">
+              THE HOLIDAY EDIT 001
+            </p>
+            <h2 className="mt-3 sm:mt-4 font-bold text-2xl sm:text-[28px] md:text-4xl lg:text-[48px] leading-[1.2]">
+              DESTINATION HOME
+            </h2>
+            <p className="mt-3 sm:mt-4 text-sm sm:text-base font-normal leading-[1.6]">
+              Elevated looks for when life is on airplane mode.
+            </p>
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+              <Link
+                href="/women/new-arrivals"
+                className="w-full sm:w-auto text-center border border-white bg-transparent py-3 sm:py-4 px-6 sm:px-8 text-white text-xs sm:text-button-primary transition-colors duration-300 hover:bg-white hover:text-primary"
+              >
+                SHOP NEW
+              </Link>
+              <Link
+                href="/collections/holiday-edit"
+                className="w-full sm:w-auto text-center border border-white bg-transparent py-3 sm:py-4 px-6 sm:px-8 text-white text-xs sm:text-button-primary transition-colors duration-300 hover:bg-white hover:text-primary"
+              >
+                EXPLORE LOOKBOOK
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mute/Unmute Control */}
+      <div className="absolute bottom-4 right-4 md:bottom-8 md:right-8">
+        <button
+          onClick={toggleMute}
+          className="p-2 rounded-full border border-white/50 text-white hover:bg-white/10 transition-all"
+          aria-label={isMuted ? "Unmute video" : "Mute video"}
+        >
+          {isMuted ? (
+            <VolumeX size={20} strokeWidth={1.5} />
+          ) : (
+            <Volume2 size={20} strokeWidth={1.5} />
+          )}
+        </button>
+      </div>
+    </section>
+  );
+};
+
+export default VideoFeatureHome;
