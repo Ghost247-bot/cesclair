@@ -209,9 +209,52 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newDesigner[0], { status: 201 });
   } catch (error) {
-    console.error('POST error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('POST /api/designers error:', {
+      message: errorMessage,
+      stack: errorStack,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+    
+    // Check if it's a database connection error
+    const isDatabaseError = 
+      errorMessage.includes('database') || 
+      errorMessage.includes('connection') || 
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('Pool') ||
+      errorMessage.includes('neon') ||
+      errorMessage.includes('postgres') ||
+      errorMessage.includes('relation') ||
+      errorMessage.includes('does not exist');
+    
+    // Check for constraint violations
+    const isConstraintError = 
+      errorMessage.includes('unique') ||
+      errorMessage.includes('duplicate') ||
+      errorMessage.includes('constraint');
+    
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        error: isDatabaseError 
+          ? 'Database connection error' 
+          : isConstraintError
+          ? 'Validation error'
+          : 'Internal server error',
+        message: isDatabaseError 
+          ? 'Unable to connect to the database. Please try again later.'
+          : isConstraintError
+          ? 'A record with this information already exists.'
+          : errorMessage,
+        code: isDatabaseError 
+          ? 'DATABASE_ERROR' 
+          : isConstraintError
+          ? 'CONSTRAINT_ERROR'
+          : 'INTERNAL_ERROR',
+      },
       { status: 500 }
     );
   }
