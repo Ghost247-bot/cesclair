@@ -53,36 +53,69 @@ export default function CesworldLogin() {
 
       if (error) {
         console.error('Sign-in error:', error);
-        console.error('Error details:', {
+        
+        // If error object is missing details, try to fetch the actual response
+        let errorDetails: any = {
           code: error.code,
           message: error.message,
           status: error.status,
           cause: error.cause,
-          // Try to extract more details from the error object
-          ...(error as any).data && { data: (error as any).data },
-          ...(error as any).response && { response: (error as any).response },
-        });
+        };
+
+        // If error is missing details but has status 500, try to get more info
+        if (error.status === 500 && (!error.code || !error.message)) {
+          try {
+            // Try to manually fetch the error response
+            const response = await fetch(`${window.location.origin}/api/auth/sign-in/email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                email: formData.email,
+                password: formData.password,
+              }),
+            });
+            
+            if (!response.ok) {
+              const errorBody = await response.json().catch(() => null);
+              if (errorBody) {
+                errorDetails = {
+                  ...errorDetails,
+                  code: errorBody.code || errorBody.error,
+                  message: errorBody.message || errorBody.error,
+                  serverError: errorBody,
+                };
+              }
+            }
+          } catch (fetchError) {
+            console.error('Failed to fetch error details:', fetchError);
+          }
+        }
+
+        console.error('Error details:', errorDetails);
         
         // Handle specific error codes
-        if (error.code === 'INVALID_EMAIL_OR_PASSWORD' || error.code === 'INVALID_CREDENTIALS') {
+        const errorCode = errorDetails.code || error.code;
+        const errorMessage = errorDetails.message || error.message;
+        
+        if (errorCode === 'INVALID_EMAIL_OR_PASSWORD' || errorCode === 'INVALID_CREDENTIALS') {
           toast.error("Invalid email or password. Please check your credentials and try again.");
-        } else if (error.code === 'USER_NOT_FOUND') {
+        } else if (errorCode === 'USER_NOT_FOUND') {
           toast.error("No account found with this email. Please register first.");
-        } else if (error.code === 'EMAIL_NOT_VERIFIED') {
+        } else if (errorCode === 'EMAIL_NOT_VERIFIED') {
           toast.error("Please verify your email address before signing in.");
-        } else if (error.status === 500 || error.code === 'DATABASE_ERROR' || error.code === 'AUTH_ERROR') {
+        } else if (error.status === 500 || errorCode === 'DATABASE_ERROR' || errorCode === 'AUTH_ERROR') {
           toast.error("Server error during login. Please try again or contact support.");
           console.error('Server error details:', {
             error,
-            code: error.code,
-            message: error.message,
-            status: error.status,
-            // Log environment info for debugging
+            errorDetails,
             origin: window.location.origin,
             url: window.location.href,
           });
         } else {
-          toast.error(error.message || "Login failed. Please try again.");
+          toast.error(errorMessage || "Login failed. Please try again.");
         }
         
         setIsLoading(false);

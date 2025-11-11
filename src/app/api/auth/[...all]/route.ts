@@ -9,7 +9,58 @@ export async function POST(request: NextRequest) {
   try {
     // Better Auth's toNextJsHandler should handle the request automatically
     // It expects the request object directly
-    const response = await handler.POST(request);
+    let response: Response;
+    try {
+      response = await handler.POST(request);
+    } catch (handlerError) {
+      // If the handler itself throws an error (not a Response), catch it
+      const handlerErrorMessage = handlerError instanceof Error ? handlerError.message : String(handlerError);
+      const handlerErrorStack = handlerError instanceof Error ? handlerError.stack : undefined;
+      
+      console.error('Better Auth handler threw an error:', {
+        error: handlerError,
+        message: handlerErrorMessage,
+        stack: handlerErrorStack,
+        url: request.url,
+      });
+      
+      // Check if it's a database connection error
+      if (
+        handlerErrorMessage.includes('database') || 
+        handlerErrorMessage.includes('connection') || 
+        handlerErrorMessage.includes('ECONNREFUSED') ||
+        handlerErrorMessage.includes('ENOTFOUND') ||
+        handlerErrorMessage.includes('timeout') ||
+        handlerErrorMessage.includes('ETIMEDOUT') ||
+        handlerErrorMessage.includes('Pool') ||
+        handlerErrorMessage.includes('neon') ||
+        handlerErrorMessage.includes('postgres') ||
+        handlerErrorMessage.includes('connect')
+      ) {
+        console.error('Database connection error in handler:', {
+          error: handlerErrorMessage,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+        });
+        return NextResponse.json(
+          { 
+            error: 'Database connection error',
+            message: 'Unable to connect to the database. Please try again later.',
+            code: 'DATABASE_ERROR',
+          },
+          { status: 500 }
+        );
+      }
+      
+      // Return a generic error response
+      return NextResponse.json(
+        { 
+          error: 'Authentication error',
+          message: handlerErrorMessage,
+          code: 'AUTH_ERROR',
+        },
+        { status: 500 }
+      );
+    }
     
     // Log response status for debugging
     if (response.status >= 400) {
@@ -20,22 +71,64 @@ export async function POST(request: NextRequest) {
         pathname: new URL(request.url).pathname,
       });
       
-      // Try to read the response body for error details
-      try {
-        const clonedResponse = response.clone();
-        const errorBody = await clonedResponse.json().catch(() => null);
-        if (errorBody) {
-          console.error('Better Auth error response:', JSON.stringify(errorBody, null, 2));
-        } else {
-          // Try to read as text if JSON fails
-          const textBody = await clonedResponse.text().catch(() => null);
-          if (textBody) {
-            console.error('Better Auth error response (text):', textBody);
+      // For 500 errors, try to read and enhance the error response
+      if (response.status === 500) {
+        try {
+          const clonedResponse = response.clone();
+          const errorBody = await clonedResponse.json().catch(() => null);
+          if (errorBody) {
+            console.error('Better Auth error response:', JSON.stringify(errorBody, null, 2));
+            
+            // If the response doesn't have proper error format, enhance it
+            if (!errorBody.code || !errorBody.message) {
+              // Return a properly formatted error response
+              return NextResponse.json(
+                {
+                  error: errorBody.error || 'Internal server error',
+                  message: errorBody.message || errorBody.error || 'An unexpected error occurred',
+                  code: errorBody.code || 'AUTH_ERROR',
+                },
+                { status: 500 }
+              );
+            }
+          } else {
+            // Try to read as text if JSON fails
+            const textBody = await clonedResponse.text().catch(() => null);
+            if (textBody) {
+              console.error('Better Auth error response (text):', textBody);
+              // Return a proper JSON error
+              return NextResponse.json(
+                {
+                  error: 'Internal server error',
+                  message: textBody || 'An unexpected error occurred',
+                  code: 'AUTH_ERROR',
+                },
+                { status: 500 }
+              );
+            } else {
+              // If we can't read the body at all, return a generic error
+              return NextResponse.json(
+                {
+                  error: 'Internal server error',
+                  message: 'An unexpected error occurred during authentication',
+                  code: 'AUTH_ERROR',
+                },
+                { status: 500 }
+              );
+            }
           }
+        } catch (e) {
+          // If reading the response fails, return a generic error
+          console.error('Error reading response body:', e);
+          return NextResponse.json(
+            {
+              error: 'Internal server error',
+              message: 'An unexpected error occurred',
+              code: 'AUTH_ERROR',
+            },
+            { status: 500 }
+          );
         }
-      } catch (e) {
-        // Ignore errors reading response body
-        console.error('Error reading response body:', e);
       }
     }
     
