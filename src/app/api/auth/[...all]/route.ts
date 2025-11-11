@@ -20,24 +20,45 @@ export async function POST(request: NextRequest) {
   });
 
   // Test database connection before calling Better Auth
+  // Use a timeout to prevent hanging requests
+  // Increased timeout for Netlify serverless cold starts (database may scale from zero)
   try {
-    await db.execute(sql`SELECT 1`);
+    const connectionTest = db.execute(sql`SELECT 1`);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
+    );
+    
+    await Promise.race([connectionTest, timeoutPromise]);
     console.log('Database connection test: OK');
   } catch (dbTestError) {
+    const errorMessage = dbTestError instanceof Error ? dbTestError.message : String(dbTestError);
+    const errorStack = dbTestError instanceof Error ? dbTestError.stack : undefined;
+    
     console.error('Database connection test FAILED:', {
       error: dbTestError,
-      message: dbTestError instanceof Error ? dbTestError.message : String(dbTestError),
-      stack: dbTestError instanceof Error ? dbTestError.stack : undefined,
+      message: errorMessage,
+      stack: errorStack,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
+      databaseUrlPreview: process.env.DATABASE_URL 
+        ? `${process.env.DATABASE_URL.substring(0, 20)}...` 
+        : 'not set',
     });
+    
+    // Check if it's a timeout or connection issue
+    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT');
+    const isConnectionRefused = errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND');
     
     return NextResponse.json(
       {
         error: 'Database connection error',
-        message: 'Unable to connect to the database. Please check your database configuration.',
+        message: isTimeout 
+          ? 'Database connection timed out. Please try again.'
+          : isConnectionRefused
+          ? 'Unable to reach the database server. Please check your network connection and database configuration.'
+          : 'Unable to connect to the database. Please check your database configuration.',
         code: 'DATABASE_ERROR',
         details: process.env.NODE_ENV === 'development' 
-          ? (dbTestError instanceof Error ? dbTestError.message : String(dbTestError))
+          ? errorMessage
           : undefined,
       },
       { status: 500 }
