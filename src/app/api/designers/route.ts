@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { designers, user, account } from '@/db/schema';
-import { eq, like, or } from 'drizzle-orm';
+import { eq, like, or, and } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import bcryptjs from 'bcryptjs';
 import { nanoid } from 'nanoid';
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
 
-    let query = db.select({
+    // Build query - always filter for approved designers
+    const baseQuery = db.select({
       id: designers.id,
       name: designers.name,
       email: designers.email,
@@ -26,39 +27,57 @@ export async function GET(request: NextRequest) {
       avatarUrl: designers.avatarUrl,
       createdAt: designers.createdAt,
       updatedAt: designers.updatedAt,
-    }).from(designers)
-      .where(eq(designers.status, 'approved'));
+    }).from(designers);
 
+    // Apply filters: must be approved AND (if search provided) match search criteria
+    let whereCondition = eq(designers.status, 'approved');
+    
     if (search) {
-      query = db.select({
-        id: designers.id,
-        name: designers.name,
-        email: designers.email,
-        bio: designers.bio,
-        portfolioUrl: designers.portfolioUrl,
-        specialties: designers.specialties,
-        status: designers.status,
-        avatarUrl: designers.avatarUrl,
-        createdAt: designers.createdAt,
-        updatedAt: designers.updatedAt,
-      }).from(designers)
-        .where(
-          or(
-            eq(designers.status, 'approved'),
-            like(designers.name, `%${search}%`),
-            like(designers.email, `%${search}%`),
-            like(designers.specialties, `%${search}%`)
-          )
-        );
+      whereCondition = and(
+        eq(designers.status, 'approved'),
+        or(
+          like(designers.name, `%${search}%`),
+          like(designers.email, `%${search}%`),
+          like(designers.specialties, `%${search}%`)
+        )
+      );
     }
 
-    const results = await query.limit(limit).offset(offset);
+    const results = await baseQuery
+      .where(whereCondition)
+      .limit(limit)
+      .offset(offset);
 
     return NextResponse.json(results, { status: 200 });
   } catch (error) {
-    console.error('GET error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('GET /api/designers error:', {
+      message: errorMessage,
+      stack: errorStack,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+    
+    // Check if it's a database connection error
+    const isDatabaseError = 
+      errorMessage.includes('database') || 
+      errorMessage.includes('connection') || 
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('Pool') ||
+      errorMessage.includes('neon') ||
+      errorMessage.includes('postgres');
+    
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        error: isDatabaseError ? 'Database connection error' : 'Internal server error',
+        message: isDatabaseError 
+          ? 'Unable to connect to the database. Please try again later.'
+          : errorMessage,
+        code: isDatabaseError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR',
+      },
       { status: 500 }
     );
   }
