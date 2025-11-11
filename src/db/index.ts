@@ -19,27 +19,52 @@ function initializeDb() {
     throw error;
   }
 
-  // Clean up the connection string - remove channel_binding if present as it can cause issues
+  // Clean up the connection string - remove problematic parameters
   let connectionString = process.env.DATABASE_URL;
   
-  // Remove channel_binding parameter as it's not supported in all environments
+  // Remove channel_binding and other problematic parameters
+  // These can cause connection failures in serverless environments
   try {
     const url = new URL(connectionString);
+    
+    // Remove problematic parameters
     url.searchParams.delete('channel_binding');
+    url.searchParams.delete('channel_binding=require');
+    
+    // Ensure sslmode is set correctly (required for Neon)
+    if (!url.searchParams.has('sslmode')) {
+      url.searchParams.set('sslmode', 'require');
+    }
+    
     connectionString = url.toString();
-  } catch {
-    // If URL parsing fails, use the original string
-    connectionString = process.env.DATABASE_URL;
+    console.log('Cleaned connection string (preview):', {
+      host: url.hostname,
+      database: url.pathname,
+      hasSslMode: url.searchParams.has('sslmode'),
+      sslMode: url.searchParams.get('sslmode'),
+      hasChannelBinding: url.searchParams.has('channel_binding'),
+    });
+  } catch (urlError) {
+    // If URL parsing fails, try string replacement as fallback
+    console.warn('URL parsing failed, using string replacement:', urlError);
+    connectionString = connectionString
+      .replace(/[?&]channel_binding=require/gi, '')
+      .replace(/[?&]channel_binding/gi, '');
+    
+    // Ensure sslmode is present
+    if (!connectionString.includes('sslmode=')) {
+      connectionString += (connectionString.includes('?') ? '&' : '?') + 'sslmode=require';
+    }
   }
 
   try {
     // Create pool with proper configuration for Neon serverless
     // For Netlify serverless functions, max: 1 is optimal
+    // Note: Pool creation doesn't establish a connection immediately
+    // Connections are established lazily when queries are executed
     pool = new Pool({ 
       connectionString: connectionString,
       max: 1, // Neon serverless works best with max 1 connection for serverless environments
-      // Allow connection to be established asynchronously
-      connectionTimeoutMillis: 10000, // 10 second timeout for initial connection
     });
 
     dbInstance = drizzle(pool, { schema });

@@ -17,60 +17,23 @@ export async function POST(request: NextRequest) {
     method: request.method,
     hasAuthHeader: request.headers.get('authorization') ? true : false,
     hasCookie: request.headers.get('cookie') ? true : false,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
   });
 
-  // Test database connection before calling Better Auth
-  // Use a timeout to prevent hanging requests
-  // Increased timeout for Netlify serverless cold starts (database may scale from zero)
-  try {
-    const connectionTest = db.execute(sql`SELECT 1`);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
-    );
-    
-    await Promise.race([connectionTest, timeoutPromise]);
-    console.log('Database connection test: OK');
-  } catch (dbTestError) {
-    const errorMessage = dbTestError instanceof Error ? dbTestError.message : String(dbTestError);
-    const errorStack = dbTestError instanceof Error ? dbTestError.stack : undefined;
-    
-    console.error('Database connection test FAILED:', {
-      error: dbTestError,
-      message: errorMessage,
-      stack: errorStack,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      databaseUrlPreview: process.env.DATABASE_URL 
-        ? `${process.env.DATABASE_URL.substring(0, 20)}...` 
-        : 'not set',
-    });
-    
-    // Check if it's a timeout or connection issue
-    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT');
-    const isConnectionRefused = errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ENOTFOUND');
-    
-    return NextResponse.json(
-      {
-        error: 'Database connection error',
-        message: isTimeout 
-          ? 'Database connection timed out. Please try again.'
-          : isConnectionRefused
-          ? 'Unable to reach the database server. Please check your network connection and database configuration.'
-          : 'Unable to connect to the database. Please check your database configuration.',
-        code: 'DATABASE_ERROR',
-        details: process.env.NODE_ENV === 'development' 
-          ? errorMessage
-          : undefined,
-      },
-      { status: 500 }
-    );
-  }
-
+  // Let Better Auth handle the database connection
+  // The drizzle adapter will establish connections as needed
   try {
     // Better Auth's toNextJsHandler should handle the request automatically
     // It expects the request object directly
+    // Add timeout wrapper for serverless environments (15 seconds max)
     let response: Response;
     try {
-      response = await handler.POST(request);
+      const handlerPromise = handler.POST(request);
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout after 15 seconds')), 15000)
+      );
+      
+      response = await Promise.race([handlerPromise, timeoutPromise]);
     } catch (handlerError) {
       // If the handler itself throws an error (not a Response), catch it
       const handlerErrorMessage = handlerError instanceof Error ? handlerError.message : String(handlerError);
@@ -81,30 +44,51 @@ export async function POST(request: NextRequest) {
         message: handlerErrorMessage,
         stack: handlerErrorStack,
         url: request.url,
+        pathname: pathname,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
       });
       
       // Check if it's a database connection error
-      if (
+      const isDatabaseError = 
         handlerErrorMessage.includes('database') || 
         handlerErrorMessage.includes('connection') || 
         handlerErrorMessage.includes('ECONNREFUSED') ||
         handlerErrorMessage.includes('ENOTFOUND') ||
         handlerErrorMessage.includes('timeout') ||
+        handlerErrorMessage.includes('TIMEOUT') ||
         handlerErrorMessage.includes('ETIMEDOUT') ||
         handlerErrorMessage.includes('Pool') ||
         handlerErrorMessage.includes('neon') ||
         handlerErrorMessage.includes('postgres') ||
-        handlerErrorMessage.includes('connect')
-      ) {
-        console.error('Database connection error in handler:', {
+        handlerErrorMessage.includes('connect') ||
+        handlerErrorMessage.includes('ECONNRESET') ||
+        handlerErrorMessage.includes('socket');
+      
+      if (isDatabaseError) {
+        console.error('Database connection error detected in handler:', {
           error: handlerErrorMessage,
           hasDatabaseUrl: !!process.env.DATABASE_URL,
+          databaseUrlPreview: process.env.DATABASE_URL 
+            ? `${process.env.DATABASE_URL.substring(0, 30)}...` 
+            : 'not set',
         });
+        
+        // Provide more specific error message
+        let userMessage = 'Unable to connect to the database. Please check your database configuration.';
+        if (handlerErrorMessage.includes('timeout') || handlerErrorMessage.includes('TIMEOUT')) {
+          userMessage = 'Database connection timed out. The database may be scaling from zero. Please try again.';
+        } else if (handlerErrorMessage.includes('ECONNREFUSED') || handlerErrorMessage.includes('ENOTFOUND')) {
+          userMessage = 'Unable to reach the database server. Please check your network connection and database URL.';
+        }
+        
         return NextResponse.json(
           { 
             error: 'Database connection error',
-            message: 'Unable to connect to the database. Please try again later.',
+            message: userMessage,
             code: 'DATABASE_ERROR',
+            details: process.env.NODE_ENV === 'development' 
+              ? handlerErrorMessage
+              : undefined,
           },
           { status: 500 }
         );
@@ -116,6 +100,9 @@ export async function POST(request: NextRequest) {
           error: 'Authentication error',
           message: handlerErrorMessage,
           code: 'AUTH_ERROR',
+          details: process.env.NODE_ENV === 'development' 
+            ? handlerErrorStack
+            : undefined,
         },
         { status: 500 }
       );
