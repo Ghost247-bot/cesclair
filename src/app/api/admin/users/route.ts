@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { user, account } from '@/db/schema';
+import { user, account, CesworldMembers } from '@/db/schema';
 import { eq, like, or, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import bcryptjs from 'bcryptjs';
@@ -106,7 +106,23 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    return NextResponse.json(results, { status: 200 });
+    // Fetch membership info for each user
+    const usersWithMembership = await Promise.all(
+      results.map(async (u) => {
+        const membership = await db
+          .select()
+          .from(CesworldMembers)
+          .where(eq(CesworldMembers.userId, u.id))
+          .limit(1);
+        
+        return {
+          ...u,
+          membership: membership.length > 0 ? membership[0] : null,
+        };
+      })
+    );
+
+    return NextResponse.json(usersWithMembership, { status: 200 });
   } catch (error) {
     console.error('GET users error:', error);
     return NextResponse.json(

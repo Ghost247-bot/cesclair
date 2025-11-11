@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { user } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { user, auditLogs } from '@/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 // Helper function to check admin access
 async function checkAdminAccess(request: NextRequest) {
   try {
-    // Get session with error handling
     let session;
     try {
       session = await auth.api.getSession({ headers: request.headers });
@@ -20,10 +19,8 @@ async function checkAdminAccess(request: NextRequest) {
       return { authorized: false, error: 'Not authenticated' };
     }
 
-    // Check if user is admin - first check session, then database
     let userRole = (session.user as any)?.role;
     
-    // If role is not in session, fetch from database
     if (!userRole) {
       try {
         const dbUser = await db
@@ -52,6 +49,7 @@ async function checkAdminAccess(request: NextRequest) {
   }
 }
 
+// PUT update user role
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -66,58 +64,90 @@ export async function PUT(
     }
 
     const { id: userId } = await params;
+    const body = await request.json();
+    const { role: newRole } = body;
 
-    if (!userId) {
+    // Validate role
+    const validRoles = ['member', 'designer', 'admin'];
+    if (!newRole || !validRoles.includes(newRole)) {
       return NextResponse.json(
-        { error: 'User ID is required', code: 'INVALID_ID' },
+        { error: 'Invalid role. Must be one of: member, designer, admin', code: 'INVALID_ROLE' },
         { status: 400 }
       );
     }
 
-    // Check if user exists
-    const existingUser = await db
-      .select()
+    // Prevent admins from removing their own admin role
+    if (userId === accessCheck.userId && newRole !== 'admin') {
+      return NextResponse.json(
+        { error: 'Cannot remove your own admin role', code: 'SELF_ROLE_CHANGE_FORBIDDEN' },
+        { status: 403 }
+      );
+    }
+
+    // Get current user role before update
+    const currentUser = await db
+      .select({ role: user.role, email: user.email, name: user.name })
       .from(user)
       .where(eq(user.id, userId))
       .limit(1);
 
-    if (existingUser.length === 0) {
+    if (currentUser.length === 0) {
       return NextResponse.json(
         { error: 'User not found', code: 'USER_NOT_FOUND' },
         { status: 404 }
       );
     }
 
-    // Update email verification status
+    const oldRole = currentUser[0].role;
+
+    // Update user role
     const updated = await db
       .update(user)
-      .set({
-        emailVerified: true,
-        updatedAt: new Date(),
+      .set({ 
+        role: newRole,
+        updatedAt: sql`now()`,
       })
       .where(eq(user.id, userId))
-      .returning({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+      .returning();
+
+    // Create audit log entry
+    try {
+      const ipAddress = request.headers.get('x-forwarded-for') || 
+                       request.headers.get('x-real-ip') || 
+                       'unknown';
+      const userAgent = request.headers.get('user-agent') || 'unknown';
+      
+      const auditDetails = JSON.stringify({
+        oldRole,
+        newRole,
+        targetUserEmail: currentUser[0].email,
+        targetUserName: currentUser[0].name,
       });
 
-    if (updated.length === 0) {
-      return NextResponse.json(
-        { error: 'Failed to verify user', code: 'UPDATE_FAILED' },
-        { status: 500 }
-      );
+      await db.insert(auditLogs).values({
+        action: 'role_change',
+        performedBy: accessCheck.userId!,
+        targetUserId: userId,
+        details: auditDetails,
+        ipAddress,
+        userAgent,
+        createdAt: sql`now()`,
+      });
+    } catch (auditError) {
+      console.error('Failed to create audit log:', auditError);
     }
 
-    return NextResponse.json(updated[0], { status: 200 });
-  } catch (error) {
-    console.error('PUT verify error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        user: updated[0],
+        message: 'User role updated successfully' 
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error('PUT role error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error: ' + error.message },
       { status: 500 }
     );
   }

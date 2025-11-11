@@ -60,6 +60,17 @@ interface User {
   emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
+  membership?: {
+    id: number;
+    userId: string;
+    tier: string;
+    points: number;
+    annualSpending: string;
+    birthdayMonth?: number | null;
+    birthdayDay?: number | null;
+    joinedAt: string;
+    lastTierUpdate: string;
+  } | null;
 }
 
 interface Contract {
@@ -110,7 +121,14 @@ export default function AdminPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [designs, setDesigns] = useState<Array<{ id: number; title: string; designerId: number }>>([]);
+  const [selectedDesignerId, setSelectedDesignerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [editingPointsUserId, setEditingPointsUserId] = useState<string | null>(null);
+  const [editingSpendingUserId, setEditingSpendingUserId] = useState<string | null>(null);
+  const [showTransactionsUploadModal, setShowTransactionsUploadModal] = useState(false);
+  const [transactionsUploadUserId, setTransactionsUploadUserId] = useState<string | null>(null);
+  const [uploadingTransactions, setUploadingTransactions] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -118,6 +136,7 @@ export default function AdminPage() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
+  const [changingMembershipUserId, setChangingMembershipUserId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [contractSearchQuery, setContractSearchQuery] = useState("");
@@ -228,6 +247,43 @@ export default function AdminPage() {
       }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
+
+  // Fetch designs when contract modal opens or designer is selected
+  useEffect(() => {
+    const fetchDesigns = async () => {
+      if (showCreateContractModal || showEditContractModal) {
+        try {
+          const url = selectedDesignerId 
+            ? `/api/designs?designerId=${selectedDesignerId}&limit=500`
+            : `/api/designs?limit=500`;
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            setDesigns(data.map((d: any) => ({ id: d.id, title: d.title, designerId: d.designerId })));
+          }
+        } catch (error) {
+          console.error("Failed to fetch designs:", error);
+        }
+      }
+    };
+    fetchDesigns();
+  }, [showCreateContractModal, showEditContractModal, selectedDesignerId]);
+
+  // Fetch designers when contract modal opens
+  useEffect(() => {
+    if ((showCreateContractModal || showEditContractModal) && designers.length === 0) {
+      fetchDesigners();
+    }
+  }, [showCreateContractModal, showEditContractModal]);
+
+  // Set selected designer when editing contract
+  useEffect(() => {
+    if (showEditContractModal && editingContract) {
+      setSelectedDesignerId(editingContract.designerId);
+    } else if (!showEditContractModal && !showCreateContractModal) {
+      setSelectedDesignerId(null);
+    }
+  }, [showEditContractModal, editingContract, showCreateContractModal]);
 
   // Filter designers based on search and status
   useEffect(() => {
@@ -426,16 +482,17 @@ export default function AdminPage() {
 
     try {
       setChangingRoleUserId(userId);
-      const response = await fetch("/api/auth/update-role", {
-        method: "POST",
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: 'include',
-        body: JSON.stringify({ role: newRole, userId }),
+        body: JSON.stringify({ role: newRole }),
       });
 
       if (response.ok) {
+        const data = await response.json();
         setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
         toast.success(`User role updated to ${newRole}`);
         // Refresh audit logs to show the new entry
@@ -452,6 +509,166 @@ export default function AdminPage() {
     } finally {
       setChangingRoleUserId(null);
     }
+  };
+
+  const updateMembershipTier = async (userId: string, newTier: string) => {
+    if (!window.confirm(`Are you sure you want to upgrade this user's membership to ${newTier.toUpperCase()}?`)) {
+      return;
+    }
+
+    try {
+      setChangingMembershipUserId(userId);
+      const response = await fetch(`/api/admin/users/${userId}/membership`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tier: newTier }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(users.map((u) => {
+          if (u.id === userId) {
+            return {
+              ...u,
+              membership: data.membership,
+            };
+          }
+          return u;
+        }));
+        toast.success(`Membership upgraded to ${newTier.toUpperCase()}`);
+        // Refresh audit logs to show the new entry
+        if (activeTab === "audit") {
+          fetchAuditLogs();
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update membership tier");
+      }
+    } catch (error) {
+      console.error("Failed to update membership tier:", error);
+      toast.error("Failed to update membership tier");
+    } finally {
+      setChangingMembershipUserId(null);
+    }
+  };
+
+  const updatePointsAndSpending = async (userId: string, points?: number, annualSpending?: string) => {
+    try {
+      setEditingPointsUserId(userId);
+      const response = await fetch(`/api/admin/users/${userId}/membership/points`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          ...(points !== undefined && { points }),
+          ...(annualSpending !== undefined && { annualSpending }),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(users.map((u) => {
+          if (u.id === userId) {
+            return {
+              ...u,
+              membership: data.membership,
+            };
+          }
+          return u;
+        }));
+        toast.success("Points and spending updated successfully");
+        // Refresh audit logs to show the new entry
+        if (activeTab === "audit") {
+          fetchAuditLogs();
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update points and spending");
+      }
+    } catch (error) {
+      console.error("Failed to update points and spending:", error);
+      toast.error("Failed to update points and spending");
+    } finally {
+      setEditingPointsUserId(null);
+      setEditingSpendingUserId(null);
+    }
+  };
+
+  const handleTransactionsCSVUpload = async (userId: string, file: File) => {
+    try {
+      setUploadingTransactions(true);
+      const text = await file.text();
+      
+      const response = await fetch(`/api/admin/users/${userId}/transactions/bulk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ csvContent: text }),
+      });
+
+      if (response.ok || response.status === 207) {
+        const data = await response.json();
+        // Update user's membership data
+        setUsers(users.map((u) => {
+          if (u.id === userId) {
+            return {
+              ...u,
+              membership: data.membership,
+            };
+          }
+          return u;
+        }));
+        
+        if (data.errors && data.errors.length > 0) {
+          toast.warning(`Uploaded ${data.transactionsCreated} transactions with ${data.errors.length} errors`);
+          console.error("Transaction errors:", data.errors);
+        } else {
+          toast.success(`Successfully uploaded ${data.transactionsCreated} transactions`);
+        }
+        
+        setShowTransactionsUploadModal(false);
+        setTransactionsUploadUserId(null);
+        
+        // Refresh audit logs to show the new entry
+        if (activeTab === "audit") {
+          fetchAuditLogs();
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to upload transactions");
+      }
+    } catch (error) {
+      console.error("Failed to upload transactions:", error);
+      toast.error("Failed to upload transactions");
+    } finally {
+      setUploadingTransactions(false);
+    }
+  };
+
+  const downloadTransactionsCSVTemplate = () => {
+    const csvContent = `type,amount,points,description,orderId,createdAt
+purchase,125.50,125,Purchase - Order #ORD-10001,ORD-10001,2024-01-20T14:30:00.000Z
+purchase,89.99,90,Purchase - Order #ORD-10045,ORD-10045,2024-02-15T11:20:00.000Z
+redeem,10.00,-100,Redeemed 100 points for $10 off,,
+bonus,0.00,50,Birthday bonus points,,
+refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'transactions-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const fetchProducts = async () => {
@@ -759,6 +976,8 @@ export default function AdminPage() {
         toast.success("Contract updated successfully");
         setShowEditContractModal(false);
         setEditingContract(null);
+        setSelectedDesignerId(null);
+        fetchContracts();
       } else {
         const error = await response.json();
         toast.error(error.error || "Failed to update contract");
@@ -1475,6 +1694,19 @@ export default function AdminPage() {
                                       UNVERIFIED
                                     </span>
                                   )}
+                                  {user.membership && (
+                                    <span
+                                      className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                        user.membership.tier === "premier"
+                                          ? "bg-purple-100 text-purple-700"
+                                          : user.membership.tier === "plus"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      }`}
+                                    >
+                                      {user.membership.tier.toUpperCase()}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                                   <Mail className="w-4 h-4" />
@@ -1485,9 +1717,115 @@ export default function AdminPage() {
                                     {user.email}
                                   </a>
                                 </div>
-                                <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
+                                <div className="flex flex-col gap-1 mt-2 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
+                                  </div>
+                                  {user.membership && (
+                                    <div className="flex flex-col gap-2 mt-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Tier:</span>
+                                        <span>{user.membership.tier.toUpperCase()}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Points:</span>
+                                        {editingPointsUserId === user.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              defaultValue={user.membership.points}
+                                              onBlur={(e) => {
+                                                const newPoints = parseInt(e.target.value);
+                                                if (!isNaN(newPoints) && newPoints >= 0) {
+                                                  updatePointsAndSpending(user.id, newPoints);
+                                                } else {
+                                                  setEditingPointsUserId(null);
+                                                }
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  const newPoints = parseInt((e.target as HTMLInputElement).value);
+                                                  if (!isNaN(newPoints) && newPoints >= 0) {
+                                                    updatePointsAndSpending(user.id, newPoints);
+                                                  } else {
+                                                    setEditingPointsUserId(null);
+                                                  }
+                                                } else if (e.key === 'Escape') {
+                                                  setEditingPointsUserId(null);
+                                                }
+                                              }}
+                                              className="w-24 px-2 py-1 border border-border rounded text-sm"
+                                              autoFocus
+                                            />
+                                            <button
+                                              onClick={() => setEditingPointsUserId(null)}
+                                              className="text-xs text-muted-foreground hover:text-foreground"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <span 
+                                            className="cursor-pointer hover:text-primary underline"
+                                            onClick={() => setEditingPointsUserId(user.id)}
+                                          >
+                                            {user.membership.points}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">Spending:</span>
+                                        {editingSpendingUserId === user.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm">$</span>
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              defaultValue={user.membership.annualSpending}
+                                              onBlur={(e) => {
+                                                const newSpending = parseFloat(e.target.value);
+                                                if (!isNaN(newSpending) && newSpending >= 0) {
+                                                  updatePointsAndSpending(user.id, undefined, newSpending.toString());
+                                                } else {
+                                                  setEditingSpendingUserId(null);
+                                                }
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  const newSpending = parseFloat((e.target as HTMLInputElement).value);
+                                                  if (!isNaN(newSpending) && newSpending >= 0) {
+                                                    updatePointsAndSpending(user.id, undefined, newSpending.toString());
+                                                  } else {
+                                                    setEditingSpendingUserId(null);
+                                                  }
+                                                } else if (e.key === 'Escape') {
+                                                  setEditingSpendingUserId(null);
+                                                }
+                                              }}
+                                              className="w-24 px-2 py-1 border border-border rounded text-sm"
+                                              autoFocus
+                                            />
+                                            <button
+                                              onClick={() => setEditingSpendingUserId(null)}
+                                              className="text-xs text-muted-foreground hover:text-foreground"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <span 
+                                            className="cursor-pointer hover:text-primary underline"
+                                            onClick={() => setEditingSpendingUserId(user.id)}
+                                          >
+                                            ${user.membership.annualSpending}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1495,6 +1833,7 @@ export default function AdminPage() {
 
                           <div className="flex flex-col gap-2 md:min-w-[200px]">
                             <div className="relative">
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">Role</label>
                               <select
                                 value={user.role}
                                 onChange={(e) => updateUserRole(user.id, e.target.value)}
@@ -1506,7 +1845,32 @@ export default function AdminPage() {
                                 <option value="admin">Admin</option>
                               </select>
                               {changingRoleUserId === user.id && (
-                                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                                <Loader2 className="absolute right-3 top-8 transform -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                              )}
+                            </div>
+                            {user.role === "member" && (
+                              <button
+                                onClick={() => updateUserRole(user.id, "designer")}
+                                disabled={changingRoleUserId === user.id || user.id === session?.user?.id}
+                                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Upgrade to Designer
+                              </button>
+                            )}
+                            <div className="relative">
+                              <label className="text-xs font-medium text-muted-foreground mb-1 block">Membership Tier</label>
+                              <select
+                                value={user.membership?.tier || "member"}
+                                onChange={(e) => updateMembershipTier(user.id, e.target.value)}
+                                disabled={changingMembershipUserId === user.id}
+                                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="member">Member</option>
+                                <option value="plus">Plus</option>
+                                <option value="premier">Premier</option>
+                              </select>
+                              {changingMembershipUserId === user.id && (
+                                <Loader2 className="absolute right-3 top-8 transform -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
                               )}
                             </div>
                             {!user.emailVerified && (
@@ -1515,6 +1879,17 @@ export default function AdminPage() {
                                 className="px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors rounded-lg text-sm font-medium"
                               >
                                 Verify Email
+                              </button>
+                            )}
+                            {user.membership && (
+                              <button
+                                onClick={() => {
+                                  setTransactionsUploadUserId(user.id);
+                                  setShowTransactionsUploadModal(true);
+                                }}
+                                className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 transition-colors rounded-lg text-sm font-medium"
+                              >
+                                Upload Transactions CSV
                               </button>
                             )}
                             {user.id === session?.user?.id && (
@@ -1577,11 +1952,43 @@ export default function AdminPage() {
                                   </p>
                                 )}
                                 {details && (
-                                  <div className="mt-2 p-3 bg-secondary rounded-lg">
+                                  <div className="mt-2 p-3 bg-secondary rounded-lg space-y-1">
                                     {details.oldRole && details.newRole && (
                                       <p className="text-sm">
                                         <strong>Role change:</strong> {details.oldRole} → {details.newRole}
                                       </p>
+                                    )}
+                                    {details.oldTier && details.newTier && (
+                                      <p className="text-sm">
+                                        <strong>Membership tier change:</strong> {details.oldTier} → {details.newTier}
+                                      </p>
+                                    )}
+                                    {details.oldPoints !== undefined && details.newPoints !== undefined && (
+                                      <p className="text-sm">
+                                        <strong>Points change:</strong> {details.oldPoints} → {details.newPoints}
+                                      </p>
+                                    )}
+                                    {details.oldSpending && details.newSpending && (
+                                      <p className="text-sm">
+                                        <strong>Spending change:</strong> ${details.oldSpending} → ${details.newSpending}
+                                      </p>
+                                    )}
+                                    {details.transactionsCount && (
+                                      <div className="text-sm space-y-1">
+                                        <p>
+                                          <strong>Bulk transactions upload:</strong> {details.transactionsCount} transactions
+                                        </p>
+                                        {details.pointsAdded !== undefined && (
+                                          <p>
+                                            <strong>Points added:</strong> {details.pointsAdded > 0 ? '+' : ''}{details.pointsAdded}
+                                          </p>
+                                        )}
+                                        {details.spendingAdded !== undefined && (
+                                          <p>
+                                            <strong>Spending change:</strong> {details.spendingAdded > 0 ? '+' : ''}${details.spendingAdded}
+                                          </p>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                 )}
@@ -2534,25 +2941,49 @@ export default function AdminPage() {
                   amount: formData.get("amount") as string || undefined,
                   status: formData.get("status") as string || "pending",
                 });
+                // Reset selected designer after submission
+                setSelectedDesignerId(null);
               }}
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium mb-1">Designer ID *</label>
-                <input
-                  type="number"
+                <label className="block text-sm font-medium mb-1">Designer *</label>
+                <select
                   name="designerId"
                   required
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                  onChange={(e) => {
+                    const designerId = parseInt(e.target.value);
+                    setSelectedDesignerId(designerId || null);
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                >
+                  <option value="">Select a designer</option>
+                  {designers.map((designer) => (
+                    <option key={designer.id} value={designer.id}>
+                      {designer.name} ({designer.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Design ID (optional)</label>
-                <input
-                  type="number"
+                <label className="block text-sm font-medium mb-1">Design (optional)</label>
+                <select
                   name="designId"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                  disabled={!selectedDesignerId}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select a design</option>
+                  {designs
+                    .filter((design) => !selectedDesignerId || design.designerId === selectedDesignerId)
+                    .map((design) => (
+                      <option key={design.id} value={design.id}>
+                        {design.title}
+                      </option>
+                    ))}
+                </select>
+                {!selectedDesignerId && (
+                  <p className="text-xs text-muted-foreground mt-1">Please select a designer first</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Title *</label>
@@ -2600,13 +3031,88 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCreateContractModal(false)}
+                  onClick={() => {
+                    setShowCreateContractModal(false);
+                    setSelectedDesignerId(null);
+                  }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
                   Cancel
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transactions Upload Modal */}
+      {showTransactionsUploadModal && transactionsUploadUserId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-medium mb-4">Upload Transactions CSV</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">CSV Format</label>
+                <div className="bg-secondary p-4 rounded-lg text-xs font-mono space-y-2">
+                  <div><strong>Required columns:</strong> type, amount, points, description</div>
+                  <div><strong>Optional columns:</strong> orderId, createdAt</div>
+                  <div><strong>Valid types:</strong> purchase, redeem, bonus, birthday_reward, refund</div>
+                  <div className="mt-4 font-semibold">Example CSV:</div>
+                  <div className="bg-white p-2 rounded border">
+                    <div>type,amount,points,description,orderId</div>
+                    <div>purchase,125.50,125,Purchase - Order #ORD-10001,ORD-10001</div>
+                    <div>redeem,10.00,-100,Redeemed 100 points for $10 off,</div>
+                    <div>bonus,0.00,50,Birthday bonus points,</div>
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Note: Transactions will automatically update the user's points and annual spending. Spending is calculated from purchase and refund transactions.
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Select CSV File</label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleTransactionsCSVUpload(transactionsUploadUserId, file);
+                    }
+                  }}
+                  disabled={uploadingTransactions}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={downloadTransactionsCSVTemplate}
+                  className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                >
+                  Download CSV Template
+                </button>
+              </div>
+              {uploadingTransactions && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Uploading and processing transactions...</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransactionsUploadModal(false);
+                    setTransactionsUploadUserId(null);
+                  }}
+                  disabled={uploadingTransactions}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2632,22 +3138,47 @@ export default function AdminPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium mb-1">Designer ID</label>
-                <input
-                  type="number"
+                <label className="block text-sm font-medium mb-1">Designer</label>
+                <select
                   name="designerId"
                   defaultValue={editingContract.designerId}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                  onChange={(e) => {
+                    const designerId = parseInt(e.target.value);
+                    setSelectedDesignerId(designerId || null);
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                >
+                  <option value="">Select a designer</option>
+                  {designers.map((designer) => (
+                    <option key={designer.id} value={designer.id}>
+                      {designer.name} ({designer.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Design ID</label>
-                <input
-                  type="number"
+                <label className="block text-sm font-medium mb-1">Design (optional)</label>
+                <select
                   name="designId"
                   defaultValue={editingContract.designId || ""}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                  disabled={!selectedDesignerId && !editingContract.designerId}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select a design</option>
+                  {designs
+                    .filter((design) => {
+                      const filterDesignerId = selectedDesignerId || editingContract.designerId;
+                      return !filterDesignerId || design.designerId === filterDesignerId;
+                    })
+                    .map((design) => (
+                      <option key={design.id} value={design.id}>
+                        {design.title}
+                      </option>
+                    ))}
+                </select>
+                {!selectedDesignerId && !editingContract.designerId && (
+                  <p className="text-xs text-muted-foreground mt-1">Please select a designer first</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Title *</label>
@@ -2702,6 +3233,7 @@ export default function AdminPage() {
                   onClick={() => {
                     setShowEditContractModal(false);
                     setEditingContract(null);
+                    setSelectedDesignerId(null);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
