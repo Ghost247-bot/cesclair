@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { designers, user } from '@/db/schema';
+import { designers, user, account } from '@/db/schema';
 import { eq, like, or, and, desc } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
+import { nanoid } from 'nanoid';
 import { Pool } from '@neondatabase/serverless';
 
 // Helper function to check admin access
@@ -261,7 +263,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists
+    // Check if email already exists in designers table
     const existingDesigner = await db
       .select()
       .from(designers)
@@ -270,49 +272,110 @@ export async function POST(request: NextRequest) {
 
     if (existingDesigner.length > 0) {
       return NextResponse.json(
-        { error: 'Email already exists', code: 'DUPLICATE_EMAIL' },
+        { error: 'Email already exists in designers', code: 'DUPLICATE_EMAIL' },
         { status: 409 }
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Check if email already exists in user table
+    const existingUser = await db
+      .select()
+      .from(user)
+      .where(eq(user.email, normalizedEmail))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return NextResponse.json(
+        { error: 'Email already registered. Please use a different email.', code: 'EMAIL_EXISTS' },
+        { status: 409 }
+      );
+    }
 
     // Determine status (default to approved for admin-created designers)
     const designerStatus = status || 'approved';
 
-    // Create designer
-    const now = new Date().toISOString();
-    const newDesigner = await db
-      .insert(designers)
-      .values({
+    // Create user account with better-auth (role: designer)
+    const userId = nanoid();
+    const accountId = nanoid();
+    const now = new Date();
+    
+    try {
+      // Hash password with bcryptjs for better-auth
+      const hashedPassword = await bcryptjs.hash(password, 10);
+
+      // Create user account
+      await db.insert(user).values({
+        id: userId,
         name: name.trim(),
         email: normalizedEmail,
-        password: hashedPassword,
-        bio: bio?.trim() || null,
-        portfolioUrl: portfolioUrl?.trim() || null,
-        specialties: specialties?.trim() || null,
-        status: designerStatus,
-        avatarUrl: avatarUrl?.trim() || null,
-        bannerUrl: bannerUrl?.trim() || null,
+        role: 'designer',
+        emailVerified: true, // Admin-created accounts are pre-verified
         createdAt: now,
         updatedAt: now,
-      })
-      .returning({
-        id: designers.id,
-        name: designers.name,
-        email: designers.email,
-        bio: designers.bio,
-        portfolioUrl: designers.portfolioUrl,
-        specialties: designers.specialties,
-        status: designers.status,
-        avatarUrl: designers.avatarUrl,
-        bannerUrl: designers.bannerUrl,
-        createdAt: designers.createdAt,
-        updatedAt: designers.updatedAt,
       });
 
-    return NextResponse.json(newDesigner[0], { status: 201 });
+      // Create account credentials for better-auth
+      await db.insert(account).values({
+        id: accountId,
+        accountId: normalizedEmail,
+        providerId: 'credential',
+        userId: userId,
+        password: hashedPassword,
+        accessToken: null,
+        refreshToken: null,
+        idToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        scope: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Hash password with bcrypt for designers table (legacy compatibility)
+      const designerHashedPassword = await bcrypt.hash(password, 10);
+
+      // Create designer profile with approved status
+      const newDesigner = await db
+        .insert(designers)
+        .values({
+          name: name.trim(),
+          email: normalizedEmail,
+          password: designerHashedPassword,
+          bio: bio?.trim() || null,
+          portfolioUrl: portfolioUrl?.trim() || null,
+          specialties: specialties?.trim() || null,
+          status: designerStatus, // Should be 'approved' by default
+          avatarUrl: avatarUrl?.trim() || null,
+          bannerUrl: bannerUrl?.trim() || null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({
+          id: designers.id,
+          name: designers.name,
+          email: designers.email,
+          bio: designers.bio,
+          portfolioUrl: designers.portfolioUrl,
+          specialties: designers.specialties,
+          status: designers.status,
+          avatarUrl: designers.avatarUrl,
+          bannerUrl: designers.bannerUrl,
+          createdAt: designers.createdAt,
+          updatedAt: designers.updatedAt,
+        });
+
+      return NextResponse.json(newDesigner[0], { status: 201 });
+    } catch (dbError) {
+      // If user was created but account or designer failed, try to clean up
+      console.error('Database operation failed, attempting cleanup...');
+      try {
+        await db.delete(user).where(eq(user.id, userId));
+        console.log('Cleaned up user record');
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError);
+      }
+      throw dbError; // Re-throw to be caught by outer catch
+    }
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json(
