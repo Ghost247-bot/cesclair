@@ -37,13 +37,16 @@ function initializeDb() {
     }
     
     connectionString = url.toString();
-    console.log('Cleaned connection string (preview):', {
-      host: url.hostname,
-      database: url.pathname,
-      hasSslMode: url.searchParams.has('sslmode'),
-      sslMode: url.searchParams.get('sslmode'),
-      hasChannelBinding: url.searchParams.has('channel_binding'),
-    });
+    // Only log connection details in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Cleaned connection string (preview):', {
+        host: url.hostname,
+        database: url.pathname,
+        hasSslMode: url.searchParams.has('sslmode'),
+        sslMode: url.searchParams.get('sslmode'),
+        hasChannelBinding: url.searchParams.has('channel_binding'),
+      });
+    }
   } catch (urlError) {
     // If URL parsing fails, try string replacement as fallback
     console.warn('URL parsing failed, using string replacement:', urlError);
@@ -65,10 +68,19 @@ function initializeDb() {
     pool = new Pool({ 
       connectionString: connectionString,
       max: 1, // Neon serverless works best with max 1 connection for serverless environments
+      // Allow idle connections to be closed after 30 seconds
+      // This helps with serverless cold starts
+      idleTimeoutMillis: 30000,
+      // Connection timeout for initial connection
+      connectionTimeoutMillis: 10000,
     });
 
     dbInstance = drizzle(pool, { schema });
     initError = null; // Clear any previous errors
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Database pool initialized successfully');
+    }
     return dbInstance;
   } catch (error) {
     const dbError = error instanceof Error 

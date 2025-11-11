@@ -1,8 +1,6 @@
 import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { sql } from "drizzle-orm";
 
 const handler = toNextJsHandler(auth);
 
@@ -190,27 +188,13 @@ export async function POST(request: NextRequest) {
               { status: 500 }
             );
           } else {
-            // If we can't read the body at all, test database again and return detailed error
-            console.error('Could not read error response body - testing database connection');
-            try {
-              await db.execute(sql`SELECT 1`);
-              console.log('Database is still connected after error');
-            } catch (dbError) {
-              console.error('Database connection lost after error:', dbError);
-              return NextResponse.json(
-                {
-                  error: 'Database connection error',
-                  message: 'Database connection was lost during authentication',
-                  code: 'DATABASE_ERROR',
-                },
-                { status: 500 }
-              );
-            }
-            
+            // If we can't read the body at all, return a generic error
+            // Don't test database connection here as it may cause false positives
+            console.error('Could not read error response body from Better Auth');
             return NextResponse.json(
               {
                 error: 'Internal server error',
-                message: 'An unexpected error occurred during authentication. Please check server logs.',
+                message: 'An unexpected error occurred during authentication. Please try again.',
                 code: 'AUTH_ERROR',
               },
               { status: 500 }
