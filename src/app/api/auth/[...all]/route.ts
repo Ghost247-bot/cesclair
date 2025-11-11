@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { sql } from "drizzle-orm";
 
 const handler = toNextJsHandler(auth);
 
@@ -16,6 +18,31 @@ export async function POST(request: NextRequest) {
     hasAuthHeader: request.headers.get('authorization') ? true : false,
     hasCookie: request.headers.get('cookie') ? true : false,
   });
+
+  // Test database connection before calling Better Auth
+  try {
+    await db.execute(sql`SELECT 1`);
+    console.log('Database connection test: OK');
+  } catch (dbTestError) {
+    console.error('Database connection test FAILED:', {
+      error: dbTestError,
+      message: dbTestError instanceof Error ? dbTestError.message : String(dbTestError),
+      stack: dbTestError instanceof Error ? dbTestError.stack : undefined,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+    
+    return NextResponse.json(
+      {
+        error: 'Database connection error',
+        message: 'Unable to connect to the database. Please check your database configuration.',
+        code: 'DATABASE_ERROR',
+        details: process.env.NODE_ENV === 'development' 
+          ? (dbTestError instanceof Error ? dbTestError.message : String(dbTestError))
+          : undefined,
+      },
+      { status: 500 }
+    );
+  }
 
   try {
     // Better Auth's toNextJsHandler should handle the request automatically
@@ -80,6 +107,7 @@ export async function POST(request: NextRequest) {
         statusText: response.statusText,
         url: request.url,
         pathname: new URL(request.url).pathname,
+        headers: Object.fromEntries(response.headers.entries()),
       });
       
       // For 500 errors, try to read and enhance the error response
@@ -154,12 +182,27 @@ export async function POST(request: NextRequest) {
               { status: 500 }
             );
           } else {
-            // If we can't read the body at all, return a generic error
-            console.error('Could not read error response body');
+            // If we can't read the body at all, test database again and return detailed error
+            console.error('Could not read error response body - testing database connection');
+            try {
+              await db.execute(sql`SELECT 1`);
+              console.log('Database is still connected after error');
+            } catch (dbError) {
+              console.error('Database connection lost after error:', dbError);
+              return NextResponse.json(
+                {
+                  error: 'Database connection error',
+                  message: 'Database connection was lost during authentication',
+                  code: 'DATABASE_ERROR',
+                },
+                { status: 500 }
+              );
+            }
+            
             return NextResponse.json(
               {
                 error: 'Internal server error',
-                message: 'An unexpected error occurred during authentication',
+                message: 'An unexpected error occurred during authentication. Please check server logs.',
                 code: 'AUTH_ERROR',
               },
               { status: 500 }
