@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare insert data
-    const now = new Date().toISOString();
+    const now = new Date();
     const insertData = {
       designerId: parsedDesignerId,
       title: title.trim(),

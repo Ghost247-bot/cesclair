@@ -87,7 +87,7 @@ export async function PUT(
 
     // Build update object with only provided fields
     const updates: Record<string, any> = {
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
 
     if (title !== undefined) updates.title = title.trim();

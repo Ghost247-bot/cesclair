@@ -12,8 +12,15 @@ import {
   Edit,
   Trash2,
   FileSignature,
-  Loader2
+  Loader2,
+  Upload,
+  X,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Send
 } from "lucide-react";
+import Image from "next/image";
 import Footer from "@/components/sections/footer";
 import { SigningFrame } from "@/components/docusign/SigningFrame";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -68,6 +75,16 @@ export default function DesignerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "designs" | "contracts">("overview");
   const [signingContract, setSigningContract] = useState<Contract | null>(null);
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [editingDesign, setEditingDesign] = useState<Design | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [designForm, setDesignForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    imageUrl: '',
+    imageFile: null as File | null,
+  });
 
   // Check authentication and role
   useEffect(() => {
@@ -194,6 +211,179 @@ export default function DesignerDashboardPage() {
   const handleSigningError = (error: string) => {
     alert(`Signing error: ${error}`);
     setSigningContract(null);
+  };
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/design', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setDesignForm(prev => ({ ...prev, imageUrl: data.url }));
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setDesignForm(prev => ({ ...prev, imageFile: file }));
+      handleImageUpload(file);
+    }
+  };
+
+  const openDesignModal = (design?: Design) => {
+    if (design) {
+      setEditingDesign(design);
+      setDesignForm({
+        title: design.title,
+        description: design.description || '',
+        category: design.category || '',
+        imageUrl: design.imageUrl || '',
+        imageFile: null,
+      });
+    } else {
+      setEditingDesign(null);
+      setDesignForm({
+        title: '',
+        description: '',
+        category: '',
+        imageUrl: '',
+        imageFile: null,
+      });
+    }
+    setShowDesignModal(true);
+  };
+
+  const closeDesignModal = () => {
+    setShowDesignModal(false);
+    setEditingDesign(null);
+    setDesignForm({
+      title: '',
+      description: '',
+      category: '',
+      imageUrl: '',
+      imageFile: null,
+    });
+  };
+
+  const handleSaveDesign = async () => {
+    if (!designer) return;
+
+    if (!designForm.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+
+    try {
+      const url = editingDesign 
+        ? `/api/designs/${editingDesign.id}`
+        : '/api/designs';
+      
+      const method = editingDesign ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...(editingDesign ? {} : { designerId: designer.id }),
+          title: designForm.title.trim(),
+          description: designForm.description.trim() || null,
+          category: designForm.category.trim() || null,
+          imageUrl: designForm.imageUrl || null,
+          status: editingDesign ? undefined : 'draft', // New designs start as draft
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save design');
+      }
+
+      toast.success(editingDesign ? 'Design updated successfully' : 'Design created successfully');
+      closeDesignModal();
+      if (designer) {
+        await fetchDashboardData(designer.id);
+      }
+    } catch (error) {
+      console.error('Save design error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save design');
+    }
+  };
+
+  const handleSubmitDesign = async (designId: number) => {
+    if (!confirm('Submit this design for admin review? Once submitted, you cannot edit it.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/designs/${designId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'submitted',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit design');
+      }
+
+      toast.success('Design submitted for review');
+      if (designer) {
+        await fetchDashboardData(designer.id);
+      }
+    } catch (error) {
+      console.error('Submit design error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to submit design');
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'rejected':
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      case 'submitted':
+        return <Clock className="w-4 h-4 text-blue-600" />;
+      default:
+        return <FileText className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'submitted':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   if (sessionPending || loading || !designer) {
@@ -333,48 +523,245 @@ export default function DesignerDashboardPage() {
 
           {/* Designs Tab */}
           {activeTab === "designs" && (
-            <div>
+            <div className="space-y-6">
+              {/* Add Design Button */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-medium">MY DESIGNS</h3>
+                <button
+                  onClick={() => openDesignModal()}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-button-primary">UPLOAD DESIGN</span>
+                </button>
+              </div>
+
               {designs.length === 0 ? (
                 <div className="text-center py-12 bg-white border border-border">
                   <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground mb-4">You haven't created any designs yet.</p>
+                  <button
+                    onClick={() => openDesignModal()}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="text-button-primary">UPLOAD YOUR FIRST DESIGN</span>
+                  </button>
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {designs.map((design) => (
-                    <div key={design.id} className="bg-white border border-border p-4">
+                    <div key={design.id} className="bg-white border border-border p-4 hover:shadow-lg transition-shadow">
+                      {/* Design Image */}
+                      {design.imageUrl && (
+                        <div className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden">
+                          <Image
+                            src={design.imageUrl}
+                            alt={design.title}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                      
                       <div className="flex items-start justify-between mb-3">
-                        <h4 className="font-medium">{design.title}</h4>
-                        <span className={`text-caption px-2 py-1 ${
-                          design.status === "approved" ? "bg-green-100 text-green-800" :
-                          design.status === "submitted" ? "bg-blue-100 text-blue-800" :
-                          design.status === "rejected" ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
-                          {design.status}
+                        <h4 className="font-medium text-lg flex-1">{design.title}</h4>
+                      </div>
+
+                      {/* Status Badge */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {getStatusIcon(design.status)}
+                        <span className={`text-caption px-3 py-1 rounded border ${getStatusColor(design.status)}`}>
+                          {design.status.toUpperCase()}
                         </span>
                       </div>
+
                       {design.description && (
                         <p className="text-body-small text-muted-foreground mb-3 line-clamp-2">
                           {design.description}
                         </p>
                       )}
+                      
                       {design.category && (
                         <p className="text-caption text-muted-foreground mb-3">
-                          Category: {design.category}
+                          <span className="font-medium">Category:</span> {design.category}
                         </p>
                       )}
+
+                      <div className="text-caption text-muted-foreground mb-4">
+                        Created: {new Date(design.createdAt).toLocaleDateString()}
+                      </div>
+
+                      {/* Action Buttons */}
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => deleteDesign(design.id)}
-                          className="flex-1 px-3 py-2 border border-destructive text-destructive hover:bg-destructive hover:text-white transition-colors text-body-small"
-                        >
-                          <Trash2 className="w-4 h-4 inline mr-1" />
-                          Delete
-                        </button>
+                        {design.status === 'draft' && (
+                          <>
+                            <button
+                              onClick={() => openDesignModal(design)}
+                              className="flex-1 px-3 py-2 border border-primary text-primary hover:bg-primary hover:text-white transition-colors text-body-small flex items-center justify-center gap-1"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleSubmitDesign(design.id)}
+                              className="flex-1 px-3 py-2 bg-primary text-white hover:bg-primary/90 transition-colors text-body-small flex items-center justify-center gap-1"
+                            >
+                              <Send className="w-4 h-4" />
+                              Submit
+                            </button>
+                          </>
+                        )}
+                        {(design.status === 'submitted' || design.status === 'approved' || design.status === 'rejected') && (
+                          <div className="flex-1 px-3 py-2 text-body-small text-center text-muted-foreground">
+                            {design.status === 'submitted' && 'Awaiting admin review'}
+                            {design.status === 'approved' && 'Approved by admin'}
+                            {design.status === 'rejected' && 'Declined by admin'}
+                          </div>
+                        )}
+                        {design.status === 'draft' && (
+                          <button
+                            onClick={() => deleteDesign(design.id)}
+                            className="px-3 py-2 border border-destructive text-destructive hover:bg-destructive hover:text-white transition-colors text-body-small"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Design Upload/Edit Modal */}
+              {showDesignModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-white border-b border-border p-6 flex items-center justify-between">
+                      <h3 className="text-2xl font-medium">
+                        {editingDesign ? 'EDIT DESIGN' : 'UPLOAD NEW DESIGN'}
+                      </h3>
+                      <button
+                        onClick={closeDesignModal}
+                        className="p-2 hover:bg-secondary rounded transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                      {/* Title */}
+                      <div>
+                        <label className="block text-label font-medium mb-2">
+                          Title <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={designForm.title}
+                          onChange={(e) => setDesignForm(prev => ({ ...prev, title: e.target.value }))}
+                          className="w-full px-4 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="Enter design title"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-label font-medium mb-2">Description</label>
+                        <textarea
+                          value={designForm.description}
+                          onChange={(e) => setDesignForm(prev => ({ ...prev, description: e.target.value }))}
+                          className="w-full px-4 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
+                          placeholder="Describe your design..."
+                        />
+                      </div>
+
+                      {/* Category */}
+                      <div>
+                        <label className="block text-label font-medium mb-2">Category</label>
+                        <input
+                          type="text"
+                          value={designForm.category}
+                          onChange={(e) => setDesignForm(prev => ({ ...prev, category: e.target.value }))}
+                          className="w-full px-4 py-2 border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                          placeholder="e.g., Apparel, Accessories, Footwear"
+                        />
+                      </div>
+
+                      {/* Image Upload */}
+                      <div>
+                        <label className="block text-label font-medium mb-2">Design Image</label>
+                        {designForm.imageUrl ? (
+                          <div className="space-y-2">
+                            <div className="relative w-full h-64 bg-secondary rounded overflow-hidden">
+                              <Image
+                                src={designForm.imageUrl}
+                                alt="Design preview"
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                            <button
+                              onClick={() => setDesignForm(prev => ({ ...prev, imageUrl: '', imageFile: null }))}
+                              className="text-destructive text-body-small hover:underline"
+                            >
+                              Remove image
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-border rounded p-8 text-center">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              className="hidden"
+                              id="design-image-upload"
+                              disabled={uploadingImage}
+                            />
+                            <label
+                              htmlFor="design-image-upload"
+                              className={`cursor-pointer inline-flex flex-col items-center gap-2 ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {uploadingImage ? (
+                                <>
+                                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                  <span className="text-body-small text-muted-foreground">Uploading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-8 h-8 text-muted-foreground" />
+                                  <span className="text-body-small text-muted-foreground">
+                                    Click to upload or drag and drop
+                                  </span>
+                                  <span className="text-caption text-muted-foreground">
+                                    PNG, JPG, WEBP up to 10MB
+                                  </span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-4 pt-4 border-t border-border">
+                        <button
+                          onClick={closeDesignModal}
+                          className="flex-1 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+                        >
+                          <span className="text-button-secondary">CANCEL</span>
+                        </button>
+                        <button
+                          onClick={handleSaveDesign}
+                          disabled={!designForm.title.trim() || uploadingImage}
+                          className="flex-1 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="text-button-primary">
+                            {editingDesign ? 'UPDATE DESIGN' : 'CREATE DESIGN'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
