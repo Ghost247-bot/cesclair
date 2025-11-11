@@ -7,7 +7,7 @@ import bcryptjs from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 
-// GET - List approved designers
+// GET - List all users with designer role
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,40 +15,65 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
 
-    // Build query - always filter for approved designers
-    const baseQuery = db.select({
-      id: designers.id,
-      name: designers.name,
-      email: designers.email,
-      bio: designers.bio,
-      portfolioUrl: designers.portfolioUrl,
-      specialties: designers.specialties,
-      status: designers.status,
-      avatarUrl: designers.avatarUrl,
-      createdAt: designers.createdAt,
-      updatedAt: designers.updatedAt,
-    }).from(designers);
+    // Get all users with role='designer' and join with designers table for additional info
+    // This ensures we show ALL accounts with designer role, not just approved ones
+    const baseQuery = db
+      .select({
+        // Use user table as primary source
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image, // Include user.image for fallback
+        // Get additional info from designers table if available
+        bio: designers.bio,
+        portfolioUrl: designers.portfolioUrl,
+        specialties: designers.specialties,
+        status: designers.status,
+        avatarUrl: designers.avatarUrl,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      })
+      .from(user)
+      .leftJoin(designers, eq(user.email, designers.email));
 
-    // Apply filters: must be approved AND (if search provided) match search criteria
-    let whereCondition = eq(designers.status, 'approved');
+    // Build where conditions
+    const conditions = [eq(user.role, 'designer')];
     
+    // Apply search filter if provided
     if (search) {
-      whereCondition = and(
-        eq(designers.status, 'approved'),
+      conditions.push(
         or(
-          like(designers.name, `%${search}%`),
-          like(designers.email, `%${search}%`),
+          like(user.name, `%${search}%`),
+          like(user.email, `%${search}%`),
           like(designers.specialties, `%${search}%`)
         )
       );
     }
 
+    // Apply conditions
+    const whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
     const results = await baseQuery
       .where(whereCondition)
       .limit(limit)
       .offset(offset);
 
-    return NextResponse.json(results, { status: 200 });
+    // Transform results to match expected format
+    // Use designers table data when available, fallback to user table data
+    const transformedResults = results.map((row: any) => ({
+      id: row.id, // User ID (text)
+      name: row.name || '',
+      email: row.email || '',
+      bio: row.bio || null,
+      portfolioUrl: row.portfolioUrl || null,
+      specialties: row.specialties || null,
+      status: row.status || 'approved', // Default to approved if no designers table entry
+      avatarUrl: row.avatarUrl || row.image || null, // Use designers.avatarUrl or user.image
+      createdAt: row.createdAt ? (row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt) : new Date().toISOString(),
+      updatedAt: row.updatedAt ? (row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt) : new Date().toISOString(),
+    }));
+
+    return NextResponse.json(transformedResults, { status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;

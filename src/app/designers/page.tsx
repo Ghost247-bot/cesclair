@@ -7,7 +7,7 @@ import { Users, ArrowRight, Briefcase } from "lucide-react";
 import Footer from "@/components/sections/footer";
 
 interface Designer {
-  id: number;
+  id: string | number; // Can be string (user.id) or number (designers.id)
   name: string;
   email: string;
   bio: string | null;
