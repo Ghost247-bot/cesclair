@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products } from '@/db/schema';
-import { eq, like, or, and, gte, lte, asc, desc } from 'drizzle-orm';
+import { eq, like, or, and, gte, lte, asc, desc, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Pagination
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 100);
+    // Pagination - increased limit cap to 1000
+    const limitParam = parseInt(searchParams.get('limit') ?? '10');
+    const limit = Math.min(limitParam, 1000);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     
     // Search
@@ -23,10 +24,7 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') ?? 'createdAt';
     const order = searchParams.get('order') ?? 'desc';
     
-    // Build query
-    let query = db.select().from(products);
-    
-    // Apply filters
+    // Build conditions array
     const conditions = [];
     
     if (search) {
@@ -44,27 +42,38 @@ export async function GET(request: NextRequest) {
     }
     
     if (minPrice) {
-      conditions.push(gte(products.price, minPrice));
+      const minPriceNum = parseFloat(minPrice);
+      if (!isNaN(minPriceNum)) {
+        // Cast text price to numeric for comparison
+        conditions.push(sql`CAST(${products.price} AS NUMERIC) >= CAST(${minPriceNum} AS NUMERIC)`);
+      }
     }
     
     if (maxPrice) {
-      conditions.push(lte(products.price, maxPrice));
+      const maxPriceNum = parseFloat(maxPrice);
+      if (!isNaN(maxPriceNum)) {
+        // Cast text price to numeric for comparison
+        conditions.push(sql`CAST(${products.price} AS NUMERIC) <= CAST(${maxPriceNum} AS NUMERIC)`);
+      }
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    
-    // Apply sorting
+    // Determine sort column
     const sortColumn = sort === 'price' ? products.price :
                       sort === 'name' ? products.name :
                       sort === 'stock' ? products.stock :
                       products.createdAt;
     
-    query = query.orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn));
+    // Build and execute query
+    let baseQuery = db.select().from(products);
     
-    // Apply pagination
-    const results = await query.limit(limit).offset(offset);
+    if (conditions.length > 0) {
+      baseQuery = baseQuery.where(and(...conditions));
+    }
+    
+    const results = await baseQuery
+      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(limit)
+      .offset(offset);
     
     return NextResponse.json(results, { status: 200 });
   } catch (error) {

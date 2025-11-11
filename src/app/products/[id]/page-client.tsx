@@ -7,6 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronDown, Minus, Plus, Heart, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Footer from "@/components/sections/footer";
+import { useSession } from '@/lib/auth-client';
+import { toast } from 'sonner';
 
 interface Product {
   id: number;
@@ -17,12 +19,21 @@ interface Product {
   imageUrl: string | null;
   stock: number;
   sku: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface ParsedDescription {
+  badge?: string;
+  sustainability?: string;
+  description?: string;
 }
 
 export default function ProductDetailPageClient() {
   const params = useParams();
   const router = useRouter();
   const productId = params?.id as string;
+  const { data: session } = useSession();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +43,42 @@ export default function ProductDetailPageClient() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [expandedSection, setExpandedSection] = useState<string | null>('details');
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+
+  // Parse description for badge and sustainability info
+  const parseDescription = (description: string | null): ParsedDescription => {
+    if (!description) return {};
+    
+    const result: ParsedDescription = {};
+    
+    // Try to extract badge and sustainability from description
+    // Format: "Badge: $199.28. Sustainability: Cleaner Chemistry"
+    const badgeMatch = description.match(/Badge:\s*([^\.]+)/i);
+    const sustainabilityMatch = description.match(/Sustainability:\s*(.+?)(?:\.|$)/i);
+    
+    if (badgeMatch) {
+      result.badge = badgeMatch[1].trim();
+    }
+    
+    if (sustainabilityMatch) {
+      result.sustainability = sustainabilityMatch[1].trim();
+    }
+    
+    // If no structured format, use the full description
+    if (!badgeMatch && !sustainabilityMatch) {
+      result.description = description;
+    } else {
+      // Extract the rest of the description if any
+      const parts = description.split(/Badge:|Sustainability:/i);
+      if (parts.length > 2) {
+        result.description = parts.slice(2).join(' ').trim();
+      }
+    }
+    
+    return result;
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -40,7 +87,10 @@ export default function ProductDetailPageClient() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await fetch(`/api/products/${productId}`);
+        // Always fetch from database
+        const response = await fetch(`/api/products/${productId}`, {
+          cache: 'no-store', // Ensure fresh data from database
+        });
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -53,6 +103,29 @@ export default function ProductDetailPageClient() {
         
         const data = await response.json();
         setProduct(data);
+        
+        // Check if product is in wishlist
+        if (session?.user?.id) {
+          try {
+            const wishlistResponse = await fetch('/api/wishlist');
+            if (wishlistResponse.ok) {
+              const wishlistData = await wishlistResponse.json();
+              // For now, check localStorage as fallback
+              const localWishlist = localStorage.getItem('wishlist');
+              if (localWishlist) {
+                const wishlistItems = JSON.parse(localWishlist);
+                setIsWishlisted(wishlistItems.includes(parseInt(productId)));
+              }
+            }
+          } catch (err) {
+            // Check localStorage as fallback
+            const localWishlist = localStorage.getItem('wishlist');
+            if (localWishlist) {
+              const wishlistItems = JSON.parse(localWishlist);
+              setIsWishlisted(wishlistItems.includes(parseInt(productId)));
+            }
+          }
+        }
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Failed to load product');
@@ -62,20 +135,7 @@ export default function ProductDetailPageClient() {
     };
 
     fetchProduct();
-  }, [productId]);
-
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
-
-  const handleAddToBag = () => {
-    if (!selectedSize) {
-      alert('Please select a size');
-      return;
-    }
-    // In real app, this would add to cart
-    console.log('Adding to bag:', { product, selectedColor, selectedSize, quantity });
-  };
+  }, [productId, session]);
 
   // Default product images if none available
   const productImages = product?.imageUrl 
@@ -88,6 +148,147 @@ export default function ProductDetailPageClient() {
   ];
   
   const sizes = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  const handleAddToBag = async () => {
+    if (!product) return;
+    
+    if (product.stock <= 0) {
+      toast.error('This product is out of stock');
+      return;
+    }
+    
+    if (!selectedSize) {
+      toast.error('Please select a size');
+      return;
+    }
+    
+    try {
+      setIsAddingToCart(true);
+      
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.user?.id && { 'x-user-id': session.user.id }),
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: quantity,
+          size: selectedSize,
+          color: colors[selectedColor]?.name || null,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to add to cart');
+      }
+      
+      toast.success('Added to bag');
+      
+      // Reset quantity after successful add
+      setQuantity(1);
+    } catch (err: any) {
+      console.error('Error adding to cart:', err);
+      toast.error(err.message || 'Failed to add to cart');
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!product) return;
+    
+    try {
+      setIsAddingToWishlist(true);
+      
+      if (isWishlisted) {
+        // Remove from wishlist
+        const response = await fetch(`/api/wishlist?productId=${product.id}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setIsWishlisted(false);
+          toast.success('Removed from wishlist');
+          
+          // Update localStorage
+          const localWishlist = localStorage.getItem('wishlist');
+          if (localWishlist) {
+            const wishlistItems = JSON.parse(localWishlist);
+            const updated = wishlistItems.filter((id: number) => id !== product.id);
+            localStorage.setItem('wishlist', JSON.stringify(updated));
+          }
+        }
+      } else {
+        // Add to wishlist
+        const response = await fetch('/api/wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: product.id,
+          }),
+        });
+        
+        if (response.ok) {
+          setIsWishlisted(true);
+          toast.success('Added to wishlist');
+          
+          // Update localStorage
+          const localWishlist = localStorage.getItem('wishlist');
+          const wishlistItems = localWishlist ? JSON.parse(localWishlist) : [];
+          if (!wishlistItems.includes(product.id)) {
+            wishlistItems.push(product.id);
+            localStorage.setItem('wishlist', JSON.stringify(wishlistItems));
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Error updating wishlist:', err);
+      toast.error('Failed to update wishlist');
+    } finally {
+      setIsAddingToWishlist(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!product) return;
+    
+    const url = window.location.href;
+    const text = `Check out ${product.name} - $${parseFloat(product.price || '0').toFixed(2)}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: text,
+          url: url,
+        });
+        toast.success('Shared successfully');
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          // Fallback to clipboard
+          await navigator.clipboard.writeText(url);
+          toast.success('Link copied to clipboard');
+        }
+      }
+    } else {
+      // Fallback to clipboard
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard');
+      } catch (err) {
+        toast.error('Failed to share');
+      }
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -259,26 +460,59 @@ export default function ProductDetailPageClient() {
               </div>
             </div>
 
+            {/* Badge and Sustainability Info */}
+            {product.description && (() => {
+              const parsed = parseDescription(product.description);
+              return (parsed.badge || parsed.sustainability) && (
+                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-secondary/50 rounded border border-border">
+                  {parsed.badge && (
+                    <p className="text-sm sm:text-base text-muted-foreground mb-1">
+                      <span className="font-medium">Badge:</span> {parsed.badge}
+                    </p>
+                  )}
+                  {parsed.sustainability && (
+                    <p className="text-sm sm:text-base text-muted-foreground">
+                      <span className="font-medium">Sustainability:</span> {parsed.sustainability}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Add to Bag Button */}
             <button
               onClick={handleAddToBag}
-              className="w-full bg-primary text-primary-foreground py-3 sm:py-4 text-xs sm:text-navigation hover:bg-primary/90 transition-colors mb-3 sm:mb-4"
+              disabled={product.stock <= 0 || isAddingToCart || !selectedSize}
+              className={`w-full py-3 sm:py-4 text-xs sm:text-navigation transition-colors mb-3 sm:mb-4 ${
+                product.stock <= 0 || !selectedSize
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              }`}
             >
-              ADD TO BAG
+              {isAddingToCart ? 'ADDING...' : product.stock <= 0 ? 'OUT OF STOCK' : 'ADD TO BAG'}
             </button>
 
             {/* Wishlist & Share */}
             <div className="flex gap-2 sm:gap-4 mb-6 sm:mb-8">
               <motion.button 
-                className="flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 border border-border hover:bg-secondary transition-colors"
+                onClick={handleWishlist}
+                disabled={isAddingToWishlist}
+                className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 border border-border hover:bg-secondary transition-colors ${
+                  isWishlisted ? 'bg-primary/10 border-primary' : ''
+                }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="text-xs sm:text-body hidden sm:inline">Add to Wishlist</span>
+                <Heart 
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWishlisted ? 'fill-primary text-primary' : ''}`} 
+                />
+                <span className="text-xs sm:text-body hidden sm:inline">
+                  {isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}
+                </span>
                 <span className="text-xs sm:hidden">Wishlist</span>
               </motion.button>
               <motion.button 
+                onClick={handleShare}
                 className="flex-1 flex items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 border border-border hover:bg-secondary transition-colors"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -331,23 +565,63 @@ export default function ProductDetailPageClient() {
                     >
                       <div className="pb-4">
                         <ul className="space-y-2">
-                          {product.description && (
-                            <motion.li 
-                              className="text-body text-muted-foreground flex items-start"
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              <span className="mr-2">•</span>
-                              <span>{product.description}</span>
-                            </motion.li>
-                          )}
+                          {(() => {
+                            const parsed = parseDescription(product.description);
+                            return (
+                              <>
+                                {parsed.badge && (
+                                  <motion.li 
+                                    className="text-body text-muted-foreground flex items-start"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                  >
+                                    <span className="mr-2">•</span>
+                                    <span><strong>Badge:</strong> {parsed.badge}</span>
+                                  </motion.li>
+                                )}
+                                {parsed.sustainability && (
+                                  <motion.li 
+                                    className="text-body text-muted-foreground flex items-start"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.05 }}
+                                  >
+                                    <span className="mr-2">•</span>
+                                    <span><strong>Sustainability:</strong> {parsed.sustainability}</span>
+                                  </motion.li>
+                                )}
+                                {parsed.description && (
+                                  <motion.li 
+                                    className="text-body text-muted-foreground flex items-start"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.1 }}
+                                  >
+                                    <span className="mr-2">•</span>
+                                    <span>{parsed.description}</span>
+                                  </motion.li>
+                                )}
+                                {!parsed.badge && !parsed.sustainability && product.description && (
+                                  <motion.li 
+                                    className="text-body text-muted-foreground flex items-start"
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                  >
+                                    <span className="mr-2">•</span>
+                                    <span>{product.description}</span>
+                                  </motion.li>
+                                )}
+                              </>
+                            );
+                          })()}
                           {product.category && (
                             <motion.li 
                               className="text-body text-muted-foreground flex items-start"
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3, delay: 0.05 }}
+                              transition={{ duration: 0.3, delay: 0.15 }}
                             >
                               <span className="mr-2">•</span>
                               <span>Category: {product.category}</span>
@@ -358,7 +632,7 @@ export default function ProductDetailPageClient() {
                               className="text-body text-muted-foreground flex items-start"
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3, delay: 0.1 }}
+                              transition={{ duration: 0.3, delay: 0.2 }}
                             >
                               <span className="mr-2">•</span>
                               <span>SKU: {product.sku}</span>
@@ -368,7 +642,7 @@ export default function ProductDetailPageClient() {
                             className="text-body text-muted-foreground flex items-start"
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: 0.15 }}
+                            transition={{ duration: 0.3, delay: 0.25 }}
                           >
                             <span className="mr-2">•</span>
                             <span>Stock: {product.stock > 0 ? `${product.stock} available` : 'Out of stock'}</span>
