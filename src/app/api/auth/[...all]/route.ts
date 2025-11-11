@@ -6,6 +6,17 @@ const handler = toNextJsHandler(auth);
 
 // Wrap handlers with error logging and better error handling
 export async function POST(request: NextRequest) {
+  // Log request details for debugging
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  
+  console.log('Auth POST request:', {
+    pathname,
+    method: request.method,
+    hasAuthHeader: request.headers.get('authorization') ? true : false,
+    hasCookie: request.headers.get('cookie') ? true : false,
+  });
+
   try {
     // Better Auth's toNextJsHandler should handle the request automatically
     // It expects the request object directly
@@ -75,47 +86,84 @@ export async function POST(request: NextRequest) {
       if (response.status === 500) {
         try {
           const clonedResponse = response.clone();
-          const errorBody = await clonedResponse.json().catch(() => null);
+          let errorBody: any = null;
+          let errorText: string | null = null;
+          
+          // Try to read as JSON first
+          try {
+            errorBody = await clonedResponse.json();
+          } catch {
+            // If JSON fails, try text
+            try {
+              errorText = await clonedResponse.text();
+            } catch {
+              // If both fail, we'll use a generic message
+            }
+          }
+          
           if (errorBody) {
-            console.error('Better Auth error response:', JSON.stringify(errorBody, null, 2));
+            console.error('Better Auth error response (JSON):', JSON.stringify(errorBody, null, 2));
             
-            // If the response doesn't have proper error format, enhance it
-            if (!errorBody.code || !errorBody.message) {
-              // Return a properly formatted error response
-              return NextResponse.json(
-                {
-                  error: errorBody.error || 'Internal server error',
-                  message: errorBody.message || errorBody.error || 'An unexpected error occurred',
-                  code: errorBody.code || 'AUTH_ERROR',
-                },
-                { status: 500 }
-              );
-            }
+            // Check for database-related errors in the response
+            const errorMessage = errorBody.message || errorBody.error || JSON.stringify(errorBody);
+            const isDatabaseError = 
+              errorMessage.includes('database') || 
+              errorMessage.includes('connection') || 
+              errorMessage.includes('ECONNREFUSED') ||
+              errorMessage.includes('ENOTFOUND') ||
+              errorMessage.includes('timeout') ||
+              errorMessage.includes('ETIMEDOUT') ||
+              errorMessage.includes('Pool') ||
+              errorMessage.includes('neon') ||
+              errorMessage.includes('postgres') ||
+              errorMessage.includes('relation') ||
+              errorMessage.includes('does not exist');
+            
+            // Return a properly formatted error response
+            return NextResponse.json(
+              {
+                error: errorBody.error || (isDatabaseError ? 'Database connection error' : 'Internal server error'),
+                message: errorBody.message || errorBody.error || (isDatabaseError ? 'Unable to connect to the database' : 'An unexpected error occurred'),
+                code: errorBody.code || (isDatabaseError ? 'DATABASE_ERROR' : 'AUTH_ERROR'),
+              },
+              { status: 500 }
+            );
+          } else if (errorText) {
+            console.error('Better Auth error response (text):', errorText);
+            
+            // Check if text contains database error indicators
+            const isDatabaseError = 
+              errorText.includes('database') || 
+              errorText.includes('connection') || 
+              errorText.includes('ECONNREFUSED') ||
+              errorText.includes('ENOTFOUND') ||
+              errorText.includes('timeout') ||
+              errorText.includes('ETIMEDOUT') ||
+              errorText.includes('Pool') ||
+              errorText.includes('neon') ||
+              errorText.includes('postgres') ||
+              errorText.includes('relation') ||
+              errorText.includes('does not exist');
+            
+            return NextResponse.json(
+              {
+                error: isDatabaseError ? 'Database connection error' : 'Internal server error',
+                message: errorText || (isDatabaseError ? 'Unable to connect to the database' : 'An unexpected error occurred'),
+                code: isDatabaseError ? 'DATABASE_ERROR' : 'AUTH_ERROR',
+              },
+              { status: 500 }
+            );
           } else {
-            // Try to read as text if JSON fails
-            const textBody = await clonedResponse.text().catch(() => null);
-            if (textBody) {
-              console.error('Better Auth error response (text):', textBody);
-              // Return a proper JSON error
-              return NextResponse.json(
-                {
-                  error: 'Internal server error',
-                  message: textBody || 'An unexpected error occurred',
-                  code: 'AUTH_ERROR',
-                },
-                { status: 500 }
-              );
-            } else {
-              // If we can't read the body at all, return a generic error
-              return NextResponse.json(
-                {
-                  error: 'Internal server error',
-                  message: 'An unexpected error occurred during authentication',
-                  code: 'AUTH_ERROR',
-                },
-                { status: 500 }
-              );
-            }
+            // If we can't read the body at all, return a generic error
+            console.error('Could not read error response body');
+            return NextResponse.json(
+              {
+                error: 'Internal server error',
+                message: 'An unexpected error occurred during authentication',
+                code: 'AUTH_ERROR',
+              },
+              { status: 500 }
+            );
           }
         } catch (e) {
           // If reading the response fails, return a generic error
