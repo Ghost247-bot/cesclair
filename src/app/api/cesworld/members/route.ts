@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { CesworldMembers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
