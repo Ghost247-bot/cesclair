@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { CesworldTransactions, CesworldMembers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 const VALID_TRANSACTION_TYPES = ['purchase', 'redeem', 'birthday_reward'] as const;
 
 export async function POST(request: NextRequest) {

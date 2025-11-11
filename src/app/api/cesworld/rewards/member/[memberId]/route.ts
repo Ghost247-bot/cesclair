@@ -3,6 +3,9 @@ import { db } from '@/db';
 import { CesworldRewards } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
+// Force dynamic rendering - API routes should not be statically generated
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ memberId: string }> }
