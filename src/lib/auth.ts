@@ -5,9 +5,21 @@ import { NextRequest } from 'next/server';
 import { db } from "@/db";
 import bcryptjs from "bcryptjs";
  
+// Get base URL for auth - prioritize production URL
+const getBaseURL = () => {
+	if (process.env.NEXT_PUBLIC_SITE_URL) {
+		return process.env.NEXT_PUBLIC_SITE_URL;
+	}
+	if (process.env.BETTER_AUTH_URL) {
+		return process.env.BETTER_AUTH_URL;
+	}
+	// Default to localhost for development
+	return "http://localhost:3002";
+};
+
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET || "inFvd2NoE+kpwOMYTAhaWiQCb6qnAX7fP/tNaaiNb14=",
-	baseURL: process.env.NEXT_PUBLIC_SITE_URL || process.env.BETTER_AUTH_URL || "http://localhost:3002",
+	baseURL: getBaseURL(),
 	database: drizzleAdapter(db, {
 		provider: "pg",
 	}),
@@ -55,7 +67,8 @@ export const auth = betterAuth({
 		updateAge: 60 * 60 * 24, // 1 day
 	},
 	trustedOrigins: [
-		process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002",
+		getBaseURL(),
+		"https://cesclair.store",
 		"http://localhost:3001",
 		"http://localhost:3000",
 		"http://localhost:3002",

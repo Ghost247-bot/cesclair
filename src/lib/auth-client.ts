@@ -44,6 +44,14 @@ export const authClient = createAuthClient({
       if (ctx.response?.status === 401 || ctx.response?.status === 403) {
         localStorage.removeItem("bearer_token");
       }
+      // Log errors for debugging (especially 500 errors)
+      if (ctx.response?.status === 500) {
+        console.error('Auth client error (500):', {
+          status: ctx.response.status,
+          statusText: ctx.response.statusText,
+          url: ctx.request?.url,
+        });
+      }
     }
   }
 });

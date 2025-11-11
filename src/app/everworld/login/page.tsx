@@ -58,6 +58,9 @@ export default function CesworldLogin() {
           message: error.message,
           status: error.status,
           cause: error.cause,
+          // Try to extract more details from the error object
+          ...(error as any).data && { data: (error as any).data },
+          ...(error as any).response && { response: (error as any).response },
         });
         
         // Handle specific error codes
@@ -67,9 +70,17 @@ export default function CesworldLogin() {
           toast.error("No account found with this email. Please register first.");
         } else if (error.code === 'EMAIL_NOT_VERIFIED') {
           toast.error("Please verify your email address before signing in.");
-        } else if (error.status === 500) {
+        } else if (error.status === 500 || error.code === 'DATABASE_ERROR' || error.code === 'AUTH_ERROR') {
           toast.error("Server error during login. Please try again or contact support.");
-          console.error('Server error details:', error);
+          console.error('Server error details:', {
+            error,
+            code: error.code,
+            message: error.message,
+            status: error.status,
+            // Log environment info for debugging
+            origin: window.location.origin,
+            url: window.location.href,
+          });
         } else {
           toast.error(error.message || "Login failed. Please try again.");
         }

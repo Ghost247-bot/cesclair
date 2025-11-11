@@ -61,7 +61,23 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if it's a database connection error
-    if (errorMessage.includes('database') || errorMessage.includes('connection') || errorMessage.includes('ECONNREFUSED')) {
+    if (
+      errorMessage.includes('database') || 
+      errorMessage.includes('connection') || 
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('ETIMEDOUT') ||
+      errorMessage.includes('Pool') ||
+      errorMessage.includes('neon') ||
+      errorMessage.includes('postgres')
+    ) {
+      console.error('Database connection error detected:', {
+        error: errorMessage,
+        stack: errorStack,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlLength: process.env.DATABASE_URL?.length || 0,
+      });
       return NextResponse.json(
         { 
           error: 'Database connection error',
