@@ -150,64 +150,99 @@ export async function POST(request: NextRequest) {
 
     // Create user account with better-auth (role: designer)
     const userId = nanoid();
+    const accountId = nanoid();
     const now = new Date();
     
-    // Hash password with bcryptjs for better-auth (same as better-auth uses)
-    const hashedPassword = await bcryptjs.hash(password, 10);
-
-    // Create user account
-    await db.insert(user).values({
-      id: userId,
-      name: name.trim(),
+    console.log('Creating designer application:', {
+      userId,
       email: normalizedEmail,
-      role: 'designer',
-      emailVerified: false,
-      createdAt: now,
-      updatedAt: now,
+      hasName: !!name,
+      hasPassword: !!password,
     });
+    
+    try {
+      // Hash password with bcryptjs for better-auth (same as better-auth uses)
+      const hashedPassword = await bcryptjs.hash(password, 10);
+      console.log('Password hashed for better-auth');
 
-    // Create account credentials for better-auth
-    await db.insert(account).values({
-      id: nanoid(),
-      accountId: normalizedEmail,
-      providerId: 'credential',
-      userId: userId,
-      password: hashedPassword,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // Hash password with bcrypt for designers table (legacy compatibility)
-    const designerHashedPassword = await bcrypt.hash(password, 10);
-
-    // Create designer profile
-    const newDesigner = await db.insert(designers)
-      .values({
+      // Create user account
+      console.log('Inserting user...');
+      await db.insert(user).values({
+        id: userId,
         name: name.trim(),
         email: normalizedEmail,
-        password: designerHashedPassword,
-        bio: bio?.trim() || null,
-        portfolioUrl: portfolioUrl?.trim() || null,
-        specialties: specialties?.trim() || null,
-        status: 'pending',
-        avatarUrl: avatarUrl?.trim() || null,
+        role: 'designer',
+        emailVerified: false,
         createdAt: now,
         updatedAt: now,
-      })
-      .returning({
-        id: designers.id,
-        name: designers.name,
-        email: designers.email,
-        bio: designers.bio,
-        portfolioUrl: designers.portfolioUrl,
-        specialties: designers.specialties,
-        status: designers.status,
-        avatarUrl: designers.avatarUrl,
-        createdAt: designers.createdAt,
-        updatedAt: designers.updatedAt,
       });
+      console.log('User inserted successfully');
 
-    return NextResponse.json(newDesigner[0], { status: 201 });
+      // Create account credentials for better-auth
+      console.log('Inserting account...');
+      await db.insert(account).values({
+        id: accountId,
+        accountId: normalizedEmail,
+        providerId: 'credential',
+        userId: userId,
+        password: hashedPassword,
+        accessToken: null,
+        refreshToken: null,
+        idToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        scope: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log('Account inserted successfully');
+
+      // Hash password with bcrypt for designers table (legacy compatibility)
+      const designerHashedPassword = await bcrypt.hash(password, 10);
+      console.log('Password hashed for designers table');
+
+      // Create designer profile
+      console.log('Inserting designer...');
+      const newDesigner = await db.insert(designers)
+        .values({
+          name: name.trim(),
+          email: normalizedEmail,
+          password: designerHashedPassword,
+          bio: bio?.trim() || null,
+          portfolioUrl: portfolioUrl?.trim() || null,
+          specialties: specialties?.trim() || null,
+          status: 'pending',
+          avatarUrl: avatarUrl?.trim() || null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({
+          id: designers.id,
+          name: designers.name,
+          email: designers.email,
+          bio: designers.bio,
+          portfolioUrl: designers.portfolioUrl,
+          specialties: designers.specialties,
+          status: designers.status,
+          avatarUrl: designers.avatarUrl,
+          createdAt: designers.createdAt,
+          updatedAt: designers.updatedAt,
+        });
+      console.log('Designer inserted successfully');
+
+      return NextResponse.json(newDesigner[0], { status: 201 });
+    } catch (dbError) {
+      // If user was created but account or designer failed, try to clean up
+      console.error('Database operation failed, attempting cleanup...');
+      try {
+        await db.delete(user).where(eq(user.id, userId));
+        console.log('Cleaned up user record');
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError);
+      }
+      throw dbError; // Re-throw to be caught by outer catch
+    }
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
