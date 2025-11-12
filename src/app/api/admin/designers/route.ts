@@ -67,6 +67,91 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
+    const id = searchParams.get('id');
+
+    // If ID is provided, return single designer
+    if (id) {
+      if (isNaN(parseInt(id))) {
+        return NextResponse.json(
+          { error: 'Invalid ID format', code: 'INVALID_ID' },
+          { status: 400 }
+        );
+      }
+
+      try {
+        // Try with bannerUrl first, fallback to without if column doesn't exist
+        try {
+          const designer = await db
+            .select({
+              id: designers.id,
+              name: designers.name,
+              email: designers.email,
+              bio: designers.bio,
+              portfolioUrl: designers.portfolioUrl,
+              specialties: designers.specialties,
+              status: designers.status,
+              avatarUrl: designers.avatarUrl,
+              bannerUrl: designers.bannerUrl,
+              createdAt: designers.createdAt,
+              updatedAt: designers.updatedAt,
+            })
+            .from(designers)
+            .where(eq(designers.id, parseInt(id)))
+            .limit(1);
+
+          if (designer.length === 0) {
+            return NextResponse.json(
+              { error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' },
+              { status: 404 }
+            );
+          }
+
+          return NextResponse.json(designer[0], { status: 200 });
+        } catch (bannerError: any) {
+          // If bannerUrl column doesn't exist, query without it
+          if (bannerError?.message?.includes('banner_url') || bannerError?.message?.includes('column')) {
+            const designer = await db
+              .select({
+                id: designers.id,
+                name: designers.name,
+                email: designers.email,
+                bio: designers.bio,
+                portfolioUrl: designers.portfolioUrl,
+                specialties: designers.specialties,
+                status: designers.status,
+                avatarUrl: designers.avatarUrl,
+                createdAt: designers.createdAt,
+                updatedAt: designers.updatedAt,
+              })
+              .from(designers)
+              .where(eq(designers.id, parseInt(id)))
+              .limit(1);
+
+            if (designer.length === 0) {
+              return NextResponse.json(
+                { error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' },
+                { status: 404 }
+              );
+            }
+
+            // Add null bannerUrl for consistency
+            return NextResponse.json({ ...designer[0], bannerUrl: null }, { status: 200 });
+          }
+          throw bannerError; // Re-throw if it's a different error
+        }
+      } catch (error: any) {
+        console.error('GET /api/admin/designers?id error:', error);
+        return NextResponse.json(
+          { 
+            error: 'Internal server error: ' + (error?.message || 'Unknown error'),
+            code: 'INTERNAL_SERVER_ERROR'
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // List all designers (existing logic)
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 100);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
