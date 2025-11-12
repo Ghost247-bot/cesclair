@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
     // Apply search filter if provided
     if (search) {
       const searchCondition = or(
-        like(user.name, `%${search}%`),
-        like(user.email, `%${search}%`),
-        like(designers.specialties, `%${search}%`)
+          like(user.name, `%${search}%`),
+          like(user.email, `%${search}%`),
+          like(designers.specialties, `%${search}%`)
       );
       if (searchCondition) {
         conditions.push(searchCondition);

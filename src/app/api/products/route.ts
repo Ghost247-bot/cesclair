@@ -82,9 +82,9 @@ export async function GET(request: NextRequest) {
       try {
         // Add timeout wrapper
         const queryPromise = baseQuery
-          .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
-          .limit(limit)
-          .offset(offset);
+      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(limit)
+      .offset(offset);
         
         // Race query against timeout (10 seconds)
         results = await Promise.race([

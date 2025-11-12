@@ -450,7 +450,6 @@ export default function DesignerPortfolioPage() {
               style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
               sizes="100vw"
               priority
-              unoptimized
             />
             <div className="absolute inset-0 bg-background/80" />
           </div>
@@ -572,15 +571,26 @@ export default function DesignerPortfolioPage() {
                           {/* Avatar Preview */}
                           {(avatarPreview || editForm.avatarUrl) && (
                             <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md mx-auto">
-                              <img
-                                src={avatarPreview || editForm.avatarUrl}
-                                alt="Avatar preview"
-                                className="w-full h-full object-cover rounded-full"
-                              />
+                              {avatarPreview?.startsWith('blob:') ? (
+                                <img
+                                  src={avatarPreview}
+                                  alt="Avatar preview"
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              ) : (
+                                <Image
+                                  src={avatarPreview || editForm.avatarUrl || ''}
+                                  alt="Avatar preview"
+                                  fill
+                                  className="object-cover rounded-full"
+                                  sizes="128px"
+                                  unoptimized={!avatarPreview && editForm.avatarUrl?.startsWith('http')}
+                                />
+                              )}
                               <button
                                 type="button"
                                 onClick={removeAvatarPreview}
-                                className="absolute top-0 right-0 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                                className="absolute top-0 right-0 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors z-10"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -627,15 +637,26 @@ export default function DesignerPortfolioPage() {
                           {/* Banner Preview */}
                           {(bannerPreview || editForm.bannerUrl) && (
                             <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
-                              <img
-                                src={bannerPreview || editForm.bannerUrl}
-                                alt="Banner preview"
-                                className="w-full h-full object-cover"
-                              />
+                              {bannerPreview?.startsWith('blob:') ? (
+                                <img
+                                  src={bannerPreview}
+                                  alt="Banner preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Image
+                                  src={bannerPreview || editForm.bannerUrl || ''}
+                                  alt="Banner preview"
+                                  fill
+                                  className="object-cover"
+                                  sizes="(max-width: 768px) 100vw, 768px"
+                                  unoptimized={!bannerPreview && editForm.bannerUrl?.startsWith('http')}
+                                />
+                              )}
                               <button
                                 type="button"
                                 onClick={removeBannerPreview}
-                                className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                                className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors z-10"
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -855,7 +876,11 @@ export default function DesignerPortfolioPage() {
                 className="object-cover"
                 sizes="100vw"
                 priority
-                unoptimized
+                unoptimized={designer.bannerUrl?.startsWith('http') && !designer.bannerUrl?.includes('supabase.co') && !designer.bannerUrl?.includes('localhost')}
+                onError={() => {
+                  console.error('Banner image failed to load:', designer.bannerUrl);
+                  setBannerImageError(true);
+                }}
               />
               <div className="absolute inset-0 bg-black/20" />
             </div>
@@ -877,7 +902,12 @@ export default function DesignerPortfolioPage() {
                         fill
                         className="object-cover rounded-full"
                         sizes="(max-width: 768px) 128px, 160px"
-                        unoptimized
+                        unoptimized={designer.avatarUrl?.startsWith('http') && !designer.avatarUrl?.includes('supabase.co') && !designer.avatarUrl?.includes('localhost')}
+                        onError={() => {
+                          console.error('Avatar image failed to load:', designer.avatarUrl);
+                          setAvatarImageError(true);
+                        }}
+                        onLoad={() => setAvatarImageError(false)}
                       />
                     ) : (
                       <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
