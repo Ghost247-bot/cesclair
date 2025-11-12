@@ -8,6 +8,7 @@
         "start": "next start",
         "lint": "next lint",
         "create-admin": "node scripts/create-admin.js",
+        "generate-secret": "node scripts/generate-auth-secret.js",
         "db:check": "node scripts/check-database.js",
         "db:generate": "drizzle-kit generate",
         "db:push": "drizzle-kit push",
