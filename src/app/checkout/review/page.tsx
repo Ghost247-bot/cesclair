@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { ArrowLeft, Check, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import Footer from '@/components/sections/footer';
@@ -289,11 +290,13 @@ export default function CheckoutReviewPage() {
                         className="flex items-center gap-4 pb-4 border-b border-border last:border-0"
                       >
                         {item.product?.imageUrl && (
-                          <div className="w-20 h-20 relative flex-shrink-0">
-                            <img
+                          <div className="w-20 h-20 relative flex-shrink-0 overflow-hidden rounded">
+                            <Image
                               src={item.product.imageUrl}
                               alt={item.product.name}
-                              className="w-full h-full object-cover rounded"
+                              fill
+                              className="object-cover rounded"
+                              sizes="80px"
                             />
                           </div>
                         )}

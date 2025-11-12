@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
     ],
     // Optimize images for Netlify
     formats: ['image/avif', 'image/webp'],
+    // Ensure images work on Netlify
+    unoptimized: false,
+    // Add loader for better compatibility
+    loader: 'default',
   },
   // Production optimizations
   compress: true,

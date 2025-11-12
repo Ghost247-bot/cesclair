@@ -19,6 +19,14 @@ export const metadata: Metadata = {
     apple: [
       { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
     ],
+    shortcut: '/favicon.ico',
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://cesclair.store'),
+  openGraph: {
+    title: "Cesclair-Modern Fashion",
+    description: "fashion for everyone",
+    type: "website",
+    siteName: "Cesclair",
   },
 };
 

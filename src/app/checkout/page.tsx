@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Check, ShoppingBag, Truck, CreditCard, FileCheck } from 'lucide-react';
 import Footer from '@/components/sections/footer';
 
@@ -167,11 +168,13 @@ function CheckoutContent() {
                         className="flex items-start sm:items-center gap-3 sm:gap-6 pb-4 sm:pb-6 border-b border-border last:border-0"
                       >
                         {item.product?.imageUrl && (
-                          <div className="w-16 h-16 sm:w-24 sm:h-24 relative flex-shrink-0">
-                            <img
+                          <div className="w-16 h-16 sm:w-24 sm:h-24 relative flex-shrink-0 overflow-hidden rounded">
+                            <Image
                               src={item.product.imageUrl}
                               alt={item.product.name}
-                              className="w-full h-full object-cover rounded"
+                              fill
+                              className="object-cover rounded"
+                              sizes="(max-width: 640px) 64px, 96px"
                             />
                           </div>
                         )}
