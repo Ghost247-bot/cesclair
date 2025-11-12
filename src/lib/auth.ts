@@ -7,19 +7,35 @@ import bcryptjs from "bcryptjs";
  
 // Get base URL for auth - prioritize production URL
 const getBaseURL = () => {
+	// In production, try to detect from request headers if available
 	if (process.env.NEXT_PUBLIC_SITE_URL) {
 		return process.env.NEXT_PUBLIC_SITE_URL;
 	}
 	if (process.env.BETTER_AUTH_URL) {
 		return process.env.BETTER_AUTH_URL;
 	}
+	// For production environments, try to construct from VERCEL_URL or similar
+	if (process.env.VERCEL_URL) {
+		return `https://${process.env.VERCEL_URL}`;
+	}
 	// Default to localhost for development
 	return "http://localhost:3002";
 };
 
+const baseURL = getBaseURL();
+
+// Log baseURL in production to help debug issues
+if (process.env.NODE_ENV === 'production') {
+	console.log('Better Auth baseURL:', baseURL);
+	if (!process.env.NEXT_PUBLIC_SITE_URL && !process.env.BETTER_AUTH_URL) {
+		console.warn('WARNING: NEXT_PUBLIC_SITE_URL or BETTER_AUTH_URL not set in production! Using:', baseURL);
+		console.warn('This may cause authentication issues. Please set NEXT_PUBLIC_SITE_URL=https://cesclair.store');
+	}
+}
+
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET || "inFvd2NoE+kpwOMYTAhaWiQCb6qnAX7fP/tNaaiNb14=",
-	baseURL: getBaseURL(),
+	baseURL: baseURL,
 	database: drizzleAdapter(db, {
 		provider: "pg",
 	}),

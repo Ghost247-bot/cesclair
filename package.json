@@ -7,7 +7,11 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "create-admin": "node scripts/create-admin.js"
+        "create-admin": "node scripts/create-admin.js",
+        "db:check": "node scripts/check-database.js",
+        "db:generate": "drizzle-kit generate",
+        "db:push": "drizzle-kit push",
+        "db:studio": "drizzle-kit studio"
     },
     "dependencies": {
         "@babel/parser": "^7.28.5",
