@@ -42,22 +42,51 @@ export async function GET(request: NextRequest) {
     
     // Apply search filter if provided
     if (search) {
-      conditions.push(
-        or(
-          like(user.name, `%${search}%`),
-          like(user.email, `%${search}%`),
-          like(designers.specialties, `%${search}%`)
-        )!
+      const searchCondition = or(
+        like(user.name, `%${search}%`),
+        like(user.email, `%${search}%`),
+        like(designers.specialties, `%${search}%`)
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
 
-    // Apply conditions
-    const whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions)!;
+    // Apply conditions - use and() only if we have multiple conditions
+    let query = baseQuery;
+    if (conditions.length === 1) {
+      query = query.where(conditions[0]);
+    } else if (conditions.length > 1) {
+      const combinedCondition = and(...conditions);
+      if (combinedCondition) {
+        query = query.where(combinedCondition);
+      }
+    }
     
-    const results = await baseQuery
-      .where(whereCondition)
-      .limit(limit)
-      .offset(offset);
+    // Execute query - add retry logic for Neon serverless
+    let results: any[] = [];
+    let retries = 2;
+    let lastError: Error | null = null;
+    
+    while (retries >= 0) {
+      try {
+        results = await query.limit(limit).offset(offset);
+        break; // Success, exit retry loop
+      } catch (queryError) {
+        lastError = queryError instanceof Error ? queryError : new Error(String(queryError));
+        if (retries === 0) {
+          throw lastError; // Re-throw on final attempt
+        }
+        retries--;
+        // Wait a bit before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries)));
+      }
+    }
+    
+    // Ensure results is defined
+    if (!results) {
+      results = [];
+    }
 
     // Transform results to match expected format
     // Use designers table data when available, fallback to user table data
@@ -86,22 +115,29 @@ export async function GET(request: NextRequest) {
       hasDatabaseUrl: !!process.env.DATABASE_URL,
     });
     
-    // Check if it's a database connection error
+    // Check if it's a database connection error or query timeout
     const isDatabaseError = 
       errorMessage.includes('database') || 
       errorMessage.includes('connection') || 
       errorMessage.includes('ECONNREFUSED') ||
       errorMessage.includes('ENOTFOUND') ||
       errorMessage.includes('timeout') ||
+      errorMessage.includes('Query timeout') ||
       errorMessage.includes('Pool') ||
       errorMessage.includes('neon') ||
-      errorMessage.includes('postgres');
+      errorMessage.includes('postgres') ||
+      errorMessage.includes('Failed query');
+    
+    // If it's a query error, try to provide more helpful error message
+    const isQueryError = errorMessage.includes('Failed query') || errorMessage.includes('Query timeout');
     
     return NextResponse.json(
       { 
         error: isDatabaseError ? 'Database connection error' : 'Internal server error',
         message: isDatabaseError 
-          ? 'Unable to connect to the database. Please try again later.'
+          ? (isQueryError 
+              ? 'Database query failed. Please try again later.'
+              : 'Unable to connect to the database. Please try again later.')
           : errorMessage,
         code: isDatabaseError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR',
       },
