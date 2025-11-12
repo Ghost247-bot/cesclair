@@ -442,11 +442,15 @@ export default function DesignerPortfolioPage() {
         {/* Background Image */}
         {designer.bannerUrl && (
           <div className="fixed inset-0 -z-10 w-full h-full">
-            <img
+            <Image
               src={designer.bannerUrl}
               alt={`${designer.name} background`}
-              className="w-full h-full object-cover opacity-10"
+              fill
+              className="object-cover opacity-10"
               style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+              sizes="100vw"
+              priority
+              unoptimized
             />
             <div className="absolute inset-0 bg-background/80" />
           </div>
@@ -843,16 +847,15 @@ export default function DesignerPortfolioPage() {
         {/* Hero Section with Banner */}
         <section className="relative z-0">
           {designer.bannerUrl && !bannerImageError ? (
-            <div className="relative w-full h-64 md:h-96 bg-secondary">
-              <img
+            <div className="relative w-full h-64 md:h-96 bg-secondary overflow-hidden">
+              <Image
                 src={designer.bannerUrl}
                 alt={`${designer.name} banner`}
-                className="w-full h-full object-cover"
-                onError={() => {
-                  console.error('Banner image failed to load:', designer.bannerUrl);
-                  setBannerImageError(true);
-                }}
-                onLoad={() => setBannerImageError(false)}
+                fill
+                className="object-cover"
+                sizes="100vw"
+                priority
+                unoptimized
               />
               <div className="absolute inset-0 bg-black/20" />
             </div>
@@ -868,15 +871,13 @@ export default function DesignerPortfolioPage() {
                 <div className="flex-shrink-0">
                   <div className="relative w-32 h-32 md:w-40 md:h-40 border-4 border-white rounded-full bg-white shadow-md overflow-hidden">
                     {designer.avatarUrl && !avatarImageError ? (
-                      <img
+                      <Image
                         src={designer.avatarUrl}
                         alt={designer.name}
-                        className="w-full h-full object-cover rounded-full"
-                        onError={() => {
-                          console.error('Avatar image failed to load:', designer.avatarUrl);
-                          setAvatarImageError(true);
-                        }}
-                        onLoad={() => setAvatarImageError(false)}
+                        fill
+                        className="object-cover rounded-full"
+                        sizes="(max-width: 768px) 128px, 160px"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
