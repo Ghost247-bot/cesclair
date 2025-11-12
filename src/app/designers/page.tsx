@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Users, ArrowRight, Briefcase } from "lucide-react";
+import { Users, ArrowRight, Briefcase, ExternalLink } from "lucide-react";
 import Footer from "@/components/sections/footer";
 
 interface Designer {
@@ -14,6 +14,7 @@ interface Designer {
   portfolioUrl: string | null;
   specialties: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
   status: string;
   createdAt: string;
 }
@@ -99,53 +100,70 @@ export default function DesignersPage() {
               {designers.map((designer) => (
                 <div
                   key={designer.id}
-                  className="bg-white border border-border p-6 hover:shadow-lg transition-shadow"
+                  className="bg-white border border-border overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative w-20 h-20 flex-shrink-0">
-                      {designer.avatarUrl ? (
-                        <Image
-                          src={designer.avatarUrl}
-                          alt={designer.name}
-                          fill
-                          className="object-cover rounded-full"
-                        />
-                      ) : (
-                        <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
-                          <Users className="w-8 h-8 text-muted-foreground" />
-                        </div>
-                      )}
+                  {/* Banner Image */}
+                  {designer.bannerUrl ? (
+                    <div className="relative w-full h-48 bg-secondary">
+                      <Image
+                        src={designer.bannerUrl}
+                        alt={`${designer.name} banner`}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-medium mb-1">{designer.name}</h3>
-                      {designer.specialties && (
-                        <p className="text-caption text-muted-foreground">
-                          {designer.specialties}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {designer.bio && (
-                    <p className="text-body text-muted-foreground mb-4 line-clamp-3">
-                      {designer.bio}
-                    </p>
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-secondary to-accent-background" />
                   )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-border">
-                    {designer.portfolioUrl ? (
-                      <a
-                        href={designer.portfolioUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-body-small hover:underline"
-                      >
-                        <Briefcase className="w-4 h-4" />
-                        <span>View Portfolio</span>
-                      </a>
-                    ) : (
-                      <span className="text-body-small text-muted-foreground">No portfolio</span>
+                  <div className="p-6">
+                    <div className="flex items-start gap-4 mb-4 -mt-12">
+                      <div className="relative w-20 h-20 flex-shrink-0 border-4 border-white rounded-full bg-white">
+                        {designer.avatarUrl ? (
+                          <Image
+                            src={designer.avatarUrl}
+                            alt={designer.name}
+                            fill
+                            className="object-cover rounded-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
+                            <Users className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 pt-12">
+                        <h3 className="text-xl font-medium mb-1">{designer.name}</h3>
+                        {designer.specialties && (
+                          <p className="text-caption text-muted-foreground">
+                            {designer.specialties}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {designer.bio && (
+                      <p className="text-body text-muted-foreground mb-4 line-clamp-3">
+                        {designer.bio}
+                      </p>
                     )}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-border">
+                      {designer.portfolioUrl ? (
+                        <a
+                          href={designer.portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors text-body-small rounded"
+                        >
+                          <Briefcase className="w-4 h-4" />
+                          <span>View Portfolio</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <span className="text-body-small text-muted-foreground">No portfolio</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

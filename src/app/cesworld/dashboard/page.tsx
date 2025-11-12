@@ -62,11 +62,9 @@ export default function CesworldDashboard() {
       if (role === 'admin') {
         router.push("/admin");
         return;
-      } else if (role === 'designer') {
-        router.push("/designers/dashboard");
-        return;
       }
-      // Only members should access this dashboard
+      // Designers and members should access this dashboard (cesworld/dashboard)
+      // No need to redirect designers - they should see the cesworld dashboard
     }
   }, [session, isPending, router]);
 

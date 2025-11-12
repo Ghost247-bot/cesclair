@@ -21,7 +21,9 @@ import {
   FileText,
   UserCog,
   FileText as FileTextIcon,
-  ChevronDown
+  ChevronDown,
+  Download,
+  FolderOpen
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -153,6 +155,22 @@ export default function AdminPage() {
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showProductListView, setShowProductListView] = useState(true);
+  const [showUploadDocumentModal, setShowUploadDocumentModal] = useState(false);
+  const [uploadingDocumentForDesigner, setUploadingDocumentForDesigner] = useState<number | null>(null);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [adminDocumentForm, setAdminDocumentForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    fileUrl: '',
+    fileName: '',
+    fileSize: 0,
+    fileType: '',
+    file: null as File | null,
+  });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const isAuthenticated = !sessionPending && session?.user;
   // Get role from session, may need to fetch from database if not in session
@@ -446,6 +464,151 @@ export default function AdminPage() {
       console.error("Failed to delete designer:", error);
       toast.error("Failed to delete designer");
     }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      setUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+      setAvatarFile(file);
+      
+      // Set the avatarUrl in the form
+      const avatarUrlInput = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
+      if (avatarUrlInput) {
+        avatarUrlInput.value = data.url;
+      }
+
+      toast.success('Avatar uploaded successfully');
+      return data.url;
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload avatar');
+      throw error;
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleAdminDocumentUpload = async (file: File) => {
+    try {
+      setUploadingDocument(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setAdminDocumentForm(prev => ({ 
+        ...prev, 
+        fileUrl: data.url,
+        fileName: data.fileName,
+        fileSize: data.size,
+        fileType: data.type,
+        file: file
+      }));
+      toast.success('File uploaded successfully');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload file');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const handleAdminDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAdminDocumentForm(prev => ({ ...prev, file }));
+      handleAdminDocumentUpload(file);
+    }
+  };
+
+  const handleSaveAdminDocument = async () => {
+    if (!uploadingDocumentForDesigner || !session?.user) return;
+
+    if (!adminDocumentForm.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+
+    if (!adminDocumentForm.fileUrl) {
+      toast.error('Please upload a file');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          designerId: uploadingDocumentForDesigner,
+          uploadedBy: session.user.id, // Admin user ID
+          title: adminDocumentForm.title.trim(),
+          description: adminDocumentForm.description.trim() || null,
+          category: adminDocumentForm.category.trim() || null,
+          fileName: adminDocumentForm.fileName,
+          fileUrl: adminDocumentForm.fileUrl,
+          fileSize: adminDocumentForm.fileSize,
+          fileType: adminDocumentForm.fileType,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save document');
+      }
+
+      toast.success('Document uploaded successfully for designer');
+      setShowUploadDocumentModal(false);
+      setUploadingDocumentForDesigner(null);
+      setAdminDocumentForm({
+        title: '',
+        description: '',
+        category: '',
+        fileUrl: '',
+        fileName: '',
+        fileSize: 0,
+        fileType: '',
+        file: null,
+      });
+    } catch (error) {
+      console.error('Save document error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save document');
+    }
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return 'Unknown size';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
   const fetchUsers = async () => {
@@ -2162,6 +2325,26 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                               Edit
                             </button>
                             <button
+                              onClick={() => {
+                                setUploadingDocumentForDesigner(designer.id);
+                                setAdminDocumentForm({
+                                  title: '',
+                                  description: '',
+                                  category: '',
+                                  fileUrl: '',
+                                  fileName: '',
+                                  fileSize: 0,
+                                  fileType: '',
+                                  file: null,
+                                });
+                                setShowUploadDocumentModal(true);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary hover:bg-primary/10 transition-colors rounded-lg text-sm font-medium"
+                            >
+                              <Upload className="w-4 h-4" />
+                              Upload Document
+                            </button>
+                            <button
                               onClick={() => deleteDesigner(designer.id)}
                               className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 transition-colors rounded-lg text-sm font-medium"
                             >
@@ -2681,6 +2864,9 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
+                // Reset avatar preview when form is submitted
+                setAvatarPreview(null);
+                setAvatarFile(null);
                 createDesigner({
                   name: formData.get("name") as string,
                   email: formData.get("email") as string,
@@ -2747,12 +2933,86 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Avatar URL</label>
-                <input
-                  type="url"
-                  name="avatarUrl"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <label className="block text-sm font-medium mb-1">Avatar Image</label>
+                <div className="space-y-2">
+                  {/* Image Preview */}
+                  {avatarPreview && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAvatarPreview(null);
+                          setAvatarFile(null);
+                          const input = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
+                          if (input) input.value = '';
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* File Upload */}
+                  <label
+                    htmlFor="avatar-upload-create"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
+                      uploadingAvatar
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary hover:bg-secondary'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="avatar-upload-create"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            await handleAvatarUpload(file);
+                          } catch (error) {
+                            // Error already handled in handleAvatarUpload
+                          }
+                        }
+                      }}
+                      disabled={uploadingAvatar}
+                    />
+                    {uploadingAvatar ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
+                        <span className="text-sm text-muted-foreground">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          PNG, JPG, WebP, GIF (max 5MB)
+                        </span>
+                      </>
+                    )}
+                  </label>
+                  
+                  {/* URL Input (fallback) */}
+                  <div className="mt-2">
+                    <label className="block text-xs text-muted-foreground mb-1">Or enter URL:</label>
+                    <input
+                      type="url"
+                      name="avatarUrl"
+                      placeholder="https://example.com/avatar.jpg"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Banner URL</label>
@@ -2782,7 +3042,11 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCreateDesignerModal(false)}
+                  onClick={() => {
+                    setShowCreateDesignerModal(false);
+                    setAvatarPreview(null);
+                    setAvatarFile(null);
+                  }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
                   Cancel
@@ -2802,6 +3066,9 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
+                // Reset avatar preview when form is submitted
+                setAvatarPreview(null);
+                setAvatarFile(null);
                 updateDesignerDetails(editingDesigner.id, {
                   name: formData.get("name") as string,
                   email: formData.get("email") as string,
@@ -2872,13 +3139,98 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Avatar URL</label>
-                <input
-                  type="url"
-                  name="avatarUrl"
-                  defaultValue={editingDesigner.avatarUrl || ""}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <label className="block text-sm font-medium mb-1">Avatar Image</label>
+                <div className="space-y-2">
+                  {/* Current Avatar Preview */}
+                  {editingDesigner.avatarUrl && !avatarPreview && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={editingDesigner.avatarUrl}
+                        alt="Current avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* New Upload Preview */}
+                  {avatarPreview && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={avatarPreview}
+                        alt="New avatar preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAvatarPreview(null);
+                          setAvatarFile(null);
+                          const input = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
+                          if (input) input.value = editingDesigner?.avatarUrl || '';
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* File Upload */}
+                  <label
+                    htmlFor="avatar-upload-edit"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
+                      uploadingAvatar
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary hover:bg-secondary'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="avatar-upload-edit"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            await handleAvatarUpload(file);
+                          } catch (error) {
+                            // Error already handled in handleAvatarUpload
+                          }
+                        }
+                      }}
+                      disabled={uploadingAvatar}
+                    />
+                    {uploadingAvatar ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
+                        <span className="text-sm text-muted-foreground">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          PNG, JPG, WebP, GIF (max 5MB)
+                        </span>
+                      </>
+                    )}
+                  </label>
+                  
+                  {/* URL Input (fallback) */}
+                  <div className="mt-2">
+                    <label className="block text-xs text-muted-foreground mb-1">Or enter URL:</label>
+                    <input
+                      type="url"
+                      name="avatarUrl"
+                      defaultValue={editingDesigner.avatarUrl || ""}
+                      placeholder="https://example.com/avatar.jpg"
+                      className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Banner URL</label>
@@ -2913,6 +3265,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   onClick={() => {
                     setShowEditDesignerModal(false);
                     setEditingDesigner(null);
+                    setAvatarPreview(null);
+                    setAvatarFile(null);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
@@ -3350,6 +3704,176 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Document Modal for Designer */}
+      {showUploadDocumentModal && uploadingDocumentForDesigner && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-border p-6 flex items-center justify-between">
+              <h3 className="text-2xl font-medium">
+                Upload Document for {designers.find(d => d.id === uploadingDocumentForDesigner)?.name || 'Designer'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowUploadDocumentModal(false);
+                  setUploadingDocumentForDesigner(null);
+                  setAdminDocumentForm({
+                    title: '',
+                    description: '',
+                    category: '',
+                    fileUrl: '',
+                    fileName: '',
+                    fileSize: 0,
+                    fileType: '',
+                    file: null,
+                  });
+                }}
+                className="p-2 hover:bg-secondary rounded transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Title <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={adminDocumentForm.title}
+                  onChange={(e) => setAdminDocumentForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter document title"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <textarea
+                  value={adminDocumentForm.description}
+                  onChange={(e) => setAdminDocumentForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px]"
+                  placeholder="Describe the document..."
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Category</label>
+                <input
+                  type="text"
+                  value={adminDocumentForm.category}
+                  onChange={(e) => setAdminDocumentForm(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="e.g., Contract, Reference, Guidelines, Other"
+                />
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Document File <span className="text-red-600">*</span>
+                </label>
+                {adminDocumentForm.fileUrl ? (
+                  <div className="space-y-2">
+                    <div className="p-4 bg-secondary border border-border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">{adminDocumentForm.fileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(adminDocumentForm.fileSize)} • {adminDocumentForm.fileType}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setAdminDocumentForm(prev => ({ 
+                            ...prev, 
+                            fileUrl: '', 
+                            fileName: '', 
+                            fileSize: 0, 
+                            fileType: '',
+                            file: null 
+                          }))}
+                          className="text-red-600 text-sm hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp,.gif"
+                      onChange={handleAdminDocumentFileChange}
+                      className="hidden"
+                      id="admin-document-file-upload"
+                      disabled={uploadingDocument}
+                    />
+                    <label
+                      htmlFor="admin-document-file-upload"
+                      className={`cursor-pointer inline-flex flex-col items-center gap-2 ${uploadingDocument ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {uploadingDocument ? (
+                        <>
+                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                          <span className="text-sm text-muted-foreground">Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            Click to upload or drag and drop
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            PDF, Word, Excel, PowerPoint, Text, Images up to 50MB
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 pt-4 border-t border-border">
+                <button
+                  onClick={() => {
+                    setShowUploadDocumentModal(false);
+                    setUploadingDocumentForDesigner(null);
+                    setAdminDocumentForm({
+                      title: '',
+                      description: '',
+                      category: '',
+                      fileUrl: '',
+                      fileName: '',
+                      fileSize: 0,
+                      fileType: '',
+                      file: null,
+                    });
+                  }}
+                  className="flex-1 px-6 py-3 border border-border rounded-lg hover:bg-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAdminDocument}
+                  disabled={!adminDocumentForm.title.trim() || !adminDocumentForm.fileUrl || uploadingDocument}
+                  className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Upload Document
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

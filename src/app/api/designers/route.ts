@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         specialties: designers.specialties,
         status: designers.status,
         avatarUrl: designers.avatarUrl,
+        bannerUrl: designers.bannerUrl,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(designers, eq(user.email, designers.email));
 
     // Build where conditions
-    const conditions = [eq(user.role, 'designer')];
+    const conditions: any[] = [eq(user.role, 'designer')];
     
     // Apply search filter if provided
     if (search) {
@@ -46,12 +47,12 @@ export async function GET(request: NextRequest) {
           like(user.name, `%${search}%`),
           like(user.email, `%${search}%`),
           like(designers.specialties, `%${search}%`)
-        )
+        )!
       );
     }
 
     // Apply conditions
-    const whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions)!;
     
     const results = await baseQuery
       .where(whereCondition)
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
       specialties: row.specialties || null,
       status: row.status || 'approved', // Default to approved if no designers table entry
       avatarUrl: row.avatarUrl || row.image || null, // Use designers.avatarUrl or user.image
+      bannerUrl: row.bannerUrl || null,
       createdAt: row.createdAt ? (row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt) : new Date().toISOString(),
       updatedAt: row.updatedAt ? (row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt) : new Date().toISOString(),
     }));

@@ -258,3 +258,20 @@ export const auditLogs = pgTable('audit_logs', {
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+// Documents table for designer document management
+export const documents = pgTable('documents', {
+  id: serial('id').primaryKey(),
+  designerId: integer('designer_id').notNull().references(() => designers.id, { onDelete: 'cascade' }),
+  uploadedBy: text('uploaded_by').references(() => user.id), // null if uploaded by designer, admin user id if uploaded by admin
+  title: text('title').notNull(),
+  description: text('description'),
+  fileName: text('file_name').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileSize: integer('file_size'), // in bytes
+  fileType: text('file_type'), // MIME type
+  category: text('category'), // e.g., 'contract', 'portfolio', 'reference', 'other'
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

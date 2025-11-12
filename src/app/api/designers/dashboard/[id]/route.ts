@@ -5,10 +5,10 @@ import { eq, and, count } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // Validate ID is valid integer
     if (!id || isNaN(parseInt(id))) {

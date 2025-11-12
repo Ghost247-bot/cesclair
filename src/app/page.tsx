@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import AnnouncementBar from "@/components/sections/announcement-bar";
 import HeroSection from "@/components/sections/hero-section";
 import CategoryGrid from "@/components/sections/category-grid";
@@ -9,6 +14,37 @@ import SustainabilityBanner from "@/components/sections/sustainability-banner";
 import Footer from "@/components/sections/footer";
 
 export default function Home() {
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+
+  // Redirect authenticated users based on role
+  useEffect(() => {
+    if (!isPending && session?.user) {
+      const role = (session.user as any)?.role || 'member';
+      
+      if (role === 'designer') {
+        router.push("/cesworld/dashboard");
+      } else if (role === 'admin') {
+        router.push("/admin");
+      } else if (role === 'member') {
+        // Members can stay on home page, no redirect needed
+      }
+    }
+  }, [session, isPending, router]);
+
+  // Show loading state while checking session
+  if (isPending) {
+    return (
+      <main className="min-h-screen bg-background pt-[60px] md:pt-[64px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+        </div>
+      </main>
+    );
+  }
+
+  // If user is authenticated and not a member, the redirect will happen
+  // For members or unauthenticated users, show the home page
   return (
     <main className="min-h-screen bg-background pt-[60px] md:pt-[64px]">
       <AnnouncementBar />

@@ -63,6 +63,17 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
               </Link>
             )}
 
+            {session.user.role === "designer" && (
+              <Link
+                href="/cesworld/dashboard"
+                onClick={onClose}
+                className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
+              >
+                <User className="w-4 h-4" />
+                <span>CESWORLD Dashboard</span>
+              </Link>
+            )}
+
             {session.user.role === "admin" && (
               <Link
                 href="/admin"

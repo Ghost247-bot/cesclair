@@ -21,7 +21,7 @@ export default function Sustainability() {
             SUSTAINABILITY LOOKS BETTER WITH RECEIPTS. HERE'S OURS.
           </h1>
           <Link
-            href="#impact-report"
+            href="/impact-report"
             className="inline-flex items-center gap-2 text-body-large hover:opacity-80 transition-opacity underline"
           >
             READ OUR LATEST IMPACT REPORT
@@ -132,10 +132,10 @@ export default function Sustainability() {
             Read our full impact report to see how we're working towards a more sustainable future.
           </p>
           <Link
-            href="#"
+            href="/impact-report"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white hover:bg-primary/90 transition-colors"
           >
-            <span className="text-button-primary">DOWNLOAD IMPACT REPORT</span>
+            <span className="text-button-primary">VIEW IMPACT REPORT</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

@@ -32,7 +32,7 @@ export default function CesworldLogin() {
         router.push("/admin");
         break;
       case 'designer':
-        router.push("/designers/dashboard");
+        router.push("/cesworld/dashboard");
         break;
       case 'member':
       default:

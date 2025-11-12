@@ -79,8 +79,28 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        // Try with bannerUrl first, fallback to without if column doesn't exist
+        // Check if bannerUrl column exists first
+        let bannerUrlExists = false;
         try {
+          const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+          const columnCheck = await pool.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'designers' 
+            AND column_name = 'banner_url'
+            LIMIT 1;
+          `);
+          await pool.end();
+          bannerUrlExists = columnCheck.rows.length > 0;
+        } catch (checkError) {
+          console.warn('Could not check for banner_url column, assuming it exists:', checkError);
+          // If check fails, we'll try with bannerUrl and catch the error if it doesn't exist
+          bannerUrlExists = true; // Assume it exists if check fails
+        }
+
+        // Query with or without bannerUrl based on column existence
+        if (bannerUrlExists) {
           const designer = await db
             .select({
               id: designers.id,
@@ -107,9 +127,51 @@ export async function GET(request: NextRequest) {
           }
 
           return NextResponse.json(designer[0], { status: 200 });
-        } catch (bannerError: any) {
-          // If bannerUrl column doesn't exist, query without it
-          if (bannerError?.message?.includes('banner_url') || bannerError?.message?.includes('column')) {
+        } else {
+          // Column doesn't exist, query without it
+          const designer = await db
+            .select({
+              id: designers.id,
+              name: designers.name,
+              email: designers.email,
+              bio: designers.bio,
+              portfolioUrl: designers.portfolioUrl,
+              specialties: designers.specialties,
+              status: designers.status,
+              avatarUrl: designers.avatarUrl,
+              createdAt: designers.createdAt,
+              updatedAt: designers.updatedAt,
+            })
+            .from(designers)
+            .where(eq(designers.id, parseInt(id)))
+            .limit(1);
+
+          if (designer.length === 0) {
+            return NextResponse.json(
+              { error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' },
+              { status: 404 }
+            );
+          }
+
+          // Add null bannerUrl for consistency
+          return NextResponse.json({ ...designer[0], bannerUrl: null }, { status: 200 });
+        }
+      } catch (error: any) {
+        console.error('GET /api/admin/designers?id error:', error);
+        console.error('Error details:', {
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack,
+        });
+        
+        // Check for specific database errors
+        const errorMessage = error?.message || 'Unknown error';
+        const errorCode = error?.code;
+        
+        // PostgreSQL error code 42703 = undefined column
+        if (errorCode === '42703' || errorMessage.includes('banner_url') || errorMessage.includes('column') || errorMessage.includes('does not exist')) {
+          // Try again without bannerUrl
+          try {
             const designer = await db
               .select({
                 id: designers.id,
@@ -134,17 +196,23 @@ export async function GET(request: NextRequest) {
               );
             }
 
-            // Add null bannerUrl for consistency
             return NextResponse.json({ ...designer[0], bannerUrl: null }, { status: 200 });
+          } catch (retryError: any) {
+            console.error('Retry query also failed:', retryError);
+            return NextResponse.json(
+              { 
+                error: 'Internal server error: ' + (retryError?.message || 'Unknown error'),
+                code: 'INTERNAL_SERVER_ERROR'
+              },
+              { status: 500 }
+            );
           }
-          throw bannerError; // Re-throw if it's a different error
         }
-      } catch (error: any) {
-        console.error('GET /api/admin/designers?id error:', error);
+        
         return NextResponse.json(
           { 
-            error: 'Internal server error: ' + (error?.message || 'Unknown error'),
-            code: 'INTERNAL_SERVER_ERROR'
+            error: 'Internal server error: ' + errorMessage,
+            code: errorCode || 'INTERNAL_SERVER_ERROR'
           },
           { status: 500 }
         );
@@ -534,6 +602,47 @@ export async function PUT(request: NextRequest) {
         );
       }
       updates.status = status;
+      
+      // If approving a designer, update user role to 'designer'
+      if (status === 'approved') {
+        const designer = existingDesigner[0];
+        const normalizedEmail = designer.email.toLowerCase().trim();
+        
+        // Find user by email and update role to 'designer'
+        try {
+          const existingUser = await db
+            .select()
+            .from(user)
+            .where(eq(user.email, normalizedEmail))
+            .limit(1);
+          
+          if (existingUser.length > 0) {
+            // Update user role to designer
+            await db
+              .update(user)
+              .set({
+                role: 'designer',
+                updatedAt: new Date(),
+              })
+              .where(eq(user.email, normalizedEmail));
+            
+            console.log(`Updated user role to 'designer' for email: ${normalizedEmail}`);
+          } else {
+            console.warn(`User not found for designer email: ${normalizedEmail}`);
+          }
+        } catch (roleUpdateError) {
+          console.error('Error updating user role:', roleUpdateError);
+          // Don't fail the entire operation if role update fails
+          // The designer status update is more important
+        }
+      }
+      
+      // If rejecting a designer, optionally change user role back to 'member'
+      // (This is optional - you might want to keep them as designer even if rejected)
+      if (status === 'rejected') {
+        // Optional: You can implement logic to change role back to 'member' if needed
+        // For now, we'll leave it as is
+      }
     }
 
     // Update other fields if provided

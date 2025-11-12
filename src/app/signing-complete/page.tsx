@@ -53,7 +53,7 @@ function SigningCompleteContent() {
           
           <div className="flex gap-4 justify-center">
             <Link
-              href="/designers/dashboard"
+              href="/cesworld/dashboard"
               className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white hover:bg-primary/90 transition-colors"
             >
               <span className="text-button-primary">GO TO DASHBOARD</span>

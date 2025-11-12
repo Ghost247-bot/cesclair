@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { designers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -63,6 +64,24 @@ export async function PUT(
       );
     }
 
+    // Check authentication
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const existingDesigner = await db
       .select()
       .from(designers)
@@ -73,6 +92,19 @@ export async function PUT(
       return NextResponse.json(
         { error: 'Designer not found' },
         { status: 404 }
+      );
+    }
+
+    // Check authorization: user must be admin OR the designer themselves
+    const userRole = (session.user as any)?.role;
+    const isAdmin = userRole === 'admin';
+    const isDesigner = userRole === 'designer';
+    const isOwnProfile = isDesigner && existingDesigner[0].email === session.user.email;
+
+    if (!isAdmin && !isOwnProfile) {
+      return NextResponse.json(
+        { error: 'You can only update your own profile', code: 'FORBIDDEN' },
+        { status: 403 }
       );
     }
 
@@ -89,7 +121,7 @@ export async function PUT(
     } = body;
 
     const updates: any = {
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(), // Use Date object, not ISO string
     };
 
     if (name !== undefined) {
@@ -168,7 +200,8 @@ export async function PUT(
       updates.avatarUrl = avatarUrl;
     }
 
-    if (status !== undefined) {
+    // Only admins can update status
+    if (status !== undefined && isAdmin) {
       updates.status = status;
     }
 

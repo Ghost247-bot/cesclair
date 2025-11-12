@@ -13,13 +13,13 @@ async function handleRequest(request: NextRequest, method: string) {
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction || pathname.includes('sign-in')) {
     console.log('Auth request:', {
-      pathname,
-      method: request.method,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    pathname,
+    method: request.method,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
       baseURL: process.env.NEXT_PUBLIC_SITE_URL || process.env.BETTER_AUTH_URL || 'not set',
       origin: request.headers.get('origin'),
       host: request.headers.get('host'),
-    });
+  });
   }
 
   try {
@@ -47,10 +47,10 @@ async function handleRequest(request: NextRequest, method: string) {
         if (typeof (handler as any).all === 'function') {
           response = await (handler as any).all(request);
         } else {
-          return NextResponse.json(
+        return NextResponse.json(
             { error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' },
             { status: 405 }
-          );
+      );
         }
     }
     
@@ -83,11 +83,13 @@ async function handleRequest(request: NextRequest, method: string) {
           if (errorBody) {
             console.error('Better Auth 500 error details:', JSON.stringify(errorBody, null, 2));
             
-            // Check for database-related errors
+            // Check for database-related errors (expanded patterns)
             const errorMessage = errorBody.message || errorBody.error || JSON.stringify(errorBody);
             const isDatabaseError = 
               errorMessage.includes('database') || 
               errorMessage.includes('connection') || 
+              errorMessage.includes('Connection terminated') ||
+              errorMessage.includes('Connection terminated unexpectedly') ||
               errorMessage.includes('ECONNREFUSED') ||
               errorMessage.includes('ENOTFOUND') ||
               errorMessage.includes('timeout') ||
@@ -95,9 +97,13 @@ async function handleRequest(request: NextRequest, method: string) {
               errorMessage.includes('Pool') ||
               errorMessage.includes('neon') ||
               errorMessage.includes('postgres') ||
+              errorMessage.includes('postgresql') ||
               errorMessage.includes('relation') ||
               errorMessage.includes('does not exist') ||
-              errorMessage.includes('relation "user" does not exist');
+              errorMessage.includes('relation "user" does not exist') ||
+              errorMessage.includes('socket') ||
+              errorMessage.includes('ECONNRESET') ||
+              errorMessage.includes('EPIPE');
             
             // Return a properly formatted error response
             return NextResponse.json(
@@ -119,41 +125,80 @@ async function handleRequest(request: NextRequest, method: string) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorCause = error instanceof Error && (error as any).cause ? (error as any).cause : null;
     
+    // Log comprehensive error information
     console.error('Better Auth handler error:', {
       error,
       message: errorMessage,
       stack: errorStack,
+      cause: errorCause,
       pathname,
       method: request.method,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
     });
+    
+    // Check for nested database errors in the cause chain
+    let nestedError = errorCause;
+    let fullErrorMessage = errorMessage;
+    while (nestedError) {
+      if (nestedError instanceof Error) {
+        fullErrorMessage += ' | ' + nestedError.message;
+        nestedError = (nestedError as any).cause;
+      } else if (typeof nestedError === 'string') {
+        fullErrorMessage += ' | ' + nestedError;
+        break;
+      } else {
+        break;
+      }
+    }
+    
+    // Log the full error message including causes
+    if (fullErrorMessage !== errorMessage) {
+      console.error('Full error message (including causes):', fullErrorMessage);
+    }
     
     // Return the error response from Better Auth if it's a Response object
     if (error instanceof Response) {
       return error;
     }
     
-    // Check if it's a database connection error
+    // Check if it's a database connection error (expanded patterns)
     const isDatabaseError = 
-      errorMessage.includes('database') || 
-      errorMessage.includes('connection') || 
-      errorMessage.includes('ECONNREFUSED') ||
-      errorMessage.includes('ENOTFOUND') ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('ETIMEDOUT') ||
-      errorMessage.includes('Pool') ||
-      errorMessage.includes('neon') ||
-      errorMessage.includes('postgres') ||
-      errorMessage.includes('relation') ||
-      errorMessage.includes('does not exist');
+      fullErrorMessage.includes('database') || 
+      fullErrorMessage.includes('connection') || 
+      fullErrorMessage.includes('Connection terminated') ||
+      fullErrorMessage.includes('Connection terminated unexpectedly') ||
+      fullErrorMessage.includes('ECONNREFUSED') ||
+      fullErrorMessage.includes('ENOTFOUND') ||
+      fullErrorMessage.includes('timeout') ||
+      fullErrorMessage.includes('ETIMEDOUT') ||
+      fullErrorMessage.includes('Pool') ||
+      fullErrorMessage.includes('neon') ||
+      fullErrorMessage.includes('postgres') ||
+      fullErrorMessage.includes('postgresql') ||
+      fullErrorMessage.includes('relation') ||
+      fullErrorMessage.includes('does not exist') ||
+      fullErrorMessage.includes('socket') ||
+      fullErrorMessage.includes('ECONNRESET') ||
+      fullErrorMessage.includes('EPIPE');
     
     if (isDatabaseError) {
+      console.error('Database connection error detected:', {
+        message: fullErrorMessage,
+        pathname,
+        method: request.method,
+      });
+      
       return NextResponse.json(
         { 
           error: 'Database connection error',
-          message: 'Unable to connect to the database. Please try again later.',
+          message: 'Unable to connect to the database. The connection was terminated unexpectedly. Please try again.',
           code: 'DATABASE_ERROR',
+          details: process.env.NODE_ENV === 'development' ? {
+            originalError: errorMessage,
+            fullError: fullErrorMessage,
+          } : undefined,
         },
         { status: 500 }
       );

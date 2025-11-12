@@ -62,30 +62,96 @@ export default function DesignerLoginPage() {
 
       // Check if user has designer role
       const userRole = data.user?.role || 'member';
+      const userEmail = data.user?.email || formData.email;
+      
+      // If user doesn't have designer role, check designers table
       if (userRole !== 'designer') {
-        throw new Error("You don't have designer access. Please apply to become a designer first.");
-      }
+        try {
+          // Check if user exists in designers table with approved status
+          const designerCheck = await fetch("/api/designers/by-email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: 'include',
+            body: JSON.stringify({ email: userEmail }),
+          });
 
-      // Verify designer is approved in designers table
-      try {
-        const designerCheck = await fetch("/api/designers/check-status", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: 'include',
-          body: JSON.stringify({ email: formData.email }),
-        });
+          if (designerCheck.ok) {
+            const designerData = await designerCheck.json();
+            
+            // If designer exists and is approved, update user role and allow login
+            if (designerData.status === 'approved') {
+              try {
+                // Update user role to designer if not already set
+                const roleUpdateResponse = await fetch("/api/designers/update-role", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  credentials: 'include',
+                });
 
-        if (designerCheck.ok) {
-          const designerData = await designerCheck.json();
-          if (designerData.status !== 'approved') {
-            throw new Error("Your designer account is pending approval. Please wait for admin approval.");
+                if (roleUpdateResponse.ok) {
+                  console.log("User role updated to designer");
+                  // Refetch session to get updated role
+                  await refetch();
+                } else {
+                  console.warn("Failed to update user role, but allowing login");
+                }
+              } catch (roleUpdateError) {
+                console.warn("Error updating user role:", roleUpdateError);
+                // Continue with login even if role update fails
+              }
+              // User is an approved designer, allow login
+            } else if (designerData.status === 'pending') {
+              throw new Error("Your designer account is pending approval. Please wait for admin approval.");
+            } else if (designerData.status === 'rejected') {
+              throw new Error("Your designer application has been rejected. Please contact support.");
+            } else {
+              throw new Error("You don't have designer access. Please apply to become a designer first.");
+            }
+          } else {
+            // Designer not found in designers table
+            throw new Error("You don't have designer access. Please apply to become a designer first.");
           }
+        } catch (checkError) {
+          // If the error is already a user-friendly message, throw it
+          if (checkError instanceof Error && checkError.message.includes("pending approval")) {
+            throw checkError;
+          }
+          if (checkError instanceof Error && checkError.message.includes("rejected")) {
+            throw checkError;
+          }
+          if (checkError instanceof Error && checkError.message.includes("designer access")) {
+            throw checkError;
+          }
+          // Otherwise, log the error and show generic message
+          console.error("Failed to check designer status:", checkError);
+          throw new Error("You don't have designer access. Please apply to become a designer first.");
         }
-      } catch (checkError) {
-        // If check fails, still allow login if role is designer (graceful degradation)
-        console.warn("Failed to check designer status:", checkError);
+      } else {
+        // User has designer role, verify they're approved in designers table
+        try {
+          const designerCheck = await fetch("/api/designers/by-email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: 'include',
+            body: JSON.stringify({ email: userEmail }),
+          });
+
+          if (designerCheck.ok) {
+            const designerData = await designerCheck.json();
+            if (designerData.status !== 'approved') {
+              throw new Error("Your designer account is pending approval. Please wait for admin approval.");
+            }
+          }
+        } catch (checkError) {
+          // If check fails, still allow login if role is designer (graceful degradation)
+          console.warn("Failed to check designer status:", checkError);
+        }
       }
 
       // Wait for session to be set
