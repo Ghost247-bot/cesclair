@@ -1,159 +1,164 @@
 # Netlify Deployment Checklist
 
-Use this checklist to ensure your site is ready for deployment on Netlify.
-
 ## ✅ Pre-Deployment Checklist
 
-### Configuration Files
-- [x] `netlify.toml` - Configured with Next.js 15 settings
-- [x] `package.json` - Includes `@netlify/plugin-nextjs`
-- [x] `.nvmrc` - Node.js version 20 specified
-- [x] `next.config.ts` - Optimized for Netlify
+### 1. Code Changes Committed
+- [x] All image fixes committed
+- [x] Database query fixes committed
+- [x] Changes pushed to GitHub
 
-### Code Status
-- [x] All code committed to GitHub
-- [x] Build command works locally: `npm run build`
-- [x] No critical errors in build logs
+### 2. Environment Variables Required
 
-## 🔐 Environment Variables (REQUIRED)
+Before deploying, ensure these are set in Netlify Dashboard:
 
-Set these in Netlify Dashboard → Site configuration → Environment variables:
+#### Required Variables:
 
-### Required Variables:
+1. **DATABASE_URL**
+   ```
+   postgresql://neondb_owner:****@ep-withered-shadow-a4gnj7n7.us-east-1.aws.neon.tech/neondb?sslmode=require
+   ```
+   - ⚠️ Remove `channel_binding=require` if present (handled automatically by code)
+   - Use your actual password
 
-- [ ] `DATABASE_URL`
-  - **What:** Neon PostgreSQL connection string
-  - **Format:** `postgresql://user:password@host/database?sslmode=require`
-  - **Important:** Use the **pooler** endpoint (ends with `-pooler`) for serverless
-  - **Where to get:** Neon Dashboard → Your Project → Connection String → Pooler
+2. **BETTER_AUTH_SECRET**
+   ```
+   Generate with: npm run generate-secret
+   ```
+   - Must be a secure random string (32+ characters)
 
-- [ ] `NEXT_PUBLIC_SITE_URL`
-  - **What:** Your production site URL
-  - **Example:** `https://cesclair.store` or `https://your-site.netlify.app`
-  - **Important:** Must match your actual Netlify site URL
+3. **NEXT_PUBLIC_SITE_URL**
+   ```
+   https://your-site-name.netlify.app
+   ```
+   - Update after first deployment with actual Netlify URL
 
-- [ ] `BETTER_AUTH_SECRET`
-  - **What:** Secret key for authentication
-  - **How to generate:** Run `npm run generate-secret` locally
-  - **Format:** Random 32+ character string
-  - **Important:** Keep this secret and don't share it
+#### Optional Variables:
 
-### Optional Variables:
-
-- [ ] `BETTER_AUTH_URL` - Only if different from `NEXT_PUBLIC_SITE_URL`
-- [ ] `DATABASE_DEBUG` - Set to `"true"` for troubleshooting (remove in production)
+- `BETTER_AUTH_URL` - If different from NEXT_PUBLIC_SITE_URL
+- `DATABASE_DEBUG` - Set to `"true"` for troubleshooting
+- DocuSign variables (if using DocuSign integration)
 
 ## 🚀 Deployment Steps
 
-### Option 1: Connect GitHub Repository (Recommended)
+### Step 1: Connect to Netlify (If Not Already Connected)
 
-1. [ ] Go to [Netlify Dashboard](https://app.netlify.com)
-2. [ ] Click **Add new site** → **Import an existing project**
-3. [ ] Connect your GitHub account
-4. [ ] Select repository: `Ghost247-bot/cesclair`
-5. [ ] Netlify will auto-detect settings from `netlify.toml`:
-   - Build command: `npm run build`
-   - Publish directory: `.next` (handled by plugin)
-   - Node version: `20` (from `.nvmrc`)
-6. [ ] Add all environment variables (see above)
-7. [ ] Click **Deploy site**
+1. Go to [Netlify Dashboard](https://app.netlify.com/)
+2. Click **"Add new site"** → **"Import an existing project"**
+3. Click **"Connect to Git provider"** → Select **GitHub**
+4. Authorize Netlify access
+5. Select repository: **`Ghost247-bot/cesclair`**
 
-### Option 2: Netlify CLI
+### Step 2: Configure Build Settings
 
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
+Netlify should auto-detect from `netlify.toml`:
+- **Build command:** `npm run build`
+- **Publish directory:** (auto-handled by plugin)
+- **Base directory:** (leave empty)
 
-# Login
-netlify login
+### Step 3: Set Environment Variables
 
-# Initialize (first time only)
-netlify init
+1. Go to **Site settings** → **Environment variables**
+2. Add all required variables listed above
+3. Set scopes:
+   - ✅ Production
+   - ✅ Deploy previews
+   - ✅ Branch deploys
 
-# Deploy
-netlify deploy --prod
-```
+### Step 4: Deploy
+
+1. Click **"Deploy site"** (or it will auto-deploy if connected to GitHub)
+2. Wait for build to complete (2-5 minutes)
+3. Monitor build logs for any errors
+
+### Step 5: Post-Deployment
+
+1. **Get your Netlify URL** (e.g., `https://cesclair-xyz123.netlify.app`)
+2. **Update NEXT_PUBLIC_SITE_URL:**
+   - Go to **Site settings** → **Environment variables**
+   - Update `NEXT_PUBLIC_SITE_URL` with your actual URL
+   - Also update `BETTER_AUTH_URL` if set
+3. **Trigger redeploy:**
+   - Go to **Deploys** tab
+   - Click **"Trigger deploy"** → **"Clear cache and deploy site"**
 
 ## ✅ Post-Deployment Verification
 
-After deployment, verify:
+Test the following:
 
-1. [ ] **Build succeeded** - Check Netlify build logs
-2. [ ] **Site loads** - Visit your Netlify URL
-3. [ ] **Favicon appears** - Check browser tab
-4. [ ] **Database connection** - Visit `/api/test/production-diagnostics`
-5. [ ] **Authentication works** - Test login at `/everworld/login`
-6. [ ] **API routes work** - Test a few API endpoints
-7. [ ] **No console errors** - Check browser console
+1. **Homepage loads correctly**
+   - Visit your Netlify URL
+   - Check that images display properly
 
-## 🔍 Diagnostic Endpoints
+2. **Authentication works**
+   - Test sign up
+   - Test sign in
+   - Test sign out
 
-Use these to verify your deployment:
+3. **Database connectivity**
+   - Test API endpoints (e.g., `/api/designers`)
+   - Check that queries execute successfully
 
-- **System Health:** `https://your-site.netlify.app/api/test/production-diagnostics`
-- **Database Connection:** `https://your-site.netlify.app/api/test/db-connection`
-- **Auth Setup:** `https://your-site.netlify.app/api/test/auth-setup`
+4. **Cart functionality**
+   - Test adding items to cart
+   - Test cart page (`/cart`)
+   - Test checkout flow
 
-## 🐛 Common Issues & Solutions
+5. **Images display**
+   - Verify product images load
+   - Check cart item images
+   - Verify all Next.js Image components work
+
+## 🔧 Troubleshooting
 
 ### Build Fails
 
-**Issue:** Build timeout or errors
-- **Solution:** Check build logs in Netlify Dashboard
-- **Check:** Ensure all dependencies are in `package.json`
-- **Verify:** Run `npm run build` locally first
+- Check build logs in Netlify dashboard
+- Verify Node version is 20 (configured in netlify.toml)
+- Ensure all environment variables are set
+- Check for TypeScript/ESLint errors
 
-### Environment Variables Not Working
+### Images Not Showing
 
-**Issue:** Variables not accessible
-- **Solution:** Redeploy after adding variables
-- **Check:** Variable names are case-sensitive
-- **Verify:** Use diagnostic endpoint to check
+- Verify image URLs are absolute (starting with `http://` or `https://`)
+- Check browser console for image loading errors
+- Verify Next.js Image optimization is working
+- Check Netlify image optimization settings
 
-### Database Connection Errors
+### Database Connection Issues
 
-**Issue:** Can't connect to database
-- **Solution:** Use pooler endpoint (not direct connection)
-- **Check:** Database is not in sleep mode (Neon free tier)
-- **Verify:** Connection string includes `?sslmode=require`
+- Verify `DATABASE_URL` is correct
+- Check that `channel_binding` parameter is removed (code handles this)
+- Verify Neon database is not paused
+- Check Neon connection logs
 
-### 500 Errors on Login
+### Authentication Not Working
 
-**Issue:** Authentication failing
-- **Solution:** Check `NEXT_PUBLIC_SITE_URL` matches actual URL
-- **Check:** `BETTER_AUTH_SECRET` is set
-- **Verify:** Database tables exist (user, session, account)
+- Verify `NEXT_PUBLIC_SITE_URL` matches your Netlify URL
+- Check `BETTER_AUTH_SECRET` is set correctly
+- Verify database connection for auth tables
+- Check browser console for auth errors
 
-## 📊 Quick Reference
+## 📝 Quick Deploy Commands
 
-### Essential Commands:
+If you need to manually trigger a deployment:
+
 ```bash
-# Generate auth secret
-npm run generate-secret
+# Commit and push changes
+git add -A
+git commit -m "Your commit message"
+git push origin main
 
-# Check database
-npm run db:check
-
-# Build locally
-npm run build
-
-# Deploy to Netlify (CLI)
-netlify deploy --prod
+# Netlify will auto-deploy if connected to GitHub
 ```
 
-### Essential URLs:
-- **Netlify Dashboard:** https://app.netlify.com
-- **GitHub Repository:** https://github.com/Ghost247-bot/cesclair
-- **Diagnostics:** `https://your-site.netlify.app/api/test/production-diagnostics`
+## 🔗 Useful Links
 
-## 📝 Notes
-
-- **First deployment** may take 5-10 minutes
-- **Subsequent deployments** are faster (caching)
-- **Database sleep mode:** Neon free tier databases sleep after inactivity
-- **Function cold starts:** First request after inactivity may be slower
+- [Netlify Dashboard](https://app.netlify.com/)
+- [Netlify Documentation](https://docs.netlify.com/)
+- [Next.js on Netlify](https://docs.netlify.com/integrations/frameworks/nextjs/)
+- [Neon Database Dashboard](https://console.neon.tech/)
 
 ---
 
-**Ready to deploy?** Follow the steps above and your site will be live! 🚀
-
+**Last Updated:** After fixing image and database query issues
+**Status:** Ready for deployment ✅

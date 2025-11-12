@@ -7,9 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Pagination - increased limit cap to 1000
-    const limitParam = parseInt(searchParams.get('limit') ?? '10');
-    const limit = Math.min(limitParam, 1000);
+    // Pagination - reduced default limit for better performance
+    const limitParam = parseInt(searchParams.get('limit') ?? '50');
+    const limit = Math.min(limitParam, 500); // Reduced max from 1000 to 500
     const offset = parseInt(searchParams.get('offset') ?? '0');
     
     // Search
@@ -63,24 +63,113 @@ export async function GET(request: NextRequest) {
                       sort === 'stock' ? products.stock :
                       products.createdAt;
     
-    // Build and execute query
+    // Build and execute query with timeout handling
     let baseQuery = db.select().from(products);
     
     if (conditions.length > 0) {
-      baseQuery = baseQuery.where(and(...conditions));
+      const combinedCondition = and(...conditions);
+      if (combinedCondition) {
+        baseQuery = baseQuery.where(combinedCondition);
+      }
     }
     
-    const results = await baseQuery
-      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
-      .limit(limit)
-      .offset(offset);
+    // Execute query with retry logic for Neon serverless
+    let results: any[] = [];
+    let retries = 2;
+    let lastError: Error | null = null;
+    
+    while (retries >= 0) {
+      try {
+        // Add timeout wrapper
+        const queryPromise = baseQuery
+          .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
+          .limit(limit)
+          .offset(offset);
+        
+        // Race query against timeout (10 seconds)
+        results = await Promise.race([
+          queryPromise,
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Query timeout after 10 seconds')), 10000)
+          )
+        ]);
+        break; // Success, exit retry loop
+      } catch (queryError) {
+        lastError = queryError instanceof Error ? queryError : new Error(String(queryError));
+        
+        // If it's a timeout and we have retries left, retry
+        const isTimeout = lastError.message.includes('timeout') || 
+                          lastError.message.includes('Timeout') ||
+                          lastError.message.includes('TIMEOUT_ERR');
+        
+        if (retries > 0 && isTimeout) {
+          retries--;
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries)));
+          continue;
+        }
+        
+        // If no retries left, throw the error
+        if (retries === 0) {
+          throw lastError;
+        }
+        
+        // For non-timeout errors, throw immediately
+        throw lastError;
+      }
+    }
+    
+    // Ensure results is defined
+    if (!results) {
+      results = [];
+    }
     
     return NextResponse.json(results, { status: 200 });
   } catch (error) {
-    console.error('GET error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('GET /api/products error:', {
+      message: errorMessage,
+      stack: errorStack,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+    
+    // Check if it's a timeout or database error
+    const isTimeoutError = 
+      errorMessage.includes('timeout') || 
+      errorMessage.includes('Timeout') ||
+      errorMessage.includes('TIMEOUT_ERR');
+    
+    const isDatabaseError = 
+      errorMessage.includes('database') || 
+      errorMessage.includes('connection') || 
+      errorMessage.includes('ECONNREFUSED') ||
+      errorMessage.includes('ENOTFOUND') ||
+      errorMessage.includes('Pool') ||
+      errorMessage.includes('neon') ||
+      errorMessage.includes('postgres') ||
+      errorMessage.includes('Failed query');
+    
     return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
-    }, { status: 500 });
+      error: isTimeoutError 
+        ? 'Request timeout - query took too long'
+        : isDatabaseError 
+        ? 'Database connection error'
+        : 'Internal server error',
+      message: isTimeoutError
+        ? 'The query is taking too long. Try reducing the limit or adding filters.'
+        : isDatabaseError
+        ? 'Unable to connect to the database. Please try again later.'
+        : errorMessage,
+      code: isTimeoutError 
+        ? 'TIMEOUT_ERROR'
+        : isDatabaseError 
+        ? 'DATABASE_ERROR'
+        : 'INTERNAL_ERROR',
+    }, { 
+      status: isTimeoutError ? 504 : isDatabaseError ? 500 : 500 
+    });
   }
 }
 

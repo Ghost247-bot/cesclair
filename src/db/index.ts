@@ -114,8 +114,8 @@ try {
   pool = new Pool({ 
     connectionString: connectionString,
     max: 1, // Neon serverless works best with max 1 connection per instance
-    idleTimeoutMillis: 60000, // Close idle connections after 60 seconds (increased)
-    connectionTimeoutMillis: 30000, // 30 second timeout for initial connection (increased)
+    idleTimeoutMillis: 60000, // Close idle connections after 60 seconds
+    connectionTimeoutMillis: 10000, // 10 second timeout for initial connection (reduced for faster failure)
     // Don't allow pool to exit on idle - keep connection alive
     allowExitOnIdle: false,
     // Additional configuration for better stability
