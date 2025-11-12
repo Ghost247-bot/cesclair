@@ -1,32 +1,61 @@
 import bcrypt from 'bcrypt';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { designers } from '@/db/schema';
+import { designers, user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
-    if (!id || isNaN(parseInt(id))) {
+    if (!id) {
       return NextResponse.json(
         {
-          error: 'Valid ID is required',
+          error: 'ID is required',
           code: 'INVALID_ID',
         },
         { status: 400 }
       );
     }
 
-    const designer = await db
-      .select()
-      .from(designers)
-      .where(eq(designers.id, parseInt(id)))
-      .limit(1);
+    let designer;
+
+    // Try to parse as numeric ID first (designer ID)
+    if (!isNaN(parseInt(id))) {
+      designer = await db
+        .select()
+        .from(designers)
+        .where(eq(designers.id, parseInt(id)))
+        .limit(1);
+    } else {
+      // If not numeric, try to look up by user ID (find user, then find designer by email)
+      const userRecord = await db
+        .select()
+        .from(user)
+        .where(eq(user.id, id))
+        .limit(1);
+
+      if (userRecord.length === 0) {
+        return NextResponse.json(
+          {
+            error: 'Designer not found. Please use a numeric designer ID.',
+            code: 'DESIGNER_NOT_FOUND',
+          },
+          { status: 404 }
+        );
+      }
+
+      // Find designer by email
+      designer = await db
+        .select()
+        .from(designers)
+        .where(eq(designers.email, userRecord[0].email))
+        .limit(1);
+    }
 
     if (designer.length === 0) {
       return NextResponse.json(
@@ -49,15 +78,26 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
-    if (!id || isNaN(parseInt(id))) {
+    if (!id) {
       return NextResponse.json(
         {
-          error: 'Valid ID is required',
+          error: 'ID is required',
+          code: 'INVALID_ID',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Only numeric designer IDs are supported for PUT/DELETE operations
+    if (isNaN(parseInt(id))) {
+      return NextResponse.json(
+        {
+          error: 'Numeric designer ID is required for updates',
           code: 'INVALID_ID',
         },
         { status: 400 }
@@ -117,12 +157,29 @@ export async function PUT(
       portfolioUrl,
       specialties,
       avatarUrl,
+      bannerUrl,
       status,
     } = body;
 
     const updates: any = {
       updatedAt: new Date(), // Use Date object, not ISO string
     };
+
+    // Portfolio-related fields can only be updated by admins
+    const portfolioFields = ['bio', 'portfolioUrl', 'specialties', 'avatarUrl', 'bannerUrl'];
+    const requestedPortfolioFields = Object.keys(body).filter(key => 
+      portfolioFields.includes(key) && body[key] !== undefined
+    );
+
+    if (requestedPortfolioFields.length > 0 && !isAdmin) {
+      return NextResponse.json(
+        { 
+          error: 'Only administrators can update portfolio information (bio, specialties, avatar, banner, portfolio URL)', 
+          code: 'FORBIDDEN' 
+        },
+        { status: 403 }
+      );
+    }
 
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0) {
@@ -184,20 +241,25 @@ export async function PUT(
       updates.password = hashedPassword;
     }
 
-    if (bio !== undefined) {
+    // Portfolio fields - only admins can update
+    if (bio !== undefined && isAdmin) {
       updates.bio = bio;
     }
 
-    if (portfolioUrl !== undefined) {
+    if (portfolioUrl !== undefined && isAdmin) {
       updates.portfolioUrl = portfolioUrl;
     }
 
-    if (specialties !== undefined) {
+    if (specialties !== undefined && isAdmin) {
       updates.specialties = specialties;
     }
 
-    if (avatarUrl !== undefined) {
+    if (avatarUrl !== undefined && isAdmin) {
       updates.avatarUrl = avatarUrl;
+    }
+
+    if (bannerUrl !== undefined && isAdmin) {
+      updates.bannerUrl = bannerUrl;
     }
 
     // Only admins can update status
@@ -232,18 +294,58 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
-    if (!id || isNaN(parseInt(id))) {
+    if (!id) {
       return NextResponse.json(
         {
-          error: 'Valid ID is required',
+          error: 'ID is required',
           code: 'INVALID_ID',
         },
         { status: 400 }
+      );
+    }
+
+    // Only numeric designer IDs are supported for DELETE operations
+    if (isNaN(parseInt(id))) {
+      return NextResponse.json(
+        {
+          error: 'Numeric designer ID is required for deletion',
+          code: 'INVALID_ID',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check authentication
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    const userRole = (session.user as any)?.role;
+    const isAdmin = userRole === 'admin';
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: 'Only administrators can delete designers', code: 'FORBIDDEN' },
+        { status: 403 }
       );
     }
 

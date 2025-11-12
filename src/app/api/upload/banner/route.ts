@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB for avatars)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 10MB for banners - larger than avatars)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size exceeds 5MB limit', code: 'FILE_TOO_LARGE' },
+        { error: 'File size exceeds 10MB limit', code: 'FILE_TOO_LARGE' },
         { status: 400 }
       );
     }
@@ -44,10 +44,10 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `avatar-${timestamp}-${randomString}.${fileExtension}`;
+    const fileName = `banner-${timestamp}-${randomString}.${fileExtension}`;
 
-    // Save to public/uploads/avatars directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'avatars');
+    // Save to public/uploads/banners directory
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'banners');
     
     // Create directory if it doesn't exist
     if (!existsSync(uploadDir)) {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     await writeFile(filePath, buffer);
 
     // Return the public URL
-    const fileUrl = `/uploads/avatars/${fileName}`;
+    const fileUrl = `/uploads/banners/${fileName}`;
 
     return NextResponse.json(
       { 
@@ -74,15 +74,14 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    console.error('Banner upload error:', error);
     return NextResponse.json(
       { 
-        error: 'Failed to upload avatar: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        error: 'Failed to upload banner: ' + (error instanceof Error ? error.message : 'Unknown error'),
         code: 'UPLOAD_ERROR'
       },
       { status: 500 }
     );
   }
 }
-
 

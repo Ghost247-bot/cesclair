@@ -23,7 +23,9 @@ import {
   FileText as FileTextIcon,
   ChevronDown,
   Download,
-  FolderOpen
+  FolderOpen,
+  Briefcase,
+  Edit
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -113,7 +115,7 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"designers" | "products" | "users" | "contracts" | "audit">("users");
+  const [activeTab, setActiveTab] = useState<"designers" | "products" | "users" | "contracts" | "audit" | "portfolios">("users");
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [filteredDesigners, setFilteredDesigners] = useState<Designer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -143,6 +145,8 @@ export default function AdminPage() {
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [contractSearchQuery, setContractSearchQuery] = useState("");
   const [contractStatusFilter, setContractStatusFilter] = useState<string>("all");
+  const [portfolioSearchQuery, setPortfolioSearchQuery] = useState("");
+  const [portfolioStatusFilter, setPortfolioStatusFilter] = useState<string>("all");
   
   // Modal states
   const [showCreateDesignerModal, setShowCreateDesignerModal] = useState(false);
@@ -171,6 +175,11 @@ export default function AdminPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [uploadedBannerUrl, setUploadedBannerUrl] = useState<string | null>(null);
 
   const isAuthenticated = !sessionPending && session?.user;
   // Get role from session, may need to fetch from database if not in session
@@ -262,6 +271,8 @@ export default function AdminPage() {
         fetchContracts();
       } else if (activeTab === "audit") {
         fetchAuditLogs();
+      } else if (activeTab === "portfolios") {
+        fetchDesigners(); // Portfolios use the same data as designers
       }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
@@ -488,12 +499,7 @@ export default function AdminPage() {
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
       setAvatarFile(file);
-      
-      // Set the avatarUrl in the form
-      const avatarUrlInput = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
-      if (avatarUrlInput) {
-        avatarUrlInput.value = data.url;
-      }
+      setUploadedAvatarUrl(data.url);
 
       toast.success('Avatar uploaded successfully');
       return data.url;
@@ -503,6 +509,41 @@ export default function AdminPage() {
       throw error;
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async (file: File) => {
+    try {
+      setUploadingBanner(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/banner', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setBannerPreview(previewUrl);
+      setBannerFile(file);
+      setUploadedBannerUrl(data.url);
+
+      toast.success('Banner image uploaded successfully');
+      return data.url;
+    } catch (error) {
+      console.error('Banner upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload banner');
+      throw error;
+    } finally {
+      setUploadingBanner(false);
     }
   };
 
@@ -1761,6 +1802,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <FileTextIcon className="w-4 h-4 inline mr-2" />
                 Audit Logs
               </button>
+              <button
+                onClick={() => setActiveTab("portfolios")}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "portfolios"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <Briefcase className="w-4 h-4 inline mr-2" />
+                Portfolios ({designers.filter(d => d.status === "approved").length})
+              </button>
             </div>
           </div>
         </section>
@@ -2171,6 +2223,185 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               </div>
             )}
 
+            {/* Portfolios Tab */}
+            {activeTab === "portfolios" && (
+              <div>
+                {/* Header with Search and Filters */}
+                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search portfolios by name, email, or specialties..."
+                        value={portfolioSearchQuery}
+                        onChange={(e) => setPortfolioSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={portfolioStatusFilter}
+                        onChange={(e) => setPortfolioStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Portfolios</option>
+                        <option value="approved">Approved Only</option>
+                        <option value="pending">Pending</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Portfolios List */}
+                {loading ? (
+                  <div className="text-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-body text-muted-foreground">Loading portfolios...</p>
+                  </div>
+                ) : (() => {
+                  // Filter portfolios
+                  let filtered = designers;
+                  
+                  // Filter by status (only show approved by default, or based on filter)
+                  if (portfolioStatusFilter === "approved") {
+                    filtered = filtered.filter((d) => d.status === "approved");
+                  } else if (portfolioStatusFilter === "pending") {
+                    filtered = filtered.filter((d) => d.status === "pending");
+                  } else if (portfolioStatusFilter === "rejected") {
+                    filtered = filtered.filter((d) => d.status === "rejected");
+                  }
+                  
+                  // Filter by search query
+                  if (portfolioSearchQuery) {
+                    const query = portfolioSearchQuery.toLowerCase();
+                    filtered = filtered.filter(
+                      (d) =>
+                        d.name.toLowerCase().includes(query) ||
+                        d.email.toLowerCase().includes(query) ||
+                        (d.specialties && d.specialties.toLowerCase().includes(query)) ||
+                        (d.bio && d.bio.toLowerCase().includes(query))
+                    );
+                  }
+                  
+                  return filtered.length === 0 ? (
+                    <div className="text-center py-16 bg-white border border-border rounded-lg">
+                      <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-body text-muted-foreground">
+                        {portfolioSearchQuery || portfolioStatusFilter !== "all"
+                          ? "No portfolios match your filters."
+                          : "No portfolios found."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filtered.map((designer) => (
+                        <div
+                          key={designer.id}
+                          className="bg-white border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                        >
+                          {/* Banner Image */}
+                          {designer.bannerUrl ? (
+                            <div className="relative w-full h-32 bg-secondary">
+                              <img
+                                src={designer.bannerUrl}
+                                alt={`${designer.name} banner`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-full h-32 bg-gradient-to-br from-secondary to-accent-background" />
+                          )}
+
+                          <div className="p-6">
+                            <div className="flex items-start gap-4 mb-4 -mt-12">
+                              {/* Avatar */}
+                              {designer.avatarUrl ? (
+                                <img
+                                  src={designer.avatarUrl}
+                                  alt={designer.name}
+                                  className="w-16 h-16 rounded-full border-4 border-white object-cover"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full border-4 border-white bg-primary/10 flex items-center justify-center">
+                                  <Users className="w-8 h-8 text-primary" />
+                                </div>
+                              )}
+                              <div className="flex-1 pt-12">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="text-lg font-medium">{designer.name}</h3>
+                                  <span
+                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                      designer.status === "approved"
+                                        ? "bg-green-100 text-green-700"
+                                        : designer.status === "rejected"
+                                        ? "bg-red-100 text-red-700"
+                                        : "bg-yellow-100 text-yellow-700"
+                                    }`}
+                                  >
+                                    {designer.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                                  <Mail className="w-3 h-3" />
+                                  <span className="truncate">{designer.email}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {designer.specialties && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Specialties:</strong> {designer.specialties}
+                              </p>
+                            )}
+
+                            {designer.bio && (
+                              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                                {designer.bio}
+                              </p>
+                            )}
+
+                            <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                              <a
+                                href={`/designers/${designer.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View Portfolio
+                              </a>
+                              <button
+                                onClick={() => {
+                                  router.push(`/designers/${designer.id}`);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit Portfolio
+                              </button>
+                              {designer.portfolioUrl && (
+                                <a
+                                  href={designer.portfolioUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-primary text-primary hover:bg-primary/10 transition-colors rounded-lg text-sm font-medium"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                  External Portfolio
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* Designers Tab */}
             {activeTab === "designers" && (
               <div>
@@ -2201,7 +2432,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowCreateDesignerModal(true)}
+                    onClick={() => {
+                      setShowCreateDesignerModal(true);
+                      setUploadedAvatarUrl(null);
+                      setAvatarPreview(null);
+                      setAvatarFile(null);
+                    }}
                     className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
                   >
                     + Create Designer
@@ -2319,6 +2555,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                               onClick={() => {
                                 setEditingDesigner(designer);
                                 setShowEditDesignerModal(true);
+                                setUploadedAvatarUrl(null);
+                                setAvatarPreview(null);
+                                setAvatarFile(null);
+                                setUploadedBannerUrl(null);
+                                setBannerPreview(null);
+                                setBannerFile(null);
                               }}
                               className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
                             >
@@ -2864,9 +3106,15 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
-                // Reset avatar preview when form is submitted
+                // Reset previews when form is submitted
                 setAvatarPreview(null);
                 setAvatarFile(null);
+                setBannerPreview(null);
+                setBannerFile(null);
+                const avatarUrl = uploadedAvatarUrl || undefined;
+                const bannerUrl = uploadedBannerUrl || undefined;
+                setUploadedAvatarUrl(null);
+                setUploadedBannerUrl(null);
                 createDesigner({
                   name: formData.get("name") as string,
                   email: formData.get("email") as string,
@@ -2874,8 +3122,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   bio: formData.get("bio") as string || undefined,
                   portfolioUrl: formData.get("portfolioUrl") as string || undefined,
                   specialties: formData.get("specialties") as string || undefined,
-                  avatarUrl: formData.get("avatarUrl") as string || undefined,
-                  bannerUrl: formData.get("bannerUrl") as string || undefined,
+                  avatarUrl: avatarUrl,
+                  bannerUrl: bannerUrl,
                   status: formData.get("status") as string || "approved",
                 });
               }}
@@ -2942,14 +3190,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         src={avatarPreview}
                         alt="Avatar preview"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide broken image
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                       <button
                         type="button"
                         onClick={() => {
                           setAvatarPreview(null);
                           setAvatarFile(null);
-                          const input = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
-                          if (input) input.value = '';
+                          setUploadedAvatarUrl(null);
                         }}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                       >
@@ -3001,26 +3252,80 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </>
                     )}
                   </label>
-                  
-                  {/* URL Input (fallback) */}
-                  <div className="mt-2">
-                    <label className="block text-xs text-muted-foreground mb-1">Or enter URL:</label>
-                    <input
-                      type="url"
-                      name="avatarUrl"
-                      placeholder="https://example.com/avatar.jpg"
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Banner URL</label>
-                <input
-                  type="url"
-                  name="bannerUrl"
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <label className="block text-sm font-medium mb-1">Banner Image (Hero Background)</label>
+                <div className="space-y-2">
+                  {/* Banner Preview */}
+                  {bannerPreview && (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={bannerPreview}
+                        alt="Banner preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBannerPreview(null);
+                          setBannerFile(null);
+                          setUploadedBannerUrl(null);
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* File Upload */}
+                  <label
+                    htmlFor="banner-upload-create"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
+                      uploadingBanner
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary hover:bg-secondary'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="banner-upload-create"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            await handleBannerUpload(file);
+                          } catch (error) {
+                            // Error already handled in handleBannerUpload
+                          }
+                        }
+                      }}
+                      disabled={uploadingBanner}
+                    />
+                    {uploadingBanner ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
+                        <span className="text-sm text-muted-foreground">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          PNG, JPG, WebP, GIF (max 10MB)
+                        </span>
+                      </>
+                    )}
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>
@@ -3046,6 +3351,10 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     setShowCreateDesignerModal(false);
                     setAvatarPreview(null);
                     setAvatarFile(null);
+                    setUploadedAvatarUrl(null);
+                    setBannerPreview(null);
+                    setBannerFile(null);
+                    setUploadedBannerUrl(null);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
@@ -3066,9 +3375,15 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
-                // Reset avatar preview when form is submitted
+                // Reset previews when form is submitted
                 setAvatarPreview(null);
                 setAvatarFile(null);
+                setBannerPreview(null);
+                setBannerFile(null);
+                const avatarUrl = uploadedAvatarUrl || undefined;
+                const bannerUrl = uploadedBannerUrl || undefined;
+                setUploadedAvatarUrl(null);
+                setUploadedBannerUrl(null);
                 updateDesignerDetails(editingDesigner.id, {
                   name: formData.get("name") as string,
                   email: formData.get("email") as string,
@@ -3076,8 +3391,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   bio: formData.get("bio") as string || undefined,
                   portfolioUrl: formData.get("portfolioUrl") as string || undefined,
                   specialties: formData.get("specialties") as string || undefined,
-                  avatarUrl: formData.get("avatarUrl") as string || undefined,
-                  bannerUrl: formData.get("bannerUrl") as string || undefined,
+                  avatarUrl: avatarUrl,
+                  bannerUrl: bannerUrl,
                   status: formData.get("status") as string,
                 });
               }}
@@ -3142,13 +3457,34 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <label className="block text-sm font-medium mb-1">Avatar Image</label>
                 <div className="space-y-2">
                   {/* Current Avatar Preview */}
-                  {editingDesigner.avatarUrl && !avatarPreview && (
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
-                      <img
-                        src={editingDesigner.avatarUrl}
-                        alt="Current avatar"
-                        className="w-full h-full object-cover"
-                      />
+                  {!avatarPreview && (
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Current avatar</label>
+                      {editingDesigner.avatarUrl ? (
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                          <img
+                            src={editingDesigner.avatarUrl}
+                            alt="Current avatar"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Show placeholder on error
+                              const img = e.target as HTMLImageElement;
+                              img.style.display = 'none';
+                              const placeholder = img.parentElement?.querySelector('.avatar-placeholder') as HTMLElement;
+                              if (placeholder) {
+                                placeholder.style.display = 'flex';
+                              }
+                            }}
+                          />
+                          <div className="avatar-placeholder absolute inset-0 bg-secondary flex items-center justify-center" style={{ display: 'none' }}>
+                            <Users className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border bg-secondary flex items-center justify-center">
+                          <Users className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -3159,14 +3495,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         src={avatarPreview}
                         alt="New avatar preview"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Hide broken image
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                       <button
                         type="button"
                         onClick={() => {
                           setAvatarPreview(null);
                           setAvatarFile(null);
-                          const input = document.querySelector('input[name="avatarUrl"]') as HTMLInputElement;
-                          if (input) input.value = editingDesigner?.avatarUrl || '';
+                          setUploadedAvatarUrl(null);
                         }}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                       >
@@ -3218,28 +3557,105 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </>
                     )}
                   </label>
-                  
-                  {/* URL Input (fallback) */}
-                  <div className="mt-2">
-                    <label className="block text-xs text-muted-foreground mb-1">Or enter URL:</label>
-                    <input
-                      type="url"
-                      name="avatarUrl"
-                      defaultValue={editingDesigner.avatarUrl || ""}
-                      placeholder="https://example.com/avatar.jpg"
-                      className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Banner URL</label>
-                <input
-                  type="url"
-                  name="bannerUrl"
-                  defaultValue={editingDesigner.bannerUrl || ""}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+                <label className="block text-sm font-medium mb-1">Banner Image (Hero Background)</label>
+                <div className="space-y-2">
+                  {/* Current Banner Preview */}
+                  {!bannerPreview && editingDesigner.bannerUrl && (
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Current banner</label>
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border">
+                        <img
+                          src={editingDesigner.bannerUrl}
+                          alt="Current banner"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.style.display = 'none';
+                            const placeholder = img.parentElement?.querySelector('.banner-placeholder') as HTMLElement;
+                            if (placeholder) {
+                              placeholder.style.display = 'flex';
+                            }
+                          }}
+                        />
+                        <div className="banner-placeholder absolute inset-0 bg-secondary flex items-center justify-center" style={{ display: 'none' }}>
+                          <Upload className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* New Upload Preview */}
+                  {bannerPreview && (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border">
+                      <img
+                        src={bannerPreview}
+                        alt="New banner preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBannerPreview(null);
+                          setBannerFile(null);
+                          setUploadedBannerUrl(null);
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* File Upload */}
+                  <label
+                    htmlFor="banner-upload-edit"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${
+                      uploadingBanner
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary hover:bg-secondary'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="banner-upload-edit"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          try {
+                            await handleBannerUpload(file);
+                          } catch (error) {
+                            // Error already handled in handleBannerUpload
+                          }
+                        }
+                      }}
+                      disabled={uploadingBanner}
+                    />
+                    {uploadingBanner ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin text-primary mb-2" />
+                        <span className="text-sm text-muted-foreground">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-6 h-6 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          PNG, JPG, WebP, GIF (max 10MB)
+                        </span>
+                      </>
+                    )}
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>
@@ -3267,6 +3683,10 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     setEditingDesigner(null);
                     setAvatarPreview(null);
                     setAvatarFile(null);
+                    setUploadedAvatarUrl(null);
+                    setBannerPreview(null);
+                    setBannerFile(null);
+                    setUploadedBannerUrl(null);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >

@@ -136,8 +136,8 @@ export default function DesignerDashboardPage() {
 
   // Check authentication and role
   useEffect(() => {
-    // Prevent multiple checks if already checked or if role is being updated
-    if (sessionPending || isUpdatingRole || hasCheckedDesigner) {
+    // Prevent multiple checks if already checked, if role is being updated, or if designer is already loaded
+    if (sessionPending || isUpdatingRole || hasCheckedDesigner || designer) {
       return;
     }
 
@@ -152,7 +152,7 @@ export default function DesignerDashboardPage() {
     // Check if user is a designer (either by role or by designer status)
     if (role === 'designer') {
       // User has designer role, fetch designer data
-      if (userEmail && !designer) {
+      if (userEmail) {
         setHasCheckedDesigner(true);
         fetchDesignerByEmail(userEmail);
       }
@@ -167,11 +167,11 @@ export default function DesignerDashboardPage() {
       }
       
       // Check if user is an approved designer
-      if (userEmail && !designer) {
+      if (userEmail) {
         setHasCheckedDesigner(true);
         checkDesignerStatus(userEmail);
         return;
-      } else if (!userEmail) {
+      } else {
         router.push("/designers/login");
         return;
       }
@@ -208,11 +208,12 @@ export default function DesignerDashboardPage() {
               });
 
               if (roleUpdateResponse.ok) {
-                // Role updated, refetch session and fetch designer data
+                // Role updated, refetch session and directly fetch designer data
+                // Don't reset hasCheckedDesigner - let the refetch handle the next check
                 await refetch();
+                // Directly fetch designer data instead of waiting for useEffect
+                await fetchDesignerByEmail(email);
                 setIsUpdatingRole(false);
-                setHasCheckedDesigner(false); // Reset to allow re-check after role update
-                // fetchDesignerByEmail will be called by the useEffect after session updates
               } else {
                 // Role update failed, but still allow access if approved
                 setIsUpdatingRole(false);

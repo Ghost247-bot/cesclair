@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Users, ArrowRight, Briefcase, ExternalLink } from "lucide-react";
+import { Users, ArrowRight, Briefcase } from "lucide-react";
 import Footer from "@/components/sections/footer";
 
 interface Designer {
@@ -98,9 +98,10 @@ export default function DesignersPage() {
           {!loading && !error && designers.length > 0 && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {designers.map((designer) => (
-                <div
+                <Link
                   key={designer.id}
-                  className="bg-white border border-border overflow-hidden hover:shadow-lg transition-shadow"
+                  href={`/designers/${designer.id}`}
+                  className="bg-white border border-border overflow-hidden transition-all hover:shadow-lg hover:border-primary block"
                 >
                   {/* Banner Image */}
                   {designer.bannerUrl ? (
@@ -149,23 +150,14 @@ export default function DesignersPage() {
                     )}
 
                     <div className="flex items-center justify-between pt-4 border-t border-border">
-                      {designer.portfolioUrl ? (
-                        <a
-                          href={designer.portfolioUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors text-body-small rounded"
-                        >
-                          <Briefcase className="w-4 h-4" />
-                          <span>View Portfolio</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : (
-                        <span className="text-body-small text-muted-foreground">No portfolio</span>
-                      )}
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded text-body-small">
+                        <Briefcase className="w-4 h-4" />
+                        <span>View Portfolio</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
