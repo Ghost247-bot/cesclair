@@ -518,7 +518,7 @@ export async function PUT(request: NextRequest) {
 
     // Build update object
     const updates: any = {
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(), // Use Date object, not ISO string
     };
 
     // Update status if provided
@@ -559,7 +559,30 @@ export async function PUT(request: NextRequest) {
     if (portfolioUrl !== undefined) updates.portfolioUrl = portfolioUrl?.trim() || null;
     if (specialties !== undefined) updates.specialties = specialties?.trim() || null;
     if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl?.trim() || null;
-    if (bannerUrl !== undefined) updates.bannerUrl = bannerUrl?.trim() || null;
+    
+    // Only update bannerUrl if column exists (handle gracefully)
+    if (bannerUrl !== undefined) {
+      // Check if bannerUrl column exists before trying to update
+      try {
+        const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+        const columnCheck = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = 'designers' 
+          AND column_name = 'banner_url'
+          LIMIT 1;
+        `);
+        await pool.end();
+        
+        if (columnCheck.rows.length > 0) {
+          updates.bannerUrl = bannerUrl?.trim() || null;
+        }
+      } catch (checkError) {
+        // If check fails, skip bannerUrl update
+        console.warn('Could not check for banner_url column, skipping bannerUrl update');
+      }
+    }
     
     // Update password if provided
     if (password !== undefined && password.trim()) {
@@ -574,32 +597,71 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updated = await db
-      .update(designers)
-      .set(updates)
-      .where(eq(designers.id, parseInt(id)))
-      .returning({
-        id: designers.id,
-        name: designers.name,
-        email: designers.email,
-        bio: designers.bio,
-        portfolioUrl: designers.portfolioUrl,
-        specialties: designers.specialties,
-        status: designers.status,
-        avatarUrl: designers.avatarUrl,
-        bannerUrl: designers.bannerUrl,
-        createdAt: designers.createdAt,
-        updatedAt: designers.updatedAt,
-      });
+    // Try to update with bannerUrl, fallback without if column doesn't exist
+    try {
+      // Try with bannerUrl in returning fields
+      const updated = await db
+        .update(designers)
+        .set(updates)
+        .where(eq(designers.id, parseInt(id)))
+        .returning({
+          id: designers.id,
+          name: designers.name,
+          email: designers.email,
+          bio: designers.bio,
+          portfolioUrl: designers.portfolioUrl,
+          specialties: designers.specialties,
+          status: designers.status,
+          avatarUrl: designers.avatarUrl,
+          bannerUrl: designers.bannerUrl,
+          createdAt: designers.createdAt,
+          updatedAt: designers.updatedAt,
+        });
 
-    if (updated.length === 0) {
-      return NextResponse.json(
-        { error: 'Failed to update designer', code: 'UPDATE_FAILED' },
-        { status: 500 }
-      );
+      if (updated.length === 0) {
+        return NextResponse.json(
+          { error: 'Failed to update designer', code: 'UPDATE_FAILED' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(updated[0], { status: 200 });
+    } catch (updateError: any) {
+      // If update fails due to bannerUrl column, try without it
+      if (updateError?.message?.includes('banner_url') || updateError?.message?.includes('column') || updateError?.code === '42703') {
+        // Remove bannerUrl from updates and try again
+        const updatesWithoutBanner = { ...updates };
+        delete updatesWithoutBanner.bannerUrl;
+
+        const updated = await db
+          .update(designers)
+          .set(updatesWithoutBanner)
+          .where(eq(designers.id, parseInt(id)))
+          .returning({
+            id: designers.id,
+            name: designers.name,
+            email: designers.email,
+            bio: designers.bio,
+            portfolioUrl: designers.portfolioUrl,
+            specialties: designers.specialties,
+            status: designers.status,
+            avatarUrl: designers.avatarUrl,
+            createdAt: designers.createdAt,
+            updatedAt: designers.updatedAt,
+          });
+
+        if (updated.length === 0) {
+          return NextResponse.json(
+            { error: 'Failed to update designer', code: 'UPDATE_FAILED' },
+            { status: 500 }
+          );
+        }
+
+        // Add null bannerUrl for consistency
+        return NextResponse.json({ ...updated[0], bannerUrl: null }, { status: 200 });
+      }
+      throw updateError; // Re-throw if it's a different error
     }
-
-    return NextResponse.json(updated[0], { status: 200 });
   } catch (error) {
     console.error('PUT error:', error);
     return NextResponse.json(
