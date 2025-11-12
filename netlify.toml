@@ -22,8 +22,8 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
-  # Increase timeout for database operations (max 26s on free tier, 10s default)
-  included_files = ["**/*.js", "**/*.json", "**/*.ts", "**/*.tsx"]
+  # Note: included_files removed - @netlify/plugin-nextjs automatically handles bundling
+  # The plugin uses tree-shaking to only include necessary files, preventing size issues
 
 # Headers for security and performance
 # Note: Headers are applied after the plugin processes requests
