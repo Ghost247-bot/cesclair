@@ -1,67 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { designers, user, account } from '@/db/schema';
-import { eq, like, or, and } from 'drizzle-orm';
+import { eq, like, or, and, desc } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import bcryptjs from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 
-// GET - List all users with designer role
+// GET - List all designers from designers table
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 100);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
+    const statusFilter = searchParams.get('status'); // Optional: filter by status (e.g., 'approved')
 
-    // Get all users with role='designer' and join with designers table for additional info
-    // This ensures we show ALL accounts with designer role, not just approved ones
-    const baseQuery = db
+    // Fetch directly from designers table
+    let query = db
       .select({
-        // Use user table as primary source
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image, // Include user.image for fallback
-        // Get additional info from designers table if available
+        id: designers.id,
+        name: designers.name,
+        email: designers.email,
         bio: designers.bio,
         portfolioUrl: designers.portfolioUrl,
         specialties: designers.specialties,
         status: designers.status,
         avatarUrl: designers.avatarUrl,
         bannerUrl: designers.bannerUrl,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        createdAt: designers.createdAt,
+        updatedAt: designers.updatedAt,
       })
-      .from(user)
-      .leftJoin(designers, eq(user.email, designers.email));
+      .from(designers);
 
     // Build where conditions
-    const conditions: any[] = [eq(user.role, 'designer')];
+    const conditions: any[] = [];
+    
+    // Filter by status if provided (default to showing approved designers for public page)
+    if (statusFilter) {
+      conditions.push(eq(designers.status, statusFilter));
+    } else {
+      // Default: show only approved designers for public listing
+      conditions.push(eq(designers.status, 'approved'));
+    }
     
     // Apply search filter if provided
     if (search) {
       const searchCondition = or(
-          like(user.name, `%${search}%`),
-          like(user.email, `%${search}%`),
-          like(designers.specialties, `%${search}%`)
+        like(designers.name, `%${search}%`),
+        like(designers.email, `%${search}%`),
+        like(designers.specialties, `%${search}%`),
+        like(designers.bio, `%${search}%`)
       );
       if (searchCondition) {
         conditions.push(searchCondition);
       }
     }
 
-    // Apply conditions - use and() only if we have multiple conditions
-    let query = baseQuery;
+    // Apply conditions
+    if (conditions.length > 0) {
     if (conditions.length === 1) {
       query = query.where(conditions[0]);
-    } else if (conditions.length > 1) {
+      } else {
       const combinedCondition = and(...conditions);
       if (combinedCondition) {
         query = query.where(combinedCondition);
       }
     }
+    }
+    
+    // Order by created date (newest first)
+    query = query.orderBy(desc(designers.createdAt));
     
     // Execute query - add retry logic for Neon serverless
     let results: any[] = [];
@@ -89,22 +98,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform results to match expected format
-    // Use designers table data when available, fallback to user table data
     const transformedResults = results.map((row: any) => ({
-      id: row.id, // User ID (text)
+      id: row.id, // Designer ID (number from designers table)
       name: row.name || '',
       email: row.email || '',
       bio: row.bio || null,
       portfolioUrl: row.portfolioUrl || null,
       specialties: row.specialties || null,
-      status: row.status || 'approved', // Default to approved if no designers table entry
-      avatarUrl: row.avatarUrl || row.image || null, // Use designers.avatarUrl or user.image
+      status: row.status || 'pending',
+      avatarUrl: row.avatarUrl || null,
       bannerUrl: row.bannerUrl || null,
       createdAt: row.createdAt ? (row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt) : new Date().toISOString(),
       updatedAt: row.updatedAt ? (row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt) : new Date().toISOString(),
     }));
 
-    return NextResponse.json(transformedResults, { status: 200 });
+    return NextResponse.json({ designers: transformedResults }, { status: 200 });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;

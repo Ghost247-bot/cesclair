@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { contracts, designers, designs, user } from '@/db/schema';
-import { eq, like, or, and, desc } from 'drizzle-orm';
+import { eq, like, or, and, desc, sql } from 'drizzle-orm';
 
 // Helper function to check admin access
 async function checkAdminAccess(request: NextRequest) {
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { designerId, designId, title, description, amount, status } = body;
+    const { designerId, designId, title, description, amount, status, contractFileUrl } = body;
 
     // Validate required fields
     if (!designerId) {
@@ -165,10 +165,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate designerId is a valid integer
-    const designerIdInt = parseInt(designerId);
-    if (isNaN(designerIdInt)) {
+    const designerIdInt = parseInt(String(designerId));
+    if (isNaN(designerIdInt) || designerIdInt <= 0) {
       return NextResponse.json(
-        { error: 'designerId must be a valid integer', code: 'INVALID_DESIGNER_ID' },
+        { error: 'designerId must be a valid positive integer', code: 'INVALID_DESIGNER_ID' },
         { status: 400 }
       );
     }
@@ -189,11 +189,11 @@ export async function POST(request: NextRequest) {
 
     // Validate designId if provided
     let designIdInt = null;
-    if (designId !== undefined && designId !== null) {
-      designIdInt = parseInt(designId);
-      if (isNaN(designIdInt)) {
+    if (designId !== undefined && designId !== null && designId !== '') {
+      designIdInt = parseInt(String(designId));
+      if (isNaN(designIdInt) || designIdInt <= 0) {
         return NextResponse.json(
-          { error: 'designId must be a valid integer', code: 'INVALID_DESIGN_ID' },
+          { error: 'designId must be a valid positive integer', code: 'INVALID_DESIGN_ID' },
           { status: 400 }
         );
       }
@@ -213,18 +213,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare insert data
-    const now = new Date().toISOString();
+    const now = new Date();
     const contractStatus = status || 'pending';
     
     const insertData: any = {
       designerId: designerIdInt,
-      designId: designIdInt,
       title: title.trim(),
       description: description ? description.trim() : null,
       amount: amount || null,
       status: contractStatus,
       createdAt: now,
     };
+
+    // Only include designId if provided
+    if (designIdInt !== null && designIdInt !== undefined) {
+      insertData.designId = designIdInt;
+    }
 
     // Set awardedAt if status is 'awarded'
     if (contractStatus === 'awarded') {
@@ -236,12 +240,178 @@ export async function POST(request: NextRequest) {
       insertData.completedAt = now;
     }
 
-    const newContract = await db
-      .insert(contracts)
-      .values(insertData)
-      .returning();
+    // Try insert without contract_file_url first (column may not exist)
+    // Only include contractFileUrl if provided AND we want to try with it
+    const insertDataWithFile = contractFileUrl 
+      ? { ...insertData, contractFileUrl } 
+      : insertData;
 
-    return NextResponse.json(newContract[0], { status: 201 });
+    const returningFields = {
+      id: contracts.id,
+      designerId: contracts.designerId,
+      designId: contracts.designId,
+      title: contracts.title,
+      description: contracts.description,
+      amount: contracts.amount,
+      status: contracts.status,
+      awardedAt: contracts.awardedAt,
+      completedAt: contracts.completedAt,
+      createdAt: contracts.createdAt,
+      envelopeId: contracts.envelopeId,
+      envelopeStatus: contracts.envelopeStatus,
+      signedAt: contracts.signedAt,
+      envelopeUrl: contracts.envelopeUrl,
+    };
+
+    try {
+      const newContract = await db
+        .insert(contracts)
+        .values(insertDataWithFile)
+        .returning(returningFields);
+
+      return NextResponse.json(newContract[0], { status: 201 });
+    } catch (insertError: any) {
+      // Handle case where contract_file_url column doesn't exist yet
+      const errorMessage = String(insertError?.message || '');
+      const errorCause = String(insertError?.cause?.message || '');
+      const errorString = errorMessage + ' ' + errorCause;
+      const hasContractFileUrlError = 
+        errorString.includes('contract_file_url') ||
+        errorString.includes('contractFileUrl') ||
+        insertError?.code === '42703' ||
+        insertError?.cause?.code === '42703';
+      
+      if (hasContractFileUrlError) {
+        // Remove contractFileUrl and try again (Drizzle includes it from schema even if not provided)
+        const insertDataWithoutFile = { ...insertData };
+        delete insertDataWithoutFile.contractFileUrl;
+        
+        try {
+          const newContract = await db
+            .insert(contracts)
+            .values(insertDataWithoutFile)
+            .returning(returningFields);
+
+          return NextResponse.json(newContract[0], { status: 201 });
+        } catch (retryError: any) {
+          const retryErrorMessage = String(retryError?.message || '');
+          const retryErrorCause = String(retryError?.cause?.message || '');
+          const retryErrorString = retryErrorMessage + ' ' + retryErrorCause;
+          const retryHasContractFileUrlError = 
+            retryErrorString.includes('contract_file_url') ||
+            retryErrorString.includes('contractFileUrl') ||
+            retryError?.code === '42703' ||
+            retryError?.cause?.code === '42703';
+          
+          if (retryHasContractFileUrlError) {
+            // Column definitely doesn't exist, Drizzle is including it from schema
+            // Use raw SQL to insert without the contract_file_url column
+            console.warn('contract_file_url column does not exist in database, using raw SQL insert');
+            
+            // Build dynamic SQL with only columns that exist
+            const columns: string[] = [];
+            const values: any[] = [];
+            let paramIndex = 1;
+            
+            columns.push('designer_id');
+            values.push(insertData.designerId);
+            paramIndex++;
+            
+            columns.push('title');
+            values.push(insertData.title);
+            paramIndex++;
+            
+            if (insertData.description !== undefined && insertData.description !== null) {
+              columns.push('description');
+              values.push(insertData.description);
+              paramIndex++;
+            }
+            
+            if (insertData.amount !== undefined && insertData.amount !== null) {
+              columns.push('amount');
+              values.push(insertData.amount);
+              paramIndex++;
+            }
+            
+            columns.push('status');
+            values.push(insertData.status);
+            paramIndex++;
+            
+            columns.push('created_at');
+            values.push(insertData.createdAt);
+            paramIndex++;
+            
+            if (insertData.designId !== undefined && insertData.designId !== null) {
+              columns.push('design_id');
+              values.push(insertData.designId);
+              paramIndex++;
+            }
+            
+            if (insertData.awardedAt !== undefined && insertData.awardedAt !== null) {
+              columns.push('awarded_at');
+              values.push(insertData.awardedAt);
+              paramIndex++;
+            }
+            
+            if (insertData.completedAt !== undefined && insertData.completedAt !== null) {
+              columns.push('completed_at');
+              values.push(insertData.completedAt);
+              paramIndex++;
+            }
+            
+            // Build parameterized SQL query
+            const columnsStr = columns.join(', ');
+            const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+            
+            // Format values for SQL (escape strings, format dates, etc.)
+            const formattedValues = values.map(v => {
+              if (v === null || v === undefined) return null;
+              if (v instanceof Date) return v.toISOString();
+              if (typeof v === 'string') return v.replace(/'/g, "''");
+              return v;
+            });
+            
+            // Construct SQL with proper escaping
+            const valuesStr = formattedValues.map((v, i) => {
+              if (v === null) return 'NULL';
+              if (typeof v === 'string') return `'${v}'`;
+              if (v instanceof Date) return `'${v.toISOString()}'`;
+              return String(v);
+            }).join(', ');
+            
+            const query = sql`
+              INSERT INTO contracts (${sql.raw(columnsStr)})
+              VALUES (${sql.raw(valuesStr)})
+              RETURNING id, designer_id, design_id, title, description, amount, status, 
+                        awarded_at, completed_at, created_at, envelope_id, envelope_status, 
+                        signed_at, envelope_url
+            `;
+            
+            const result = await db.execute(query);
+            
+            const newContract = result.rows[0] as any;
+            return NextResponse.json({
+              id: newContract.id,
+              designerId: newContract.designer_id,
+              designId: newContract.design_id,
+              title: newContract.title,
+              description: newContract.description,
+              amount: newContract.amount,
+              status: newContract.status,
+              awardedAt: newContract.awarded_at,
+              completedAt: newContract.completed_at,
+              createdAt: newContract.created_at,
+              envelopeId: newContract.envelope_id,
+              envelopeStatus: newContract.envelope_status,
+              signedAt: newContract.signed_at,
+              envelopeUrl: newContract.envelope_url,
+            }, { status: 201 });
+          }
+          throw retryError;
+        }
+      }
+      throw insertError;
+    }
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json(

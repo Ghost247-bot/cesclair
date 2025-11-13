@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { user, designers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function middleware(request: NextRequest) {
@@ -44,26 +44,63 @@ export async function middleware(request: NextRequest) {
         }
       }
       
-      // If designer is authenticated, handle routing
+      // Check if user is in designers table (even if role isn't set)
+      const userEmail = session.user.email;
+      if (userEmail) {
+        try {
+          const designerRecord = await db
+            .select({ status: designers.status })
+            .from(designers)
+            .where(eq(designers.email, userEmail.toLowerCase().trim()))
+            .limit(1);
+          
+          if (designerRecord.length > 0 && designerRecord[0].status === 'approved') {
+            // User is an approved designer - redirect to designers dashboard
+            if (pathname === '/') {
+              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
+            }
+            
+            // Allow access to designer routes
+            if (pathname.startsWith('/designers')) {
+              return NextResponse.next();
+            }
+            
+            // Redirect designers away from cesworld/everworld dashboards
+            if (pathname.startsWith('/cesworld/dashboard') || pathname.startsWith('/everworld/dashboard')) {
+              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
+            }
+            
+            // Redirect designers away from admin pages
+            if (pathname.startsWith('/admin')) {
+              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
+            }
+          }
+        } catch (error) {
+          // On error, fall back to role check
+        }
+      }
+      
+      // If designer is authenticated (by role), handle routing
       if (userRole === 'designer') {
-        // If on root page, redirect to designer dashboard (since they came from designer login)
+        // If on root page, redirect to designer dashboard
         if (pathname === '/') {
           return NextResponse.redirect(new URL("/designers/dashboard", request.url));
         }
         
         // Allow access to designer routes (login, apply, dashboard, etc.)
         if (pathname.startsWith('/designers')) {
-          // Allow access to all designer pages
           return NextResponse.next();
+        }
+        
+        // Redirect designers away from cesworld/everworld dashboards
+        if (pathname.startsWith('/cesworld/dashboard') || pathname.startsWith('/everworld/dashboard')) {
+          return NextResponse.redirect(new URL("/designers/dashboard", request.url));
         }
         
         // Redirect designers away from admin pages
         if (pathname.startsWith('/admin')) {
           return NextResponse.redirect(new URL("/designers/dashboard", request.url));
         }
-        
-        // Allow access to all other public pages (products, collections, etc.)
-        // Allow access to cesworld pages (they can access cesworld dashboard too)
       }
       
       // Check authentication for admin routes

@@ -22,12 +22,46 @@ export default function DesignerLoginPage() {
   useEffect(() => {
     if (!isPending && session?.user) {
       const role = session.user.role || 'member';
+      const userEmail = session.user.email;
+      
+      // Check if user is in designers table first
+      if (userEmail) {
+        fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.exists && data.status === 'approved') {
+              router.push("/designers/dashboard");
+              return;
+            }
+            
+            // Not a designer, check role
+            if (role === 'designer') {
+              router.push("/designers/dashboard");
+            } else if (role === 'admin') {
+              router.push("/admin");
+            } else {
+              router.push("/cesworld/dashboard");
+            }
+          })
+          .catch(() => {
+            // On error, use role check
+            if (role === 'designer') {
+              router.push("/designers/dashboard");
+            } else if (role === 'admin') {
+              router.push("/admin");
+            } else {
+              router.push("/cesworld/dashboard");
+            }
+          });
+      } else {
+        // No email, use role check
       if (role === 'designer') {
         router.push("/designers/dashboard");
       } else if (role === 'admin') {
         router.push("/admin");
       } else {
         router.push("/cesworld/dashboard");
+        }
       }
     }
   }, [session, isPending, router]);

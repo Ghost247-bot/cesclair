@@ -26,17 +26,44 @@ export default function CesworldLogin() {
   }, [session, isPending, router]);
 
   const redirectBasedOnRole = (role: string) => {
-    switch (role) {
-      case 'admin':
+    const userEmail = session?.user?.email;
+    
+    // Check if user is in designers table first
+    if (userEmail) {
+      fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.exists && data.status === 'approved') {
+            router.push("/designers/dashboard");
+            return;
+          }
+          
+          // Not a designer, use role check
+          if (role === 'admin') {
+            router.push("/admin");
+          } else {
+            router.push("/cesworld/dashboard");
+          }
+        })
+        .catch(() => {
+          // On error, use role check
+          if (role === 'admin') {
+            router.push("/admin");
+          } else if (role === 'designer') {
+            router.push("/designers/dashboard");
+          } else {
+            router.push("/cesworld/dashboard");
+          }
+        });
+    } else {
+      // No email, use role check
+      if (role === 'admin') {
         router.push("/admin");
-        break;
-      case 'designer':
+      } else if (role === 'designer') {
+        router.push("/designers/dashboard");
+      } else {
         router.push("/cesworld/dashboard");
-        break;
-      case 'member':
-      default:
-        router.push("/cesworld/dashboard");
-        break;
+      }
     }
   };
 

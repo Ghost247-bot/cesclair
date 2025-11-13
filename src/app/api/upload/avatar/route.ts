@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { auth } from '@/lib/auth';
+import { db } from '@/db';
+import { designers, fileStorage } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const designerId = formData.get('designerId') as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -46,22 +66,66 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `avatar-${timestamp}-${randomString}.${fileExtension}`;
 
-    // Save to public/uploads/avatars directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'avatars');
-    
-    // Create directory if it doesn't exist
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    const filePath = join(uploadDir, fileName);
+    // Convert file to base64 for database storage (serverless compatible)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const base64Data = buffer.toString('base64');
 
-    await writeFile(filePath, buffer);
+    // Store file in database
+    const storedFile = await db
+      .insert(fileStorage)
+      .values({
+        fileName: fileName,
+        fileType: file.type,
+        fileData: base64Data,
+        fileSize: file.size,
+      })
+      .returning();
 
-    // Return the public URL
-    const fileUrl = `/uploads/avatars/${fileName}`;
+    // Return the public URL (API endpoint to serve the file)
+    const fileUrl = `/api/files/${storedFile[0].id}`;
+
+    // Save to database if designer ID is provided or find designer by email
+    try {
+      let designerToUpdate;
+      
+      if (designerId) {
+        // Update by designer ID
+        designerToUpdate = await db
+          .select()
+          .from(designers)
+          .where(eq(designers.id, parseInt(designerId)))
+          .limit(1);
+      } else {
+        // Find designer by email from session
+        designerToUpdate = await db
+          .select()
+          .from(designers)
+          .where(eq(designers.email, session.user.email))
+          .limit(1);
+      }
+
+      if (designerToUpdate.length > 0) {
+        // Check authorization: user must be admin OR the designer themselves
+        const userRole = (session.user as any)?.role;
+        const isAdmin = userRole === 'admin';
+        const isOwnProfile = designerToUpdate[0].email === session.user.email;
+
+        if (isAdmin || isOwnProfile) {
+          // Update avatarUrl in database
+          await db
+            .update(designers)
+            .set({
+              avatarUrl: fileUrl,
+              updatedAt: new Date(),
+            })
+            .where(eq(designers.id, designerToUpdate[0].id));
+        }
+      }
+    } catch (dbError) {
+      // Log error but don't fail the upload - file is already saved
+      console.error('Failed to save avatar URL to database:', dbError);
+    }
 
     return NextResponse.json(
       { 
@@ -84,5 +148,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
 
 

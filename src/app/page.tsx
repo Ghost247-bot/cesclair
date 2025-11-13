@@ -21,13 +21,40 @@ export default function Home() {
   useEffect(() => {
     if (!isPending && session?.user) {
       const role = (session.user as any)?.role || 'member';
+      const userEmail = session.user.email;
       
-      if (role === 'designer') {
-        router.push("/cesworld/dashboard");
-      } else if (role === 'admin') {
+      // Check if user is in designers table
+      if (userEmail) {
+        fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.exists && data.status === 'approved') {
+              router.push("/designers/dashboard");
+              return;
+            }
+            
+            // If not a designer, check role
+            if (role === 'admin') {
         router.push("/admin");
       } else if (role === 'member') {
         // Members can stay on home page, no redirect needed
+            }
+          })
+          .catch(() => {
+            // On error, fall back to role check
+            if (role === 'designer') {
+              router.push("/designers/dashboard");
+            } else if (role === 'admin') {
+              router.push("/admin");
+            }
+          });
+      } else {
+        // No email, use role check
+        if (role === 'designer') {
+          router.push("/designers/dashboard");
+        } else if (role === 'admin') {
+          router.push("/admin");
+        }
       }
     }
   }, [session, isPending, router]);

@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate designerId is a valid integer
-    const designerIdInt = parseInt(designerId);
-    if (isNaN(designerIdInt)) {
+    const designerIdInt = parseInt(String(designerId));
+    if (isNaN(designerIdInt) || designerIdInt <= 0) {
       return NextResponse.json(
-        { error: 'designerId must be a valid integer', code: 'INVALID_DESIGNER_ID' },
+        { error: 'designerId must be a valid positive integer', code: 'INVALID_DESIGNER_ID' },
         { status: 400 }
       );
     }
@@ -97,11 +97,11 @@ export async function POST(request: NextRequest) {
 
     // Validate designId if provided
     let designIdInt = null;
-    if (designId !== undefined && designId !== null) {
-      designIdInt = parseInt(designId);
-      if (isNaN(designIdInt)) {
+    if (designId !== undefined && designId !== null && designId !== '') {
+      designIdInt = parseInt(String(designId));
+      if (isNaN(designIdInt) || designIdInt <= 0) {
         return NextResponse.json(
-          { error: 'designId must be a valid integer', code: 'INVALID_DESIGN_ID' },
+          { error: 'designId must be a valid positive integer', code: 'INVALID_DESIGN_ID' },
           { status: 400 }
         );
       }
@@ -121,18 +121,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare insert data
-    const now = new Date().toISOString();
+    const now = new Date();
     const contractStatus = status || 'pending';
     
     const insertData: any = {
       designerId: designerIdInt,
-      designId: designIdInt,
       title: title.trim(),
       description: description ? description.trim() : null,
       amount: amount || null,
       status: contractStatus,
       createdAt: now,
     };
+
+    // Only include designId if provided
+    if (designIdInt !== null && designIdInt !== undefined) {
+      insertData.designId = designIdInt;
+    }
 
     // Set awardedAt if status is 'awarded'
     if (contractStatus === 'awarded') {

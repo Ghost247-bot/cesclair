@@ -158,6 +158,7 @@ export const contracts = pgTable('contracts', {
   envelopeStatus: text('envelope_status').default('pending'),
   signedAt: timestamp('signed_at'),
   envelopeUrl: text('envelope_url'),
+  contractFileUrl: text('contract_file_url'),
 });
 
 // Newsletter subscriptions table
@@ -274,4 +275,15 @@ export const documents = pgTable('documents', {
   uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// File storage table for serverless environments (stores files as base64)
+export const fileStorage = pgTable('file_storage', {
+  id: serial('id').primaryKey(),
+  fileName: text('file_name').notNull(),
+  fileType: text('file_type').notNull(), // MIME type
+  fileData: text('file_data').notNull(), // base64 encoded file data
+  fileSize: integer('file_size').notNull(), // in bytes
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });

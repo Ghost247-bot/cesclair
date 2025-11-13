@@ -1338,12 +1338,12 @@ export default function DesignerDashboardPage() {
                 </button>
               </div>
 
-              {/* Documents from Admin */}
+              {/* Documents from Cesclair */}
               {documents.filter(d => d.uploadedBy !== null).length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
                     <FolderOpen className="w-5 h-5" />
-                    Documents from Admin
+                    Documents from Cesclair
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     {documents.filter(d => d.uploadedBy !== null).map((document) => (

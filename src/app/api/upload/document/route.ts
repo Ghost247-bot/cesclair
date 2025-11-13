@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { db } from '@/db';
+import { fileStorage } from '@/db/schema';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,11 +38,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 50MB for documents)
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    // Validate file size (max 10MB for documents stored in database)
+    // Larger files should use cloud storage (S3, Cloudinary, etc.)
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size exceeds 50MB limit', code: 'FILE_TOO_LARGE' },
+        { error: 'File size exceeds 10MB limit. Please use a file smaller than 10MB or use cloud storage for larger files.', code: 'FILE_TOO_LARGE' },
         { status: 400 }
       );
     }
@@ -54,39 +54,88 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop();
     const fileName = `document-${timestamp}-${randomString}.${fileExtension}`;
 
-    // Save to public/uploads/documents directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'documents');
-    
-    // Create directory if it doesn't exist
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    try {
+      // Convert file to base64 for database storage (serverless compatible)
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const base64Data = buffer.toString('base64');
+
+      // Check if base64 data is too large (safety check)
+      if (base64Data.length > 50 * 1024 * 1024) { // 50MB base64 limit
+        return NextResponse.json(
+          { error: 'File is too large to store in database. Please use a smaller file or cloud storage.', code: 'FILE_TOO_LARGE' },
+          { status: 400 }
+        );
+      }
+
+      // Store file in database using raw SQL for better handling of large values
+      const { Pool } = await import('@neondatabase/serverless');
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      
+      try {
+        const result = await pool.query(
+          `INSERT INTO file_storage (file_name, file_type, file_data, file_size, uploaded_at, created_at) 
+           VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+           RETURNING id, file_name, file_type, file_size`,
+          [fileName, file.type, base64Data, file.size]
+        );
+
+        const storedFile = result.rows[0];
+        
+        // Return the public URL (API endpoint to serve the file)
+        const fileUrl = `/api/files/${storedFile.id}`;
+
+        return NextResponse.json(
+          { 
+            url: fileUrl,
+            fileName: storedFile.file_name,
+            originalFileName: file.name,
+            size: storedFile.file_size,
+            type: storedFile.file_type
+          },
+          { status: 200 }
+        );
+      } finally {
+        await pool.end();
+      }
+    } catch (dbError: any) {
+      console.error('Database insert error:', dbError);
+      
+      // Provide more specific error messages
+      if (dbError.message?.includes('too large') || dbError.message?.includes('exceeds')) {
+        return NextResponse.json(
+          { 
+            error: 'File is too large to store in database. Please use a file smaller than 10MB.',
+            code: 'FILE_TOO_LARGE'
+          },
+          { status: 400 }
+        );
+      }
+      
+      throw dbError; // Re-throw to be caught by outer catch
     }
 
-    const filePath = join(uploadDir, fileName);
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    await writeFile(filePath, buffer);
-
-    // Return the public URL
-    const fileUrl = `/uploads/documents/${fileName}`;
-
-    return NextResponse.json(
-      { 
-        url: fileUrl,
-        fileName: fileName,
-        originalFileName: file.name,
-        size: file.size,
-        type: file.type
-      },
-      { status: 200 }
-    );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to upload file';
+    let errorCode = 'UPLOAD_ERROR';
+    
+    if (error.message?.includes('too large') || error.message?.includes('exceeds')) {
+      errorMessage = 'File is too large. Please use a file smaller than 10MB.';
+      errorCode = 'FILE_TOO_LARGE';
+    } else if (error.message?.includes('database') || error.message?.includes('query')) {
+      errorMessage = 'Database error while storing file. Please try again or use a smaller file.';
+      errorCode = 'DATABASE_ERROR';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
       { 
-        error: 'Failed to upload file: ' + (error instanceof Error ? error.message : 'Unknown error'),
-        code: 'UPLOAD_ERROR'
+        error: errorMessage,
+        code: errorCode
       },
       { status: 500 }
     );

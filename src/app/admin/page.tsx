@@ -92,6 +92,7 @@ interface Contract {
   envelopeStatus?: string;
   signedAt?: string;
   envelopeUrl?: string;
+  contractFileUrl?: string;
   designer?: {
     id: number;
     name: string;
@@ -155,6 +156,8 @@ export default function AdminPage() {
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showCreateContractModal, setShowCreateContractModal] = useState(false);
   const [showEditContractModal, setShowEditContractModal] = useState(false);
+  const [showContractDetailsModal, setShowContractDetailsModal] = useState(false);
+  const [viewingContract, setViewingContract] = useState<Contract | null>(null);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -180,6 +183,9 @@ export default function AdminPage() {
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [uploadedBannerUrl, setUploadedBannerUrl] = useState<string | null>(null);
+  const [uploadingContractFile, setUploadingContractFile] = useState(false);
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [uploadedContractFileUrl, setUploadedContractFileUrl] = useState<string | null>(null);
 
   const isAuthenticated = !sessionPending && session?.user;
   // Get role from session, may need to fetch from database if not in session
@@ -397,28 +403,19 @@ export default function AdminPage() {
   const fetchDesigners = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/designers?limit=100", {
+      const response = await fetch("/api/designers?limit=100", {
         credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();
-        setDesigners(data);
-        setFilteredDesigners(data);
+        const designersList = data.designers || data;
+        setDesigners(designersList);
+        setFilteredDesigners(designersList);
       } else {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData?.error || "Failed to load designers";
         console.error("Failed to fetch designers:", errorData);
-        
-        // Check if it's a schema mismatch error
-        if (errorData?.code === 'SCHEMA_MISMATCH') {
-          toast.error(
-            "Database schema mismatch detected. The banner_url column is missing. " +
-            "Please run the migration or contact an administrator.",
-            { duration: 10000 }
-          );
-        } else {
           toast.error(errorMessage);
-        }
       }
     } catch (error) {
       console.error("Failed to fetch designers:", error);
@@ -482,6 +479,10 @@ export default function AdminPage() {
       setUploadingAvatar(true);
       const formData = new FormData();
       formData.append('file', file);
+      // Include designer ID if editing an existing designer
+      if (editingDesigner?.id) {
+        formData.append('designerId', editingDesigner.id.toString());
+      }
 
       const response = await fetch('/api/upload/avatar', {
         method: 'POST',
@@ -517,6 +518,10 @@ export default function AdminPage() {
       setUploadingBanner(true);
       const formData = new FormData();
       formData.append('file', file);
+      // Include designer ID if editing an existing designer
+      if (editingDesigner?.id) {
+        formData.append('designerId', editingDesigner.id.toString());
+      }
 
       const response = await fetch('/api/upload/banner', {
         method: 'POST',
@@ -1133,6 +1138,41 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     }
   };
 
+  const handleContractFileUpload = async (file: File) => {
+    try {
+      setUploadingContractFile(true);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setUploadedContractFileUrl(data.url);
+      toast.success('Contract file uploaded successfully');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload contract file');
+    } finally {
+      setUploadingContractFile(false);
+    }
+  };
+
+  const handleContractFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setContractFile(file);
+      handleContractFileUpload(file);
+    }
+  };
+
   const createContract = async (contractData: {
     designerId: number;
     designId?: number;
@@ -1140,6 +1180,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     description?: string;
     amount?: string;
     status?: string;
+    contractFileUrl?: string;
   }) => {
     try {
       const response = await fetch("/api/admin/contracts", {
@@ -2947,7 +2988,15 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     {filteredContracts.map((contract) => (
                       <div
                         key={contract.id}
-                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={(e) => {
+                          // Don't trigger if clicking on buttons
+                          if ((e.target as HTMLElement).closest('button')) {
+                            return;
+                          }
+                          setViewingContract(contract);
+                          setShowContractDetailsModal(true);
+                        }}
                       >
                         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                           <div className="flex-1">
@@ -2989,7 +3038,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                           </div>
                           <div className="flex flex-col gap-2 md:min-w-[150px]">
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setEditingContract(contract);
                                 setShowEditContractModal(true);
                               }}
@@ -2998,7 +3048,10 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                               Edit
                             </button>
                             <button
-                              onClick={() => deleteContract(contract.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteContract(contract.id);
+                              }}
                               className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
                             >
                               Delete
@@ -3059,6 +3112,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   type="password"
                   name="password"
                   required
+                  autoComplete="new-password"
                   className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -3153,6 +3207,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   type="password"
                   name="password"
                   required
+                  autoComplete="new-password"
                   className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -3423,6 +3478,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <input
                   type="password"
                   name="password"
+                  autoComplete="new-password"
                   className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -3714,6 +3770,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   description: formData.get("description") as string || undefined,
                   amount: formData.get("amount") as string || undefined,
                   status: formData.get("status") as string || "pending",
+                  contractFileUrl: uploadedContractFileUrl || undefined,
                 });
                 // Reset selected designer after submission
                 setSelectedDesignerId(null);
@@ -3796,6 +3853,22 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Contract File</label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleContractFileChange}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={uploadingContractFile}
+                />
+                {uploadingContractFile && (
+                  <p className="text-xs text-muted-foreground mt-1">Uploading...</p>
+                )}
+                {uploadedContractFileUrl && !uploadingContractFile && (
+                  <p className="text-xs text-green-600 mt-1">✓ File uploaded successfully</p>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button
                   type="submit"
@@ -3808,6 +3881,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   onClick={() => {
                     setShowCreateContractModal(false);
                     setSelectedDesignerId(null);
+                    setUploadedContractFileUrl(null);
+                    setContractFile(null);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
@@ -4015,6 +4090,228 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Contract Details Modal */}
+      {showContractDetailsModal && viewingContract && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-medium">Contract Details</h2>
+              <button
+                onClick={() => {
+                  setShowContractDetailsModal(false);
+                  setViewingContract(null);
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div>
+                <h3 className="text-lg font-medium mb-4 pb-2 border-b">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Title</label>
+                    <p className="text-base mt-1">{viewingContract.title}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <div className="mt-1">
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium inline-block ${
+                          viewingContract.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : viewingContract.status === "awarded"
+                            ? "bg-blue-100 text-blue-700"
+                            : viewingContract.status === "cancelled"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {viewingContract.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  {viewingContract.designer && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Designer Name</label>
+                        <p className="text-base mt-1">{viewingContract.designer.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Designer Email</label>
+                        <p className="text-base mt-1">{viewingContract.designer.email}</p>
+                      </div>
+                    </>
+                  )}
+                  {viewingContract.amount && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Amount</label>
+                      <p className="text-base mt-1">${viewingContract.amount}</p>
+                    </div>
+                  )}
+                  {viewingContract.designId && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Design ID</label>
+                      <p className="text-base mt-1">{viewingContract.designId}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Description */}
+              {viewingContract.description && (
+                <div>
+                  <h3 className="text-lg font-medium mb-4 pb-2 border-b">Description</h3>
+                  <p className="text-base text-muted-foreground whitespace-pre-wrap">{viewingContract.description}</p>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div>
+                <h3 className="text-lg font-medium mb-4 pb-2 border-b">Timeline</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Created At</label>
+                    <p className="text-base mt-1">
+                      {new Date(viewingContract.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  {viewingContract.awardedAt && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Awarded At</label>
+                      <p className="text-base mt-1">
+                        {new Date(viewingContract.awardedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {viewingContract.completedAt && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Completed At</label>
+                      <p className="text-base mt-1">
+                        {new Date(viewingContract.completedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {viewingContract.signedAt && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Signed At</label>
+                      <p className="text-base mt-1">
+                        {new Date(viewingContract.signedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Envelope Information */}
+              {(viewingContract.envelopeId || viewingContract.envelopeStatus || viewingContract.envelopeUrl) && (
+                <div>
+                  <h3 className="text-lg font-medium mb-4 pb-2 border-b">Envelope Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {viewingContract.envelopeId && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Envelope ID</label>
+                        <p className="text-base mt-1 font-mono text-sm">{viewingContract.envelopeId}</p>
+                      </div>
+                    )}
+                    {viewingContract.envelopeStatus && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Envelope Status</label>
+                        <p className="text-base mt-1">{viewingContract.envelopeStatus}</p>
+                      </div>
+                    )}
+                    {viewingContract.envelopeUrl && (
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium text-muted-foreground">Envelope URL</label>
+                        <a
+                          href={viewingContract.envelopeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-base mt-1 text-blue-600 hover:text-blue-800 underline flex items-center gap-2"
+                        >
+                          {viewingContract.envelopeUrl}
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* PDF Documents */}
+              <div>
+                <h3 className="text-lg font-medium mb-4 pb-2 border-b">Documents</h3>
+                <div className="space-y-3">
+                  {viewingContract.contractFileUrl ? (
+                    <div className="border border-border rounded-lg p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileTextIcon className="w-8 h-8 text-red-600" />
+                        <div>
+                          <p className="font-medium">Contract PDF</p>
+                          <p className="text-sm text-muted-foreground">Contract document</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href={viewingContract.contractFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          View
+                        </a>
+                        <a
+                          href={viewingContract.contractFileUrl}
+                          download
+                          className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
+                      <FileTextIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No contract document available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setViewingContract(null);
+                    setShowContractDetailsModal(false);
+                    setEditingContract(viewingContract);
+                    setShowEditContractModal(true);
+                  }}
+                  className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Contract
+                </button>
+                <button
+                  onClick={() => {
+                    setShowContractDetailsModal(false);
+                    setViewingContract(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

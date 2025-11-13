@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
 
     if (designer.length === 0) {
       return NextResponse.json(
-        { error: 'Designer not found', code: 'NOT_FOUND' },
-        { status: 404 }
+        { exists: false, status: null },
+        { status: 200 }
       );
     }
 
@@ -96,7 +96,12 @@ export async function GET(request: NextRequest) {
     // Admin can access any designer, no need to check approval status
     // For non-admins, we already checked approval status above
 
-    return NextResponse.json(designer[0], { status: 200 });
+    // Return designer data with exists flag for easier checking
+    return NextResponse.json({
+      exists: true,
+      status: designer[0].status,
+      ...designer[0]
+    }, { status: 200 });
   } catch (error) {
     console.error('GET designer by email error:', error);
     return NextResponse.json(
@@ -140,14 +145,17 @@ export async function POST(request: NextRequest) {
 
     if (designer.length === 0) {
       return NextResponse.json(
-        { error: 'Designer not found', code: 'NOT_FOUND' },
-        { status: 404 }
+        { exists: false, status: null },
+        { status: 200 }
       );
     }
 
-    // Return designer data (including status)
-    // During login, we'll check the status on the client side
-    return NextResponse.json(designer[0], { status: 200 });
+    // Return designer data with exists flag
+    return NextResponse.json({
+      exists: true,
+      status: designer[0].status,
+      ...designer[0]
+    }, { status: 200 });
   } catch (error) {
     console.error('POST designer by email error:', error);
     return NextResponse.json(

@@ -57,14 +57,40 @@ export default function CesworldDashboard() {
     if (!isPending && !session?.user) {
       router.push("/cesworld/login");
     } else if (!isPending && session?.user) {
-      // Redirect based on role
       const role = session.user.role || 'member';
+      const userEmail = session.user.email;
+      
+      // Check if user is in designers table - redirect to designers dashboard
+      if (userEmail) {
+        fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.exists && data.status === 'approved') {
+              router.push("/designers/dashboard");
+              return;
+            }
+            
+            // If not a designer, check role
+            if (role === 'admin') {
+              router.push("/admin");
+            }
+          })
+          .catch(() => {
+            // On error, check role
+            if (role === 'admin') {
+              router.push("/admin");
+            } else if (role === 'designer') {
+              router.push("/designers/dashboard");
+            }
+          });
+      } else {
+        // No email, use role check
       if (role === 'admin') {
         router.push("/admin");
-        return;
+        } else if (role === 'designer') {
+          router.push("/designers/dashboard");
+        }
       }
-      // Designers and members should access this dashboard (cesworld/dashboard)
-      // No need to redirect designers - they should see the cesworld dashboard
     }
   }, [session, isPending, router]);
 

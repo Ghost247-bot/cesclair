@@ -231,6 +231,9 @@ export default function DesignerPortfolioPage() {
       setUploadingBanner(true);
       const formData = new FormData();
       formData.append('file', file);
+      if (designer?.id) {
+        formData.append('designerId', designer.id.toString());
+      }
 
       const response = await fetch('/api/upload/banner', {
         method: 'POST',
@@ -281,6 +284,9 @@ export default function DesignerPortfolioPage() {
       setUploadingAvatar(true);
       const formData = new FormData();
       formData.append('file', file);
+      if (designer?.id) {
+        formData.append('designerId', designer.id.toString());
+      }
 
       const response = await fetch('/api/upload/avatar', {
         method: 'POST',
