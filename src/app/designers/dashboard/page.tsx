@@ -3197,30 +3197,96 @@ export default function DesignerDashboardPage() {
                   </div>
 
                   {/* Contract Document */}
-                  {viewingContract.contractFileUrl && (
-                    <div className="pt-4 border-t border-border">
-                      <label className="text-label text-muted-foreground block mb-3">Contract Document</label>
-                      <div className="flex flex-wrap gap-3">
-                        <a
-                          href={viewingContract.contractFileUrl || undefined}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors"
-                        >
-                          <FileText className="w-4 h-4" />
-                          <span>View Document</span>
-                        </a>
-                        <a
-                          href={viewingContract.contractFileUrl || undefined}
-                          download
-                          className="inline-flex items-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span>Download Document</span>
-                        </a>
-                      </div>
+                  <div className="pt-4 border-t border-border">
+                    <label className="text-label text-muted-foreground block mb-3">Documents</label>
+                    <div className="space-y-3">
+                      {viewingContract.contractFileUrl && (() => {
+                        const contractFileUrl = viewingContract.contractFileUrl;
+                        const fileIdMatch = contractFileUrl?.match(/\/api\/files\/(\d+)/);
+                        const downloadUrl = fileIdMatch 
+                          ? `${contractFileUrl}?download=true`
+                          : contractFileUrl;
+                        
+                        return (
+                          <div className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-6 h-6 text-red-600" />
+                              <div>
+                                <p className="font-medium">Contract PDF</p>
+                                <p className="text-sm text-muted-foreground">Contract document</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <a
+                                href={contractFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
+                                href={downloadUrl}
+                                download="contract.pdf"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      
+                      {/* All Documents for this Designer */}
+                      {documents.filter(doc => doc.designerId === viewingContract.designerId).map((doc) => {
+                        const fileIdMatch = doc.fileUrl?.match(/\/api\/files\/(\d+)/);
+                        const downloadUrl = fileIdMatch 
+                          ? `${doc.fileUrl}?download=true`
+                          : doc.fileUrl;
+                        const fileName = doc.fileName || doc.title || 'document';
+                        
+                        return (
+                          <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-6 h-6 text-blue-600" />
+                              <div>
+                                <p className="font-medium">{doc.title}</p>
+                                <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
+                                href={downloadUrl}
+                                download={fileName}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {!viewingContract.contractFileUrl && documents.filter(doc => doc.designerId === viewingContract.designerId).length === 0 && (
+                        <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
+                          <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No documents available</p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Envelope URL */}
                   {viewingContract.envelopeUrl && (

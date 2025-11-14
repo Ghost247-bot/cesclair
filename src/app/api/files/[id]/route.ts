@@ -6,6 +6,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const searchParams = request.nextUrl.searchParams;
+    const download = searchParams.get('download') === 'true';
     
     if (!id || isNaN(parseInt(id))) {
       return new NextResponse('File not found', { status: 404 });
@@ -30,13 +32,18 @@ export async function GET(
       // Convert base64 back to buffer
       const buffer = Buffer.from(fileRecord.file_data, 'base64');
 
+      // Determine content disposition based on download parameter
+      const contentDisposition = download 
+        ? `attachment; filename="${fileRecord.file_name}"`
+        : `inline; filename="${fileRecord.file_name}"`;
+
       // Return file with proper content type
       return new NextResponse(buffer, {
         status: 200,
         headers: {
           'Content-Type': fileRecord.file_type,
           'Content-Length': fileRecord.file_size.toString(),
-          'Content-Disposition': `inline; filename="${fileRecord.file_name}"`,
+          'Content-Disposition': contentDisposition,
           'Cache-Control': 'public, max-age=31536000, immutable',
         },
       });

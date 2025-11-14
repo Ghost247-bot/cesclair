@@ -293,7 +293,7 @@ export default function AdminPage() {
   // Debug logging (remove in production)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Admin Page State:', {
+      console.log(' Page State:', {
         sessionPending,
         roleLoading,
         hasSession: !!session,
@@ -1169,7 +1169,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
   const fetchContractDocuments = async (designerId: number, contractId: number) => {
     try {
       setLoadingContractDocuments(true);
-      const response = await fetch(`/api/documents?designerId=${designerId}&category=contract`, {
+      // Fetch ALL documents for the designer, not just category=contract
+      const response = await fetch(`/api/documents?designerId=${designerId}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -5075,66 +5076,83 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     </div>
                   ) : (
                     <>
-                      {viewingContract.contractFileUrl && (
-                        <div className="border border-border rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileTextIcon className="w-8 h-8 text-red-600" />
-                            <div>
-                              <p className="font-medium">Contract PDF</p>
-                              <p className="text-sm text-muted-foreground">Contract document</p>
+                      {viewingContract.contractFileUrl && (() => {
+                        const contractFileUrl = viewingContract.contractFileUrl;
+                        const fileIdMatch = contractFileUrl?.match(/\/api\/files\/(\d+)/);
+                        const downloadUrl = fileIdMatch 
+                          ? `${contractFileUrl}?download=true`
+                          : contractFileUrl;
+                        
+                        return (
+                          <div className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileTextIcon className="w-8 h-8 text-red-600" />
+                              <div>
+                                <p className="font-medium">Contract PDF</p>
+                                <p className="text-sm text-muted-foreground">Contract document</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <a
+                                href={contractFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
+                                href={downloadUrl}
+                                download="contract.pdf"
+                                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <a
-                              href={viewingContract.contractFileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View
-                            </a>
-                            <a
-                              href={viewingContract.contractFileUrl}
-                              download
-                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      )}
-                      {contractDocuments.map((doc) => (
-                        <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileTextIcon className="w-8 h-8 text-blue-600" />
-                            <div>
-                              <p className="font-medium">{doc.title}</p>
-                              <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                        );
+                      })()}
+                      {contractDocuments.map((doc) => {
+                        // Extract file ID from fileUrl (format: /api/files/{id})
+                        const fileIdMatch = doc.fileUrl?.match(/\/api\/files\/(\d+)/);
+                        const downloadUrl = fileIdMatch 
+                          ? `${doc.fileUrl}?download=true`
+                          : doc.fileUrl;
+                        const fileName = doc.fileName || doc.title || 'document';
+                        
+                        return (
+                          <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileTextIcon className="w-8 h-8 text-blue-600" />
+                              <div>
+                                <p className="font-medium">{doc.title}</p>
+                                <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
+                                href={downloadUrl}
+                                download={fileName}
+                                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View
-                            </a>
-                            <a
-                              href={doc.fileUrl}
-                              download
-                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {!viewingContract.contractFileUrl && contractDocuments.length === 0 && (
                         <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
                           <FileTextIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
