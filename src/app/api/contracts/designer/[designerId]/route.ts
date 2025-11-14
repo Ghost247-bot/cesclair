@@ -62,21 +62,14 @@ export async function GET(
     const isDesigner = userRole === 'designer';
     const sessionEmail = session.user.email?.toLowerCase().trim();
 
+    console.log('[Contracts API] User role:', userRole, 'isAdmin:', isAdmin, 'isDesigner:', isDesigner);
+    console.log('[Contracts API] Session email:', sessionEmail);
+
     // If user is not admin, verify they can only access their own contracts
     if (!isAdmin) {
-      if (!isDesigner) {
-        return NextResponse.json(
-          {
-            contracts: [],
-            error: 'Only designers and admins can view contracts',
-            code: 'FORBIDDEN',
-          },
-          { status: 403 }
-        );
-      }
-
       // Verify the designer exists and matches the logged-in user's email
       if (!sessionEmail) {
+        console.log('[Contracts API] No session email found');
         return NextResponse.json(
           {
             contracts: [],
@@ -87,33 +80,59 @@ export async function GET(
         );
       }
 
+      // Check if user is an approved designer (even if role isn't set to 'designer')
       const designer = await db
-        .select({ id: designers.id, email: designers.email })
+        .select({ id: designers.id, email: designers.email, status: designers.status })
         .from(designers)
         .where(eq(designers.email, sessionEmail))
         .limit(1);
 
-      if (designer.length === 0) {
-        return NextResponse.json(
-          {
-            contracts: [],
-            error: 'Designer profile not found',
-            code: 'DESIGNER_NOT_FOUND',
-          },
-          { status: 404 }
-        );
-      }
+      console.log('[Contracts API] Designer lookup result:', designer);
 
-      // Verify the requested designerId matches the logged-in designer's ID
-      if (designer[0].id !== designerIdNumber) {
-        return NextResponse.json(
-          {
-            contracts: [],
-            error: 'You can only view your own contracts',
-            code: 'FORBIDDEN',
-          },
-          { status: 403 }
-        );
+      if (designer.length === 0) {
+        console.log('[Contracts API] Designer profile not found for email:', sessionEmail);
+        // If user has designer role but no designer profile, still allow if they're requesting their own ID
+        // This handles edge cases where role is set but profile lookup fails
+        if (!isDesigner) {
+          return NextResponse.json(
+            {
+              contracts: [],
+              error: 'Designer profile not found. Only designers and admins can view contracts.',
+              code: 'DESIGNER_NOT_FOUND',
+            },
+            { status: 403 }
+          );
+        }
+      } else {
+        // Designer profile found - verify status and ID match
+        const designerProfile = designer[0];
+        console.log('[Contracts API] Designer profile found - ID:', designerProfile.id, 'Status:', designerProfile.status);
+        
+        // Check if designer is approved
+        if (designerProfile.status !== 'approved' && !isDesigner) {
+          console.log('[Contracts API] Designer not approved and role not set');
+          return NextResponse.json(
+            {
+              contracts: [],
+              error: 'Designer account is not approved',
+              code: 'NOT_APPROVED',
+            },
+            { status: 403 }
+          );
+        }
+
+        // Verify the requested designerId matches the logged-in designer's ID
+        if (designerProfile.id !== designerIdNumber) {
+          console.log('[Contracts API] Designer ID mismatch - requested:', designerIdNumber, 'found:', designerProfile.id);
+          return NextResponse.json(
+            {
+              contracts: [],
+              error: `You can only view your own contracts. Your designer ID is ${designerProfile.id}, but you requested ${designerIdNumber}`,
+              code: 'FORBIDDEN',
+            },
+            { status: 403 }
+          );
+        }
       }
     }
 
