@@ -2104,8 +2104,7 @@ export default function DesignerDashboardPage() {
                           <div className="flex-1 px-3 py-2 text-body-small text-center text-muted-foreground">
                             {design.status === 'submitted' && 'Awaiting admin review'}
                             {design.status === 'approved' && 'Approved by Cesclair'}
-                            {design.status === 'rejected' && 'Declined by Cesclair
-                            '}
+                            {design.status === 'rejected' && 'Declined by Cesclair'}
                           </div>
                         )}
                         {design.status === 'draft' && (
