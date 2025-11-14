@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense, lazy } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import AnnouncementBar from "@/components/sections/announcement-bar";
 import HeroSection from "@/components/sections/hero-section";
-import CategoryGrid from "@/components/sections/category-grid";
-import VideoFeatureHome from "@/components/sections/video-feature-home";
-import SplitFeatureSweaters from "@/components/sections/split-feature-sweaters";
-import VideoFeatureBottomLine from "@/components/sections/video-feature-bottom-line";
-import ContentGrid from "@/components/sections/content-grid";
-import SustainabilityBanner from "@/components/sections/sustainability-banner";
-import Footer from "@/components/sections/footer";
+import { SkeletonImage } from "@/components/skeleton-loaders";
+
+const CategoryGrid = lazy(() => import("@/components/sections/category-grid"));
+const VideoFeatureHome = lazy(() => import("@/components/sections/video-feature-home"));
+const SplitFeatureSweaters = lazy(() => import("@/components/sections/split-feature-sweaters"));
+const VideoFeatureBottomLine = lazy(() => import("@/components/sections/video-feature-bottom-line"));
+const ContentGrid = lazy(() => import("@/components/sections/content-grid"));
+const SustainabilityBanner = lazy(() => import("@/components/sections/sustainability-banner"));
+const Footer = lazy(() => import("@/components/sections/footer"));
 
 export default function Home() {
   const router = useRouter();
@@ -102,20 +104,34 @@ export default function Home() {
       
       <HeroSection />
       
-      <CategoryGrid />
+      <Suspense fallback={<SkeletonImage />}>
+        <CategoryGrid />
+      </Suspense>
       
-      <VideoFeatureHome />
+      <Suspense fallback={<SkeletonImage />}>
+        <VideoFeatureHome />
+      </Suspense>
       
       <div className="grid grid-cols-1 md:grid-cols-2">
-        <SplitFeatureSweaters />
-        <VideoFeatureBottomLine />
+        <Suspense fallback={<SkeletonImage />}>
+          <SplitFeatureSweaters />
+        </Suspense>
+        <Suspense fallback={<SkeletonImage />}>
+          <VideoFeatureBottomLine />
+        </Suspense>
       </div>
       
-      <ContentGrid />
+      <Suspense fallback={<SkeletonImage />}>
+        <ContentGrid />
+      </Suspense>
       
-      <SustainabilityBanner />
+      <Suspense fallback={<SkeletonImage />}>
+        <SustainabilityBanner />
+      </Suspense>
       
-      <Footer />
+      <Suspense fallback={null}>
+        <Footer />
+      </Suspense>
     </main>
   );
 }

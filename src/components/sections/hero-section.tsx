@@ -15,6 +15,8 @@ const HeroSection = () => {
         fill
         className="object-cover object-center"
         priority
+        sizes="100vw"
+        quality={85}
       />
       <div className="absolute inset-0 flex items-center justify-center bg-black/10 p-4">
         <div

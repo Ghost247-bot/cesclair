@@ -1,14 +1,16 @@
 # Netlify configuration for Next.js 15
 # The @netlify/plugin-nextjs handles publish directory and routing automatically
+
 [build]
   command = "npm run build"
   # Publish directory is handled automatically by @netlify/plugin-nextjs
-  # Leave empty or set to .next - plugin will handle it
   publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
+  # Enable Next.js optimizations
+  NEXT_TELEMETRY_DISABLED = "1"
 
 # Next.js plugin for optimal Next.js support on Netlify
 # This plugin automatically handles:
@@ -24,8 +26,9 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@neondatabase/serverless"]
-  # Note: included_files removed - @netlify/plugin-nextjs automatically handles bundling
-  # The plugin uses tree-shaking to only include necessary files, preventing size issues
+  # Increase timeout for database operations (max 26s on free tier, 10s default)
+  included_files = ["src/**/*"]
+  # Note: @netlify/plugin-nextjs automatically handles bundling with tree-shaking
 
 # Headers for security and performance
 # Note: Headers are applied after the plugin processes requests
@@ -37,8 +40,9 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
 
-# Cache static assets
+# Cache static assets (Next.js generated files)
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
@@ -46,7 +50,19 @@
 
 # Cache images
 [[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache uploads
+[[headers]]
   for = "/uploads/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache API responses (adjust as needed)
+[[headers]]
+  for = "/api/files/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 

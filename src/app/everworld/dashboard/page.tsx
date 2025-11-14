@@ -268,71 +268,71 @@ export default function CesworldDashboard() {
   const usedRewards = rewards.filter((r) => r.status === "used");
 
   return (
-    <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-16">
+    <main className="pt-[48px] sm:pt-[51px] md:pt-[54px] lg:pt-[57px] min-h-screen bg-background">
+      <div className="container mx-auto px-3 sm:px-4 md:px-5 lg:px-6 py-12 sm:py-14 md:py-16">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-9 sm:mb-10 md:mb-12">
           <div>
-            <h1 className="text-3xl md:text-4xl font-medium mb-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium mb-1.5 sm:mb-2">
               Welcome back, {session.user.name?.split(" ")[0]}
             </h1>
-            <p className="text-body text-muted-foreground">
+            <p className="text-xs sm:text-sm md:text-base text-muted-foreground">
               Manage your membership, view your points, and track your rewards
             </p>
           </div>
           <button
             onClick={handleSignOut}
-            className="mt-4 md:mt-0 inline-flex items-center gap-2 px-6 py-3 border border-primary text-primary hover:bg-secondary transition-colors"
+            className="mt-3 sm:mt-4 md:mt-0 inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border border-primary text-primary hover:bg-secondary transition-colors text-xs sm:text-sm"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-button-secondary">SIGN OUT</span>
           </button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-9 sm:mb-10 md:mb-12">
           {/* Tier Card */}
-          <div className={`${tierInfo.bgColor} p-8`}>
-            <div className="flex items-center gap-3 mb-4">
-              <Star className="w-6 h-6" />
-              <h3 className="text-xl font-medium">Current Tier</h3>
+          <div className={`${tierInfo.bgColor} p-6 sm:p-7 md:p-8`}>
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <Star className="w-5 h-5 sm:w-6 sm:h-6" />
+              <h3 className="text-base sm:text-lg md:text-xl font-medium">Current Tier</h3>
             </div>
-            <div className="text-3xl font-medium mb-2">{tierInfo.name}</div>
-            <p className="text-body-small text-muted-foreground">{tierInfo.range}</p>
+            <div className="text-2xl sm:text-2.5xl md:text-3xl font-medium mb-1.5 sm:mb-2">{tierInfo.name}</div>
+            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">{tierInfo.range}</p>
           </div>
 
           {/* Points Card */}
-          <div className="bg-secondary p-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Gift className="w-6 h-6" />
-              <h3 className="text-xl font-medium">Available Points</h3>
+          <div className="bg-secondary p-6 sm:p-7 md:p-8">
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <Gift className="w-5 h-5 sm:w-6 sm:h-6" />
+              <h3 className="text-base sm:text-lg md:text-xl font-medium">Available Points</h3>
             </div>
-            <div className="text-3xl font-medium mb-2">{member.points.toLocaleString()}</div>
-            <p className="text-body-small text-muted-foreground">
+            <div className="text-2xl sm:text-2.5xl md:text-3xl font-medium mb-1.5 sm:mb-2">{member.points.toLocaleString()}</div>
+            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
               ${(member.points / 10).toFixed(2)} in rewards
             </p>
           </div>
 
           {/* Annual Spending Card */}
-          <div className="bg-secondary p-8">
-            <div className="flex items-center gap-3 mb-4">
-              <TrendingUp className="w-6 h-6" />
-              <h3 className="text-xl font-medium">Annual Spending</h3>
+          <div className="bg-secondary p-6 sm:p-7 md:p-8">
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
+              <h3 className="text-base sm:text-lg md:text-xl font-medium">Annual Spending</h3>
             </div>
-            <div className="text-3xl font-medium mb-2">
+            <div className="text-2xl sm:text-2.5xl md:text-3xl font-medium mb-1.5 sm:mb-2">
               {formatCurrency(member.annualSpending)}
             </div>
-            <p className="text-body-small text-muted-foreground">This calendar year</p>
+            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">This calendar year</p>
           </div>
         </div>
 
         {/* Progress to Next Tier */}
         {tierInfo.nextTier && (
-          <div className="bg-secondary p-8 mb-12">
-            <h3 className="text-xl font-medium mb-4">
+          <div className="bg-secondary p-6 sm:p-7 md:p-8 mb-9 sm:mb-10 md:mb-12">
+            <h3 className="text-base sm:text-lg md:text-xl font-medium mb-3 sm:mb-4">
               Progress to {tierInfo.nextTier}
             </h3>
-            <div className="mb-3">
+            <div className="mb-2.5 sm:mb-3">
               <div className="w-full bg-white h-2 overflow-hidden">
                 <div
                   className="bg-primary h-full transition-all duration-500"
@@ -340,18 +340,18 @@ export default function CesworldDashboard() {
                 />
               </div>
             </div>
-            <p className="text-body-small text-muted-foreground">
+            <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
               Spend {formatCurrency((tierInfo.nextThreshold! - parseFloat(member.annualSpending)).toFixed(2))} more to reach {tierInfo.nextTier} tier
             </p>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="border-b border-border mb-8">
-          <div className="flex gap-8">
+        <div className="border-b border-border mb-6 sm:mb-7 md:mb-8">
+          <div className="flex gap-6 sm:gap-7 md:gap-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`pb-4 text-navigation transition-colors ${
+              className={`pb-3 sm:pb-3.5 md:pb-4 text-navigation transition-colors whitespace-nowrap ${
                 activeTab === "overview"
                   ? "border-b-2 border-primary text-primary"
                   : "text-muted-foreground hover:text-foreground"
@@ -361,7 +361,7 @@ export default function CesworldDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("transactions")}
-              className={`pb-4 text-navigation transition-colors ${
+              className={`pb-3 sm:pb-3.5 md:pb-4 text-navigation transition-colors whitespace-nowrap ${
                 activeTab === "transactions"
                   ? "border-b-2 border-primary text-primary"
                   : "text-muted-foreground hover:text-foreground"
@@ -371,7 +371,7 @@ export default function CesworldDashboard() {
             </button>
             <button
               onClick={() => setActiveTab("rewards")}
-              className={`pb-4 text-navigation transition-colors ${
+              className={`pb-3 sm:pb-3.5 md:pb-4 text-navigation transition-colors whitespace-nowrap ${
                 activeTab === "rewards"
                   ? "border-b-2 border-primary text-primary"
                   : "text-muted-foreground hover:text-foreground"

@@ -31,6 +31,7 @@ export default function Cesworld() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          next: { revalidate: 300 }
         });
 
         if (res.ok) {
@@ -38,7 +39,9 @@ export default function Cesworld() {
           setMember(data);
         }
       } catch (error) {
-        console.error("Error fetching member:", error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Error fetching member:", error);
+        }
       } finally {
         setIsLoadingMember(false);
       }
@@ -64,6 +67,8 @@ export default function Cesworld() {
           fill
           className="object-cover object-center"
           priority
+          sizes="100vw"
+          quality={85}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-accent/60 to-accent-background/60" />
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">

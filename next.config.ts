@@ -15,16 +15,15 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
-    // Optimize images for better performance
     formats: ['image/avif', 'image/webp'],
-    // Ensure images work on Netlify
     unoptimized: false,
-    // Add loader for better compatibility
     loader: 'default',
-    // Performance optimizations
-    minimumCacheTTL: 60,
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    minimumCacheTTL: 31536000,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   // Production optimizations
   compress: true,
@@ -33,9 +32,13 @@ const nextConfig: NextConfig = {
   // Performance optimizations
   swcMinify: true,
   experimental: {
-    // optimizeCss requires 'critters' package which may not be installed
-    // optimizeCss: true,
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion', 'recharts'],
+    optimizeCss: true,
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
   // Caching headers for static assets
   async headers() {

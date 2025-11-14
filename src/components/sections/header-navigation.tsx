@@ -170,7 +170,7 @@ const HeaderNavigation = () => {
         }`}
       >
         <div className="container mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex items-center justify-between h-[60px] md:h-[64px] relative">
+          <div className="flex items-center justify-between h-[48px] sm:h-[51px] md:h-[54px] lg:h-[57px] relative">
             {/* Mobile Menu Button - Left Side */}
             <div className="lg:hidden flex-shrink-0 w-10 flex items-center justify-start z-10">
               <button
@@ -284,7 +284,7 @@ const HeaderNavigation = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="hidden lg:block absolute top-[60px] md:top-[64px] left-0 right-0 bg-white border-b border-border shadow-sm"
+              className="hidden lg:block absolute top-[48px] sm:top-[51px] md:top-[54px] lg:top-[57px] left-0 right-0 bg-white border-b border-border shadow-sm"
               onMouseEnter={cancelHideDropdown}
               onMouseLeave={handleMouseLeave}
             >

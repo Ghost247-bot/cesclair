@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { SkeletonStats, SkeletonTable } from "@/components/skeleton-loaders";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -178,6 +180,11 @@ export default function DesignerDashboardPage() {
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState<string>("all");
   
+  // Debounced search queries
+  const debouncedDesignSearchQuery = useDebounce(designSearchQuery, 300);
+  const debouncedContractSearchQuery = useDebounce(contractSearchQuery, 300);
+  const debouncedDocumentSearchQuery = useDebounce(documentSearchQuery, 300);
+  
   // Sort states
   const [designSortBy, setDesignSortBy] = useState<"newest" | "oldest" | "title">("newest");
   const [contractSortBy, setContractSortBy] = useState<"newest" | "oldest" | "amount">("newest");
@@ -283,7 +290,9 @@ export default function DesignerDashboardPage() {
                 fetchDesignerByEmail(email);
               }
             } catch (roleUpdateError) {
-              console.warn("Error updating role:", roleUpdateError);
+              if (process.env.NODE_ENV === 'development') {
+                console.warn("Error updating role:", roleUpdateError);
+              }
               setIsUpdatingRole(false);
               // Still allow access if approved
               fetchDesignerByEmail(email);
@@ -303,7 +312,9 @@ export default function DesignerDashboardPage() {
         router.push("/designers/login");
       }
     } catch (error) {
-      console.error("Error checking designer status:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Error checking designer status:", error);
+      }
       router.push("/designers/login");
     }
   };
@@ -340,7 +351,9 @@ export default function DesignerDashboardPage() {
         setLoading(false);
       }
     } catch (error) {
-      console.error("Failed to fetch designer:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch designer:", error);
+      }
       toast.error("Failed to load designer profile");
       setLoading(false);
     }
@@ -353,15 +366,18 @@ export default function DesignerDashboardPage() {
       const statsData = await statsRes.json();
       setStats(statsData.stats);
 
-      // Fetch designs
-      const designsRes = await fetch(`/api/designs/designer/${designerId}?limit=50`);
+      // Fetch designs with caching
+      const designsRes = await fetch(`/api/designs/designer/${designerId}?limit=50`, {
+        next: { revalidate: 60 }
+      });
       const designsData = await designsRes.json();
       setDesigns(designsData);
 
-      // Fetch contracts - fetch all contracts from database
+      // Fetch contracts - fetch with pagination
       try {
-        const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=10000`, {
-          credentials: 'include'
+        const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=100`, {
+          credentials: 'include',
+          next: { revalidate: 60 }
         });
         
         if (!contractsRes.ok) {
@@ -381,21 +397,29 @@ export default function DesignerDashboardPage() {
         
         // Log warning if there's an error in the response
         if (data?.error) {
-          console.warn("Contracts API returned error:", data.error);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn("Contracts API returned error:", data.error);
+          }
           toast.error(data.error || "Failed to load some contract data");
         }
       } catch (error) {
-        console.error("Error fetching contracts:", error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Error fetching contracts:", error);
+        }
         toast.error("Failed to load contracts. Please refresh the page.");
         setContracts([]);
       }
 
-      // Fetch documents
-      const documentsRes = await fetch(`/api/documents/designer/${designerId}`);
+      // Fetch documents with caching
+      const documentsRes = await fetch(`/api/documents/designer/${designerId}`, {
+        next: { revalidate: 60 }
+      });
       const documentsData = await documentsRes.json();
       setDocuments(documentsData);
     } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch dashboard data:", error);
+      }
     } finally {
       setLoading(false);
     }
@@ -408,7 +432,9 @@ export default function DesignerDashboardPage() {
       refetch();
       router.push("/designers");
     } catch (error) {
-      console.error("Logout error:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Logout error:", error);
+      }
       toast.error("Failed to log out");
     }
   };
@@ -426,7 +452,9 @@ export default function DesignerDashboardPage() {
         if (designer) fetchDashboardData(designer.id);
       }
     } catch (error) {
-      console.error("Failed to delete design:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to delete design:", error);
+      }
     }
   };
 
@@ -496,7 +524,9 @@ export default function DesignerDashboardPage() {
       setDesignForm(prev => ({ ...prev, imageUrl: data.url, imageFile: file }));
       toast.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Upload error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Upload error:', error);
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to upload image');
       // Reset image file on error
       setDesignForm(prev => ({ ...prev, imageFile: null }));
@@ -584,7 +614,9 @@ export default function DesignerDashboardPage() {
           status: editingDesign ? undefined : 'draft', // New designs start as draft
       };
 
-      console.log('Saving design:', { url, method, requestBody });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Saving design:', { url, method, requestBody });
+      }
 
       const response = await fetch(url, {
         method,
@@ -597,19 +629,25 @@ export default function DesignerDashboardPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
-        console.error('Save design API error:', { status: response.status, errorData });
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Save design API error:', { status: response.status, errorData });
+        }
         throw new Error(errorData.error || `Failed to save design: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('Design saved successfully:', result);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Design saved successfully:', result);
+      }
       toast.success(editingDesign ? 'Design updated successfully' : 'Design created successfully');
       closeDesignModal();
       if (designer) {
         await fetchDashboardData(designer.id);
       }
     } catch (error) {
-      console.error('Save design error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Save design error:', error);
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to save design');
     }
   };
@@ -640,7 +678,9 @@ export default function DesignerDashboardPage() {
         await fetchDashboardData(designer.id);
       }
     } catch (error) {
-      console.error('Submit design error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Submit design error:', error);
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to submit design');
     }
   };
@@ -698,7 +738,9 @@ export default function DesignerDashboardPage() {
       }));
       toast.success('File uploaded successfully');
     } catch (error) {
-      console.error('Upload error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Upload error:', error);
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to upload file');
     } finally {
       setUploadingDocument(false);
@@ -784,7 +826,9 @@ export default function DesignerDashboardPage() {
         await fetchDashboardData(designer.id);
       }
     } catch (error) {
-      console.error('Save document error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Save document error:', error);
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to save document');
     }
   };
@@ -806,7 +850,9 @@ export default function DesignerDashboardPage() {
         toast.error(error.error || 'Failed to delete document');
       }
     } catch (error) {
-      console.error("Failed to delete document:", error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to delete document:", error);
+      }
       toast.error("Failed to delete document");
     }
   };
@@ -818,11 +864,11 @@ export default function DesignerDashboardPage() {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
-  // Filter and sort functions
-  const filteredDesigns = designs.filter(design => {
-    const matchesSearch = !designSearchQuery || 
-      design.title.toLowerCase().includes(designSearchQuery.toLowerCase()) ||
-      (design.description && design.description.toLowerCase().includes(designSearchQuery.toLowerCase()));
+  // Filter and sort functions (using debounced queries and useMemo for performance)
+  const filteredDesigns = useMemo(() => designs.filter(design => {
+    const matchesSearch = !debouncedDesignSearchQuery || 
+      design.title.toLowerCase().includes(debouncedDesignSearchQuery.toLowerCase()) ||
+      (design.description && design.description.toLowerCase().includes(debouncedDesignSearchQuery.toLowerCase()));
     const matchesStatus = designStatusFilter === "all" || design.status === designStatusFilter;
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
@@ -830,12 +876,12 @@ export default function DesignerDashboardPage() {
     if (designSortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     if (designSortBy === "title") return a.title.localeCompare(b.title);
     return 0;
-  });
+  }), [designs, debouncedDesignSearchQuery, designStatusFilter, designSortBy]);
 
-  const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = !contractSearchQuery || 
-      contract.title.toLowerCase().includes(contractSearchQuery.toLowerCase()) ||
-      (contract.description && contract.description.toLowerCase().includes(contractSearchQuery.toLowerCase()));
+  const filteredContracts = useMemo(() => contracts.filter(contract => {
+    const matchesSearch = !debouncedContractSearchQuery || 
+      contract.title.toLowerCase().includes(debouncedContractSearchQuery.toLowerCase()) ||
+      (contract.description && contract.description.toLowerCase().includes(debouncedContractSearchQuery.toLowerCase()));
     const matchesStatus = contractStatusFilter === "all" || contract.status === contractStatusFilter;
     
     // Date range filtering
@@ -847,7 +893,7 @@ export default function DesignerDashboardPage() {
     }
     if (contractDateTo) {
       const toDate = new Date(contractDateTo);
-      toDate.setHours(23, 59, 59, 999); // Include the entire end date
+      toDate.setHours(23, 59, 59, 999);
       const contractDate = new Date(contract.createdAt);
       if (contractDate > toDate) matchesDate = false;
     }
@@ -862,15 +908,15 @@ export default function DesignerDashboardPage() {
       return amountB - amountA;
     }
     return 0;
-  });
+  }), [contracts, debouncedContractSearchQuery, contractStatusFilter, contractDateFrom, contractDateTo, contractSortBy]);
 
-  const filteredDocuments = documents.filter(document => {
-    const matchesSearch = !documentSearchQuery || 
-      document.title.toLowerCase().includes(documentSearchQuery.toLowerCase()) ||
-      (document.description && document.description.toLowerCase().includes(documentSearchQuery.toLowerCase()));
+  const filteredDocuments = useMemo(() => documents.filter(document => {
+    const matchesSearch = !debouncedDocumentSearchQuery || 
+      document.title.toLowerCase().includes(debouncedDocumentSearchQuery.toLowerCase()) ||
+      (document.description && document.description.toLowerCase().includes(debouncedDocumentSearchQuery.toLowerCase()));
     const matchesCategory = documentCategoryFilter === "all" || document.category === documentCategoryFilter;
     return matchesSearch && matchesCategory;
-  });
+  }), [documents, debouncedDocumentSearchQuery, documentCategoryFilter]);
 
   // Calculate additional stats
   const pendingContracts = contracts.filter(c => c.status === "awarded" && c.envelopeStatus !== "completed").length;
@@ -1051,20 +1097,20 @@ export default function DesignerDashboardPage() {
 
   return (
     <>
-    <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
+    <main className="pt-[48px] sm:pt-[51px] md:pt-[54px] lg:pt-[57px] min-h-screen bg-background">
       {/* Header */}
-      <section className="bg-secondary py-8 border-b border-border">
-        <div className="container mx-auto">
-          <div className="flex items-center justify-between">
+      <section className="bg-secondary py-6 sm:py-7 md:py-8 border-b border-border">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-medium mb-2">DESIGNER DASHBOARD</h1>
-              <p className="text-body text-muted-foreground">Welcome back, {designer.name}</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium mb-1.5 sm:mb-2">DESIGNER DASHBOARD</h1>
+              <p className="text-xs sm:text-sm md:text-base text-muted-foreground">Welcome back, {designer.name}</p>
             </div>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-6 py-3 border border-primary hover:bg-secondary transition-colors"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border border-primary hover:bg-secondary transition-colors text-xs sm:text-sm"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="text-button-secondary">LOGOUT</span>
             </button>
           </div>
@@ -1077,19 +1123,19 @@ export default function DesignerDashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="py-8 bg-white border-b border-border"
+          className="py-6 sm:py-7 md:py-8 bg-white border-b border-border"
         >
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
                 whileHover={{ scale: 1.05, y: -5 }}
-                className="text-center p-4 md:p-6 bg-secondary hover:shadow-md transition-shadow"
+                className="text-center p-3 sm:p-4 md:p-5 lg:p-6 bg-secondary hover:shadow-md transition-shadow"
               >
-                <FileText className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-primary" />
-                <div className="text-2xl md:text-3xl font-medium mb-1">{stats.totalDesigns}</div>
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 mx-auto mb-1.5 sm:mb-2 md:mb-2.5 lg:mb-3 text-primary" />
+                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">{stats.totalDesigns}</div>
                 <div className="text-label text-muted-foreground">TOTAL DESIGNS</div>
                 {approvedDesigns > 0 && (
                   <div className="text-xs text-green-600 mt-1">{approvedDesigns} Approved</div>
@@ -1100,10 +1146,10 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
                 whileHover={{ scale: 1.05, y: -5 }}
-                className="text-center p-4 md:p-6 bg-secondary hover:shadow-md transition-shadow"
+                className="text-center p-3 sm:p-4 md:p-5 lg:p-6 bg-secondary hover:shadow-md transition-shadow"
               >
-                <Briefcase className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-primary" />
-                <div className="text-2xl md:text-3xl font-medium mb-1">{stats.contractsAwarded}</div>
+                <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 mx-auto mb-1.5 sm:mb-2 md:mb-2.5 lg:mb-3 text-primary" />
+                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">{stats.contractsAwarded}</div>
                 <div className="text-label text-muted-foreground">CONTRACTS AWARDED</div>
                 {pendingContracts > 0 && (
                   <motion.div 
@@ -1122,10 +1168,10 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
                 whileHover={{ scale: 1.05, y: -5 }}
-                className="text-center p-4 md:p-6 bg-secondary hover:shadow-md transition-shadow"
+                className="text-center p-3 sm:p-4 md:p-5 lg:p-6 bg-secondary hover:shadow-md transition-shadow"
               >
-                <CheckCircle className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-green-600" />
-                <div className="text-2xl md:text-3xl font-medium mb-1">{stats.contractsCompleted}</div>
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 mx-auto mb-1.5 sm:mb-2 md:mb-2.5 lg:mb-3 text-green-600" />
+                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">{stats.contractsCompleted}</div>
                 <div className="text-label text-muted-foreground">CONTRACTS COMPLETED</div>
               </motion.div>
               <motion.div 
@@ -1133,10 +1179,10 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
                 whileHover={{ scale: 1.05, y: -5 }}
-                className="text-center p-4 md:p-6 bg-secondary hover:shadow-md transition-shadow"
+                className="text-center p-3 sm:p-4 md:p-5 lg:p-6 bg-secondary hover:shadow-md transition-shadow"
               >
-                <DollarSign className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-green-600" />
-                <div className="text-2xl md:text-3xl font-medium mb-1">${totalEarnings.toFixed(2)}</div>
+                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 mx-auto mb-1.5 sm:mb-2 md:mb-2.5 lg:mb-3 text-green-600" />
+                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">${totalEarnings.toFixed(2)}</div>
                 <div className="text-label text-muted-foreground">TOTAL EARNINGS</div>
               </motion.div>
             </div>
@@ -1145,12 +1191,12 @@ export default function DesignerDashboardPage() {
       )}
 
       {/* Tabs */}
-      <section className="py-8">
-        <div className="container mx-auto">
-          <div className="flex gap-4 border-b border-border mb-8">
+      <section className="py-6 sm:py-7 md:py-8">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex gap-2 sm:gap-3 md:gap-4 border-b border-border mb-6 sm:mb-7 md:mb-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`px-6 py-3 text-button-secondary border-b-2 transition-colors ${
+              className={`px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-button-secondary border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "overview"
                   ? "border-primary text-primary"
                   : "border-transparent hover:border-border"
@@ -1160,7 +1206,7 @@ export default function DesignerDashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("designs")}
-              className={`px-6 py-3 text-button-secondary border-b-2 transition-colors ${
+              className={`px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-button-secondary border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "designs"
                   ? "border-primary text-primary"
                   : "border-transparent hover:border-border"
@@ -1170,7 +1216,7 @@ export default function DesignerDashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("contracts")}
-              className={`px-6 py-3 text-button-secondary border-b-2 transition-colors ${
+              className={`px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-button-secondary border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "contracts"
                   ? "border-primary text-primary"
                   : "border-transparent hover:border-border"
@@ -1180,7 +1226,7 @@ export default function DesignerDashboardPage() {
             </button>
             <button
               onClick={() => setActiveTab("documents")}
-              className={`px-6 py-3 text-button-secondary border-b-2 transition-colors ${
+              className={`px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 text-button-secondary border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === "documents"
                   ? "border-primary text-primary"
                   : "border-transparent hover:border-border"
@@ -1199,24 +1245,24 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-5 md:space-y-6"
               >
               {/* Quick Actions & Profile Completion */}
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
                 {/* Profile Completion */}
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4, delay: 0.1 }}
-                  className="bg-white border border-border p-6"
+                  className="bg-white border border-border p-4 sm:p-5 md:p-6"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">PROFILE COMPLETION</h3>
-                    <span className="text-2xl font-bold text-primary">{profileCompletion}%</span>
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-medium">PROFILE COMPLETION</h3>
+                    <span className="text-xl sm:text-2xl font-bold text-primary">{profileCompletion}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 mb-3 sm:mb-4">
                     <div 
-                      className="bg-primary h-3 rounded-full transition-all"
+                      className="bg-primary h-2.5 sm:h-3 rounded-full transition-all"
                       style={{ width: `${profileCompletion}%` }}
                     />
                   </div>
@@ -1242,38 +1288,38 @@ export default function DesignerDashboardPage() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4, delay: 0.2 }}
-                  className="bg-white border border-border p-6"
+                  className="bg-white border border-border p-4 sm:p-5 md:p-6"
                 >
-                  <h3 className="text-lg font-medium mb-4">QUICK ACTIONS</h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">QUICK ACTIONS</h3>
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     <button
                       onClick={() => {
                         setActiveTab("designs");
                         openDesignModal();
                       }}
-                      className="p-4 border border-border hover:bg-secondary transition-colors text-left"
+                      className="p-3 sm:p-3.5 md:p-4 border border-border hover:bg-secondary transition-colors text-left"
                     >
-                      <Plus className="w-5 h-5 mb-2 text-primary" />
-                      <div className="text-sm font-medium">New Design</div>
+                      <Plus className="w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2 text-primary" />
+                      <div className="text-xs sm:text-sm font-medium">New Design</div>
                     </button>
                     <button
                       onClick={() => {
                         setActiveTab("documents");
                         openDocumentModal();
                       }}
-                      className="p-4 border border-border hover:bg-secondary transition-colors text-left"
+                      className="p-3 sm:p-3.5 md:p-4 border border-border hover:bg-secondary transition-colors text-left"
                     >
-                      <Upload className="w-5 h-5 mb-2 text-primary" />
-                      <div className="text-sm font-medium">Upload Document</div>
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2 text-primary" />
+                      <div className="text-xs sm:text-sm font-medium">Upload Document</div>
                     </button>
                     <button
                       onClick={() => {
                         setActiveTab("contracts");
                       }}
-                      className="p-4 border border-border hover:bg-secondary transition-colors text-left"
+                      className="p-3 sm:p-3.5 md:p-4 border border-border hover:bg-secondary transition-colors text-left"
                     >
-                      <Briefcase className="w-5 h-5 mb-2 text-primary" />
-                      <div className="text-sm font-medium">View Contracts</div>
+                      <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2 text-primary" />
+                      <div className="text-xs sm:text-sm font-medium">View Contracts</div>
                     </button>
                     <button
                       onClick={() => {
@@ -1284,32 +1330,32 @@ export default function DesignerDashboardPage() {
                         });
                         setShowEditProfileModal(true);
                       }}
-                      className="p-4 border border-border hover:bg-secondary transition-colors text-left"
+                      className="p-3 sm:p-3.5 md:p-4 border border-border hover:bg-secondary transition-colors text-left"
                     >
-                      <Edit className="w-5 h-5 mb-2 text-primary" />
-                      <div className="text-sm font-medium">Edit Profile</div>
+                      <Edit className="w-4 h-4 sm:w-5 sm:h-5 mb-1.5 sm:mb-2 text-primary" />
+                      <div className="text-xs sm:text-sm font-medium">Edit Profile</div>
                     </button>
                   </div>
                 </motion.div>
               </div>
 
               {/* Statistics Cards */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.3 }}
-                  className="bg-white border border-border p-6"
+                  className="bg-white border border-border p-4 sm:p-5 md:p-6"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <DollarSign className="w-5 h-5 text-green-600" />
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                    <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg">
+                      <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                     </div>
-                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
                   </div>
-                  <div className="text-2xl font-bold mb-1">${totalEarnings.toFixed(2)}</div>
-                  <div className="text-sm text-muted-foreground">Total Earnings</div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xl sm:text-2xl font-bold mb-0.75 sm:mb-1">${totalEarnings.toFixed(2)}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Total Earnings</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.75 sm:mt-1">
                     {contracts.filter(c => c.status === 'completed').length} completed contracts
                   </div>
                 </motion.div>
@@ -1318,17 +1364,17 @@ export default function DesignerDashboardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.4 }}
-                  className="bg-white border border-border p-6"
+                  className="bg-white border border-border p-4 sm:p-5 md:p-6"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Briefcase className="w-5 h-5 text-blue-600" />
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                    <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
+                      <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     </div>
-                    <Activity className="w-4 h-4 text-blue-600" />
+                    <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
                   </div>
-                  <div className="text-2xl font-bold mb-1">{contracts.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Contracts</div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xl sm:text-2xl font-bold mb-0.75 sm:mb-1">{contracts.length}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Total Contracts</div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.75 sm:mt-1">
                     {pendingContracts} pending signature
                   </div>
                 </motion.div>
@@ -1337,16 +1383,16 @@ export default function DesignerDashboardPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.5 }}
-                  className="bg-white border border-border p-6"
+                  className="bg-white border border-border p-4 sm:p-5 md:p-6"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <FileText className="w-5 h-5 text-purple-600" />
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                    <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                     </div>
-                    <Target className="w-4 h-4 text-purple-600" />
+                    <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
                   </div>
-                  <div className="text-2xl font-bold mb-1">{designs.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Designs</div>
+                  <div className="text-xl sm:text-2xl font-bold mb-0.75 sm:mb-1">{designs.length}</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">Total Designs</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {approvedDesigns} approved
                   </div>
@@ -1648,7 +1694,7 @@ export default function DesignerDashboardPage() {
                 className="bg-white border border-border p-6"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-medium">PROFILE INFORMATION</h3>
+                  <h3 className="text-base sm:text-lg md:text-xl font-medium">PROFILE INFORMATION</h3>
                   <button
                     onClick={() => {
                       setProfileForm({
@@ -1823,7 +1869,7 @@ export default function DesignerDashboardPage() {
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b border-border p-6 flex items-center justify-between">
-                  <h3 className="text-2xl font-medium">EDIT PROFILE</h3>
+                  <h3 className="text-xl sm:text-2xl font-medium">EDIT PROFILE</h3>
                   <button
                     onClick={() => setShowEditProfileModal(false)}
                     className="p-2 hover:bg-secondary rounded transition-colors"
@@ -1832,7 +1878,7 @@ export default function DesignerDashboardPage() {
                   </button>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-5 md:p-6 space-y-4 sm:space-y-5 md:space-y-6">
                   {/* Bio */}
                   <div>
                     <label className="block text-label font-medium mb-2">Bio</label>
@@ -1875,7 +1921,7 @@ export default function DesignerDashboardPage() {
                   <div className="flex gap-4 pt-4 border-t border-border">
                     <button
                       onClick={() => setShowEditProfileModal(false)}
-                      className="flex-1 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+                      className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border border-border hover:bg-secondary transition-colors text-xs sm:text-sm"
                     >
                       <span className="text-button-secondary">CANCEL</span>
                     </button>
@@ -1908,14 +1954,16 @@ export default function DesignerDashboardPage() {
                           toast.success('Profile updated successfully');
                           setShowEditProfileModal(false);
                         } catch (error) {
-                          console.error('Update profile error:', error);
+                          if (process.env.NODE_ENV === 'development') {
+                            console.error('Update profile error:', error);
+                          }
                           toast.error(error instanceof Error ? error.message : 'Failed to update profile');
                         } finally {
                           setUpdatingProfile(false);
                         }
                       }}
                       disabled={updatingProfile}
-                      className="flex-1 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                     >
                       <span className="text-button-primary">
                         {updatingProfile ? 'UPDATING...' : 'UPDATE PROFILE'}
@@ -1936,11 +1984,11 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-5 md:space-y-6"
               >
               {/* Add Design Button */}
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-medium">MY DESIGNS</h3>
+                <h3 className="text-base sm:text-lg md:text-xl font-medium">MY DESIGNS</h3>
                 <button
                   onClick={() => {
                     if (!designer) {
@@ -1950,7 +1998,7 @@ export default function DesignerDashboardPage() {
                     openDesignModal();
                   }}
                   disabled={!designer}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
                   <Plus className="w-4 h-4" />
                   <span className="text-button-primary">UPLOAD DESIGN</span>
@@ -2090,7 +2138,7 @@ export default function DesignerDashboardPage() {
                       </button>
                     </div>
 
-                    <div className="p-6 space-y-6">
+                    <div className="p-4 sm:p-5 md:p-6 space-y-4 sm:space-y-5 md:space-y-6">
                       {/* Title */}
                       <div>
                         <label className="block text-label font-medium mb-2">
@@ -2199,14 +2247,14 @@ export default function DesignerDashboardPage() {
                       <div className="flex gap-4 pt-4 border-t border-border">
                         <button
                           onClick={closeDesignModal}
-                          className="flex-1 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+                          className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border border-border hover:bg-secondary transition-colors text-xs sm:text-sm"
                         >
                           <span className="text-button-secondary">CANCEL</span>
                         </button>
                         <button
                           onClick={handleSaveDesign}
                           disabled={!designForm.title.trim() || uploadingImage || !designer}
-                          className="flex-1 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                         >
                           {uploadingImage ? (
                             <span className="text-button-primary flex items-center justify-center gap-2">
@@ -2237,7 +2285,7 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-5 md:space-y-6"
               >
               {/* Contract Statistics Summary */}
               {!signingContract && (
@@ -2459,7 +2507,7 @@ export default function DesignerDashboardPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
                     <div>
                       <h3 className="text-2xl font-medium">Sign Contract: {signingContract.title}</h3>
                       {signingContract.amount && (
@@ -2509,7 +2557,7 @@ export default function DesignerDashboardPage() {
               ) : contractViewMode === "timeline" ? (
                 /* Timeline View */
                 <div className="bg-white border border-border p-6">
-                  <h3 className="text-lg font-medium mb-6">CONTRACT TIMELINE</h3>
+                  <h3 className="text-base sm:text-lg font-medium mb-4 sm:mb-5 md:mb-6">CONTRACT TIMELINE</h3>
                   <div className="relative">
                     {/* Timeline Line */}
                     <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"></div>
@@ -2774,7 +2822,7 @@ export default function DesignerDashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-5 md:space-y-6"
               >
               {/* Add Document Button */}
               <div className="flex justify-between items-center">
@@ -2790,7 +2838,7 @@ export default function DesignerDashboardPage() {
 
               {/* Documents from Cesclair */}
               {filteredDocuments.filter(d => d.uploadedBy !== null).length > 0 && (
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-5 md:mb-6">
                   <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
                     <FolderOpen className="w-5 h-5" />
                     Documents from Cesclair
@@ -2964,7 +3012,7 @@ export default function DesignerDashboardPage() {
                       </button>
                     </div>
 
-                    <div className="p-6 space-y-6">
+                    <div className="p-4 sm:p-5 md:p-6 space-y-4 sm:space-y-5 md:space-y-6">
                       {/* Title */}
                       <div>
                         <label className="block text-label font-medium mb-2">
@@ -3075,14 +3123,14 @@ export default function DesignerDashboardPage() {
                       <div className="flex gap-4 pt-4 border-t border-border">
                         <button
                           onClick={closeDocumentModal}
-                          className="flex-1 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+                          className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 border border-border hover:bg-secondary transition-colors text-xs sm:text-sm"
                         >
                           <span className="text-button-secondary">CANCEL</span>
                         </button>
                         <button
                           onClick={handleSaveDocument}
                           disabled={!documentForm.title.trim() || !documentForm.fileUrl || uploadingDocument}
-                          className="flex-1 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                         >
                           <span className="text-button-primary">
                             UPLOAD DOCUMENT
@@ -3121,7 +3169,7 @@ export default function DesignerDashboardPage() {
                 <DialogTitle className="text-2xl font-medium">Contract Details</DialogTitle>
               </DialogHeader>
               {viewingContract ? (
-                <div className="space-y-6 mt-4">
+                <div className="space-y-4 sm:space-y-5 md:space-y-6 mt-3 sm:mt-4">
                   {/* Contract Title */}
                   <div>
                     <h3 className="text-xl font-semibold mb-2">{viewingContract.title}</h3>
@@ -3197,7 +3245,7 @@ export default function DesignerDashboardPage() {
                   </div>
 
                   {/* Contract Document */}
-                  <div className="pt-4 border-t border-border">
+                    <div className="pt-4 border-t border-border">
                     <label className="text-label text-muted-foreground block mb-3">Documents</label>
                     <div className="space-y-3">
                       {viewingContract.contractFileUrl && (() => {
@@ -3219,22 +3267,22 @@ export default function DesignerDashboardPage() {
                             <div className="flex flex-wrap gap-2">
                               <a
                                 href={contractFileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                          target="_blank"
+                          rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
-                              >
+                        >
                                 <ExternalLink className="w-4 h-4" />
                                 View
-                              </a>
-                              <a
+                        </a>
+                        <a
                                 href={downloadUrl}
                                 download="contract.pdf"
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium"
-                              >
-                                <Download className="w-4 h-4" />
+                        >
+                          <Download className="w-4 h-4" />
                                 Download
-                              </a>
-                            </div>
+                        </a>
+                      </div>
                           </div>
                         );
                       })()}
@@ -3283,8 +3331,8 @@ export default function DesignerDashboardPage() {
                         <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
                           <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           <p>No documents available</p>
-                        </div>
-                      )}
+                    </div>
+                  )}
                     </div>
                   </div>
 

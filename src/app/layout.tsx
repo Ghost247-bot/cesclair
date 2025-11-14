@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./dashboard-responsive.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
@@ -99,15 +100,19 @@ export default function RootLayout({
         <StructuredData />
         <ErrorReporter />
         <HeaderNavigation />
+        <link rel="preconnect" href="https://slelguoygbfzlpylpxfs.supabase.co" />
+        <link rel="dns-prefetch" href="https://slelguoygbfzlpylpxfs.supabase.co" />
         <Script
           id="route-messenger-script"
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"
           strategy="lazyOnload"
+          defer
         />
         <RouteMessengerScript />
         <Script
           id="anti-clone-protection"
           strategy="afterInteractive"
+          defer
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -161,12 +166,10 @@ export default function RootLayout({
                   document.body.style.mozUserSelect = 'none';
                   document.body.style.msUserSelect = 'none';
                   
-                  // Clear console periodically
-                  setInterval(function() {
-                    console.clear();
-                  }, 5000);
                 } catch (error) {
-                  console.error('Anti-clone protection error:', error);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('Anti-clone protection error:', error);
+                  }
                 }
               })();
             `,

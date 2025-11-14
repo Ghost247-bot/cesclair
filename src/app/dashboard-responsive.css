@@ -1,0 +1,146 @@
+/* Dashboard-specific responsive utilities with 20% size reduction */
+
+/* Dashboard container - 20% smaller */
+.dashboard-container {
+  max-width: 1152px; /* 1440px * 0.8 */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(0.75rem, 2vw, 1.25rem); /* Responsive padding */
+  padding-right: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Dashboard spacing utilities - 20% reduction */
+.dashboard-spacing-xs { padding: 0.4rem; } /* 0.5rem * 0.8 */
+.dashboard-spacing-sm { padding: 0.6rem; } /* 0.75rem * 0.8 */
+.dashboard-spacing-md { padding: 0.8rem; } /* 1rem * 0.8 */
+.dashboard-spacing-lg { padding: 1rem; } /* 1.25rem * 0.8 */
+.dashboard-spacing-xl { padding: 1.2rem; } /* 1.5rem * 0.8 */
+.dashboard-spacing-2xl { padding: 1.6rem; } /* 2rem * 0.8 */
+
+/* Dashboard typography - 20% reduction */
+.dashboard-text-xs { font-size: 0.64rem; } /* 0.75rem * 0.85 */
+.dashboard-text-sm { font-size: 0.8rem; } /* 0.875rem * 0.9 */
+.dashboard-text-base { font-size: 0.9rem; } /* 1rem * 0.9 */
+.dashboard-text-lg { font-size: 1rem; } /* 1.125rem * 0.9 */
+.dashboard-text-xl { font-size: 1.25rem; } /* 1.5rem * 0.83 */
+.dashboard-text-2xl { font-size: 1.5rem; } /* 1.875rem * 0.8 */
+.dashboard-text-3xl { font-size: 1.875rem; } /* 2.25rem * 0.83 */
+.dashboard-text-4xl { font-size: 2.25rem; } /* 3rem * 0.75 */
+
+/* Responsive breakpoints */
+@media (min-width: 360px) {
+  .dashboard-container {
+    padding-left: clamp(0.75rem, 2.5vw, 1rem);
+    padding-right: clamp(0.75rem, 2.5vw, 1rem);
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-container {
+    padding-left: clamp(1rem, 3vw, 1.5rem);
+    padding-right: clamp(1rem, 3vw, 1.5rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-container {
+    padding-left: clamp(1.25rem, 3.5vw, 2rem);
+    padding-right: clamp(1.25rem, 3.5vw, 2rem);
+  }
+}
+
+@media (min-width: 1440px) {
+  .dashboard-container {
+    padding-left: clamp(1.5rem, 4vw, 2.5rem);
+    padding-right: clamp(1.5rem, 4vw, 2.5rem);
+  }
+}
+
+/* Dashboard card - 20% smaller */
+.dashboard-card {
+  padding: clamp(0.75rem, 2vw, 1rem);
+  border-radius: 0.4rem; /* 0.5rem * 0.8 */
+  gap: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+
+/* Dashboard grid - responsive */
+.dashboard-grid {
+  display: grid;
+  gap: clamp(0.75rem, 2vw, 1rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  }
+}
+
+/* Dashboard table - responsive */
+.dashboard-table {
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: clamp(0.5rem, 1.5vw, 0.75rem);
+}
+
+/* Dashboard button - 20% smaller */
+.dashboard-btn {
+  padding: clamp(0.4rem, 1.5vw, 0.6rem) clamp(0.75rem, 2.5vw, 1rem);
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+  border-radius: 0.4rem;
+}
+
+/* Dashboard modal - responsive */
+.dashboard-modal {
+  max-width: min(90vw, 640px); /* 800px * 0.8 */
+  padding: clamp(1rem, 3vw, 1.5rem);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .dashboard-modal {
+    max-width: min(85vw, 768px); /* 960px * 0.8 */
+  }
+}
+
+/* Dashboard sidebar - 20% smaller width */
+.dashboard-sidebar {
+  width: clamp(12rem, 20vw, 16rem); /* 20rem * 0.8 = 16rem */
+}
+
+/* Dashboard navbar - 20% smaller height */
+.dashboard-navbar {
+  height: clamp(3rem, 5vw, 3.75rem); /* 4rem * 0.94 = 3.75rem */
+}
+
+/* Image responsive */
+.dashboard-img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  max-width: 100%;
+}
+
+/* Responsive utilities */
+@media (max-width: 767px) {
+  .dashboard-hide-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-hide-tablet-up {
+    display: none;
+  }
+}
+
