@@ -447,37 +447,77 @@ export async function DELETE(
       );
     }
 
-    // Check if contract exists before deleting
-    const existingContract = await db
-      .select()
-      .from(contracts)
-      .where(eq(contracts.id, parseInt(id)))
-      .limit(1);
-
-    if (existingContract.length === 0) {
-      return NextResponse.json(
-        { error: 'Contract not found', code: 'NOT_FOUND' },
-        { status: 404 }
+    // Delete contract using raw SQL for better error handling with Neon serverless
+    const { Pool } = await import('@neondatabase/serverless');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      // Delete the contract
+      const deleteResult = await pool.query(
+        'DELETE FROM contracts WHERE id = $1 RETURNING *',
+        [parseInt(id)]
       );
+
+      if (deleteResult.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Contract not found or already deleted', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          message: 'Contract deleted successfully',
+          contract: deleteResult.rows[0]
+        },
+        { status: 200 }
+      );
+    } catch (dbError: any) {
+      console.error('Database delete error:', dbError);
+      console.error('Error details:', {
+        message: dbError?.message,
+        code: dbError?.code,
+        detail: dbError?.detail,
+        constraint: dbError?.constraint,
+        hint: dbError?.hint
+      });
+      
+      // Check for foreign key constraint violations
+      if (dbError?.code === '23503') {
+        return NextResponse.json(
+          { 
+            error: 'Cannot delete contract: it is referenced by other records', 
+            code: 'FOREIGN_KEY_VIOLATION',
+            detail: dbError?.detail || 'This contract cannot be deleted because it is referenced by other records in the database.'
+          },
+          { status: 400 }
+        );
+      }
+      
+      // Check for other database errors
+      if (dbError?.code) {
+        return NextResponse.json(
+          { 
+            error: 'Database error: ' + (dbError.message || 'Unknown database error'),
+            code: 'DATABASE_ERROR',
+            dbCode: dbError.code,
+            detail: dbError?.detail
+          },
+          { status: 500 }
+        );
+      }
+      
+      throw dbError;
+    } finally {
+      await pool.end();
     }
-
-    // Delete contract
-    const deleted = await db
-      .delete(contracts)
-      .where(eq(contracts.id, parseInt(id)))
-      .returning();
-
-    return NextResponse.json(
-      {
-        message: 'Contract deleted successfully',
-        contract: deleted[0]
-      },
-      { status: 200 }
-    );
   } catch (error) {
     console.error('DELETE error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error'),
+        code: 'INTERNAL_ERROR'
+      },
       { status: 500 }
     );
   }

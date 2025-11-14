@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,43 +36,50 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `design-${timestamp}-${randomString}.${fileExtension}`;
 
+    // Convert file to base64 for database storage (serverless compatible)
     // For production, you should use a cloud storage service (S3, Cloudinary, etc.)
-    // For now, we'll save to public/uploads/designs directory
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'designs');
-    
-    // Create directory if it doesn't exist
-    try {
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-    } catch (dirError) {
-      console.error('Error creating upload directory:', dirError);
-      throw new Error('Failed to create upload directory');
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64Data = buffer.toString('base64');
+
+    // Check if base64 data is too large (safety check)
+    if (base64Data.length > 50 * 1024 * 1024) { // 50MB base64 limit
+      return NextResponse.json(
+        { error: 'File is too large to store. Please use a smaller file or cloud storage.', code: 'FILE_TOO_LARGE' },
+        { status: 400 }
+      );
     }
 
-    const filePath = join(uploadDir, fileName);
+    // Store file in database using raw SQL for better handling of large values
+    const { Pool } = await import('@neondatabase/serverless');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     
     try {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-    } catch (writeError) {
-      console.error('Error writing file:', writeError);
-      throw new Error('Failed to save file to disk');
+      const result = await pool.query(
+        `INSERT INTO file_storage (file_name, file_type, file_data, file_size, uploaded_at, created_at) 
+         VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+         RETURNING id, file_name, file_type, file_size`,
+        [fileName, file.type, base64Data, file.size]
+      );
+
+      const storedFile = result.rows[0];
+      
+      // Return the public URL (API endpoint to serve the file)
+      const fileUrl = `/api/files/${storedFile.id}`;
+
+      return NextResponse.json(
+        { 
+          url: fileUrl,
+          fileName: storedFile.file_name,
+          originalFileName: file.name,
+          size: storedFile.file_size,
+          type: storedFile.file_type
+        },
+        { status: 200 }
+      );
+    } finally {
+      await pool.end();
     }
-
-    // Return the public URL
-    const fileUrl = `/uploads/designs/${fileName}`;
-
-    return NextResponse.json(
-      { 
-        url: fileUrl,
-        fileName: fileName,
-        size: file.size,
-        type: file.type
-      },
-      { status: 200 }
-    );
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
