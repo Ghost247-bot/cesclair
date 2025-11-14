@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   // Performance optimizations
-  swcMinify: true,
+  // Note: swcMinify is enabled by default in Next.js 15 and the option has been removed
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion', 'recharts'],
     optimizeCss: true,
