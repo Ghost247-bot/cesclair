@@ -3013,7 +3013,15 @@ export default function DesignerDashboardPage() {
     {/* Contract Details Modal */}
     <AnimatePresence>
       {showContractDetailsModal && (
-        <Dialog open={showContractDetailsModal} onOpenChange={setShowContractDetailsModal}>
+        <Dialog 
+          open={showContractDetailsModal} 
+          onOpenChange={(open) => {
+            setShowContractDetailsModal(open);
+            if (!open) {
+              setViewingContract(null);
+            }
+          }}
+        >
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

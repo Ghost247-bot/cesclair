@@ -122,13 +122,14 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs">("overview");
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalDesigners: 0,
     totalProducts: 0,
     totalContracts: 0,
     pendingDesigners: 0,
+    pendingDesigns: 0,
     activeContracts: 0,
     recentActivity: [] as AuditLog[],
   });
@@ -143,6 +144,30 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [designs, setDesigns] = useState<Array<{ id: number; title: string; designerId: number }>>([]);
   const [selectedDesignerId, setSelectedDesignerId] = useState<number | null>(null);
+  // Designs for review
+  const [designsForReview, setDesignsForReview] = useState<Array<{
+    id: number;
+    designerId: number;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    category: string | null;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    designer: {
+      id: number;
+      name: string;
+      email: string;
+      bio: string | null;
+      portfolioUrl: string | null;
+      specialties: string | null;
+      avatarUrl: string | null;
+    };
+  }>>([]);
+  const [filteredDesignsForReview, setFilteredDesignsForReview] = useState<typeof designsForReview>([]);
+  const [designSearchQuery, setDesignSearchQuery] = useState("");
+  const [designStatusFilter, setDesignStatusFilter] = useState<string>("submitted");
   const [loading, setLoading] = useState(false);
   const [editingPointsUserId, setEditingPointsUserId] = useState<string | null>(null);
   const [editingSpendingUserId, setEditingSpendingUserId] = useState<string | null>(null);
@@ -286,12 +311,13 @@ export default function AdminPage() {
     try {
       setLoading(true);
       // Fetch all data in parallel for overview
-      const [usersRes, designersRes, productsRes, contractsRes, auditRes] = await Promise.all([
+      const [usersRes, designersRes, productsRes, contractsRes, auditRes, designsRes] = await Promise.all([
         fetch("/api/admin/users?limit=500", { credentials: 'include' }),
         fetch("/api/designers?limit=100", { credentials: 'include' }),
         fetch("/api/products?limit=500", { credentials: 'include' }),
         fetch("/api/admin/contracts?limit=500", { credentials: 'include' }),
         fetch("/api/admin/audit-logs?limit=10", { credentials: 'include' }),
+        fetch("/api/designs?status=submitted&limit=500", { credentials: 'include' }),
       ]);
 
       const usersData = usersRes.ok ? await usersRes.json() : [];
@@ -299,12 +325,14 @@ export default function AdminPage() {
       const productsData = productsRes.ok ? await productsRes.json() : [];
       const contractsData = contractsRes.ok ? await contractsRes.json() : { contracts: [] };
       const auditData = auditRes.ok ? await auditRes.json() : { logs: [] };
+      const designsData = designsRes.ok ? await designsRes.json() : [];
 
       const users = Array.isArray(usersData) ? usersData : [];
       const designers = Array.isArray(designersData) ? designersData : (designersData.designers || []);
       const products = Array.isArray(productsData) ? productsData : [];
       const contracts = Array.isArray(contractsData) ? contractsData : (contractsData.contracts || []);
       const auditLogs = Array.isArray(auditData) ? auditData : (auditData.logs || []);
+      const designs = Array.isArray(designsData) ? designsData : [];
 
       setDashboardStats({
         totalUsers: users.length,
@@ -312,6 +340,7 @@ export default function AdminPage() {
         totalProducts: products.length,
         totalContracts: contracts.length,
         pendingDesigners: designers.filter((d: Designer) => d.status === 'pending').length,
+        pendingDesigns: designs.filter((d: any) => d.status === 'submitted').length,
         activeContracts: contracts.filter((c: Contract) => c.status === 'awarded' || c.status === 'pending').length,
         recentActivity: auditLogs.slice(0, 10),
       });
@@ -325,6 +354,8 @@ export default function AdminPage() {
       setFilteredProducts(products);
       setContracts(contracts);
       setFilteredContracts(contracts);
+      setDesignsForReview(designs);
+      setFilteredDesignsForReview(designs);
     } catch (error) {
       console.error("Failed to fetch dashboard overview:", error);
       toast.error("Failed to load dashboard data");
@@ -350,6 +381,8 @@ export default function AdminPage() {
         fetchAuditLogs();
       } else if (activeTab === "portfolios") {
         fetchDesigners(); // Portfolios use the same data as designers
+      } else if (activeTab === "designs") {
+        fetchDesignsForReview();
       }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
@@ -471,6 +504,29 @@ export default function AdminPage() {
     setFilteredContracts(filtered);
   }, [contracts, contractSearchQuery, contractStatusFilter]);
 
+  // Filter designs based on search and status
+  useEffect(() => {
+    let filtered = designsForReview;
+
+    if (designSearchQuery) {
+      const query = designSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (d) =>
+          d.title.toLowerCase().includes(query) ||
+          d.description?.toLowerCase().includes(query) ||
+          d.category?.toLowerCase().includes(query) ||
+          d.designer?.name.toLowerCase().includes(query) ||
+          d.designer?.email.toLowerCase().includes(query)
+      );
+    }
+
+    if (designStatusFilter !== "all") {
+      filtered = filtered.filter((d) => d.status === designStatusFilter);
+    }
+
+    setFilteredDesignsForReview(filtered);
+  }, [designsForReview, designSearchQuery, designStatusFilter]);
+
   const fetchDesigners = async () => {
     try {
       setLoading(true);
@@ -519,6 +575,63 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Failed to update designer status:", error);
       toast.error("Failed to update designer status");
+    }
+  };
+
+  const fetchDesignsForReview = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/designs?limit=500", {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const designsList = Array.isArray(data) ? data : [];
+        setDesignsForReview(designsList);
+        setFilteredDesignsForReview(designsList);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error || "Failed to load designs";
+        console.error("Failed to fetch designs:", errorData);
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Failed to fetch designs:", error);
+      toast.error("Failed to load designs. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateDesignStatus = async (id: number, status: string) => {
+    try {
+      const response = await fetch(`/api/designs/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        setDesignsForReview(
+          designsForReview.map((d) => (d.id === id ? { ...d, status } : d))
+        );
+        // Update dashboard stats if needed
+        if (activeTab === "overview") {
+          fetchDashboardOverview();
+        }
+        toast.success(`Design ${status === "approved" ? "approved" : "rejected"} successfully`);
+        // Refresh the designs list
+        await fetchDesignsForReview();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update design status");
+      }
+    } catch (error) {
+      console.error("Failed to update design status:", error);
+      toast.error("Failed to update design status");
     }
   };
 
@@ -980,14 +1093,21 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       });
       if (response.ok) {
         const data = await response.json();
-        setContracts(data || []);
-        setFilteredContracts(data || []);
+        // Handle both array and object with contracts property
+        const contractsList = Array.isArray(data) ? data : (data?.contracts || []);
+        setContracts(contractsList);
+        setFilteredContracts(contractsList);
       } else {
-        toast.error("Failed to load contracts");
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to load contracts");
+        setContracts([]);
+        setFilteredContracts([]);
       }
     } catch (error) {
       console.error("Failed to fetch contracts:", error);
-      toast.error("Failed to load contracts");
+      toast.error("Failed to load contracts. Please check your connection.");
+      setContracts([]);
+      setFilteredContracts([]);
     } finally {
       setLoading(false);
     }
@@ -1283,10 +1403,16 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
       if (response.ok) {
         const newContract = await response.json();
-        setContracts([newContract, ...contracts]);
+        const updatedContracts = [newContract, ...contracts];
+        setContracts(updatedContracts);
+        setFilteredContracts(updatedContracts);
         toast.success("Contract created successfully");
         setShowCreateContractModal(false);
-        fetchContracts();
+        setSelectedDesignerId(null);
+        // Refresh dashboard stats if on overview tab
+        if (activeTab === "overview") {
+          fetchDashboardOverview();
+        }
       } else {
         const error = await response.json();
         toast.error(error.error || "Failed to create contract");
@@ -1309,12 +1435,21 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
       if (response.ok) {
         const updated = await response.json();
-        setContracts(contracts.map((c) => (c.id === id ? updated : c)));
+        const updatedContracts = contracts.map((c) => (c.id === id ? updated : c));
+        setContracts(updatedContracts);
+        setFilteredContracts(updatedContracts);
+        // Update viewing contract if it's the same one
+        if (viewingContract && viewingContract.id === id) {
+          setViewingContract(updated);
+        }
         toast.success("Contract updated successfully");
         setShowEditContractModal(false);
         setEditingContract(null);
         setSelectedDesignerId(null);
-        fetchContracts();
+        // Refresh dashboard stats if on overview tab
+        if (activeTab === "overview") {
+          fetchDashboardOverview();
+        }
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
         console.error("Update contract error:", errorData);
@@ -1327,7 +1462,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
   };
 
   const deleteContract = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this contract?")) {
+    if (!window.confirm("Are you sure you want to delete this contract? This action cannot be undone.")) {
       return;
     }
 
@@ -1338,10 +1473,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       });
 
       if (response.ok) {
-        setContracts(contracts.filter((c) => c.id !== id));
+        const updatedContracts = contracts.filter((c) => c.id !== id);
+        setContracts(updatedContracts);
+        setFilteredContracts(updatedContracts);
         toast.success("Contract deleted successfully");
+        // Refresh dashboard stats if on overview tab
+        if (activeTab === "overview") {
+          fetchDashboardOverview();
+        }
       } else {
-        toast.error("Failed to delete contract");
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to delete contract");
       }
     } catch (error) {
       console.error("Failed to delete contract:", error);
@@ -1937,6 +2079,22 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <span className="hidden sm:inline">Contracts </span>({contracts.length})
               </button>
               <button
+                onClick={() => setActiveTab("designs")}
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "designs"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <Upload className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Designs </span>
+                {designsForReview.filter((d) => d.status === "submitted").length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                    {designsForReview.filter((d) => d.status === "submitted").length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab("audit")}
                 className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "audit"
@@ -2101,6 +2259,28 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                               <div className="flex-1 bg-gray-50 rounded p-1.5 md:p-2 text-center">
                                 <div className="text-sm md:text-lg font-bold text-gray-700">{contracts.filter(c => c.status === 'completed').length}</div>
                                 <div className="text-[10px] md:text-xs text-gray-600">Completed</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Designs Status */}
+                          <div>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <span className="text-xs md:text-sm font-medium">Designs</span>
+                              <span className="text-[10px] md:text-xs text-muted-foreground">{designsForReview.length} total</span>
+                            </div>
+                            <div className="flex gap-1.5 md:gap-2">
+                              <div className="flex-1 bg-blue-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-blue-700">{designsForReview.filter(d => d.status === 'submitted').length}</div>
+                                <div className="text-[10px] md:text-xs text-blue-600">Submitted</div>
+                              </div>
+                              <div className="flex-1 bg-green-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-green-700">{designsForReview.filter(d => d.status === 'approved').length}</div>
+                                <div className="text-[10px] md:text-xs text-green-600">Approved</div>
+                              </div>
+                              <div className="flex-1 bg-red-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-red-700">{designsForReview.filter(d => d.status === 'rejected').length}</div>
+                                <div className="text-[10px] md:text-xs text-red-600">Rejected</div>
                               </div>
                             </div>
                           </div>
@@ -3463,6 +3643,184 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 )}
               </div>
             )}
+
+            {/* Designs Tab */}
+            {activeTab === "designs" && (
+              <div>
+                {/* Header with Search and Filters */}
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search designs by title, description, category, or designer..."
+                        value={designSearchQuery}
+                        onChange={(e) => setDesignSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={designStatusFilter}
+                        onChange={(e) => setDesignStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Status ({designsForReview.length})</option>
+                        <option value="submitted">Submitted ({designsForReview.filter((d) => d.status === "submitted").length})</option>
+                        <option value="approved">Approved ({designsForReview.filter((d) => d.status === "approved").length})</option>
+                        <option value="rejected">Rejected ({designsForReview.filter((d) => d.status === "rejected").length})</option>
+                        <option value="draft">Draft ({designsForReview.filter((d) => d.status === "draft").length})</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Designs List */}
+                {loading ? (
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading designs...</p>
+                  </div>
+                ) : filteredDesignsForReview.length === 0 ? (
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <Upload className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
+                      {designSearchQuery || designStatusFilter !== "all"
+                        ? "No designs match your filters."
+                        : "No designs found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 md:space-y-4">
+                    {filteredDesignsForReview.map((design) => (
+                      <div
+                        key={design.id}
+                        className="bg-white border border-border rounded-lg p-3 md:p-6 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-start gap-2 md:gap-4 mb-2 md:mb-3">
+                              {design.imageUrl ? (
+                                <div className="w-20 h-20 md:w-32 md:h-32 rounded-lg overflow-hidden border border-border flex-shrink-0">
+                                  <img
+                                    src={design.imageUrl}
+                                    alt={design.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-20 h-20 md:w-32 md:h-32 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 border border-border">
+                                  <Upload className="w-8 h-8 md:w-12 md:h-12 text-primary" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                                  <h3 className="text-lg md:text-xl font-medium">{design.title}</h3>
+                                  <span
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
+                                      design.status === "approved"
+                                        ? "bg-green-100 text-green-700"
+                                        : design.status === "rejected"
+                                        ? "bg-red-100 text-red-700"
+                                        : design.status === "submitted"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                  >
+                                    {design.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                {design.designer && (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                                    <Users className="w-4 h-4" />
+                                    <span>
+                                      <strong>Designer:</strong> {design.designer.name} ({design.designer.email})
+                                    </span>
+                                  </div>
+                                )}
+                                {design.category && (
+                                  <p className="text-sm text-muted-foreground mb-2">
+                                    <strong>Category:</strong> {design.category}
+                                  </p>
+                                )}
+                                {design.description && (
+                                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                    {design.description}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>Submitted: {new Date(design.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 md:min-w-[200px]">
+                            {design.status === "submitted" && (
+                              <>
+                                <button
+                                  onClick={() => updateDesignStatus(design.id, "approved")}
+                                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 transition-colors rounded-lg text-sm font-medium"
+                                >
+                                  <Check className="w-4 h-4" />
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => updateDesignStatus(design.id, "rejected")}
+                                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {design.status !== "submitted" && (
+                              <div className="text-sm text-muted-foreground text-center py-2">
+                                {design.status === "approved" && (
+                                  <div className="flex items-center justify-center gap-2 text-green-600">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    <span>Approved</span>
+                                  </div>
+                                )}
+                                {design.status === "rejected" && (
+                                  <div className="flex items-center justify-center gap-2 text-red-600">
+                                    <X className="w-4 h-4" />
+                                    <span>Rejected</span>
+                                  </div>
+                                )}
+                                {design.status === "draft" && (
+                                  <div className="flex items-center justify-center gap-2 text-gray-600">
+                                    <Clock className="w-4 h-4" />
+                                    <span>Draft</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {design.imageUrl && (
+                              <a
+                                href={design.imageUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View Image
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       </main>
@@ -4763,11 +5121,15 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               <div className="flex gap-2 pt-4 border-t">
                 <button
                   onClick={() => {
-                    setViewingContract(null);
+                    const contractToEdit = viewingContract;
                     setShowContractDetailsModal(false);
                     setContractDocuments([]);
-                    setEditingContract(viewingContract);
-                    setShowEditContractModal(true);
+                    setViewingContract(null);
+                    if (contractToEdit) {
+                      setEditingContract(contractToEdit);
+                      setSelectedDesignerId(contractToEdit.designerId);
+                      setShowEditContractModal(true);
+                    }
                   }}
                   className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center justify-center gap-2"
                 >
