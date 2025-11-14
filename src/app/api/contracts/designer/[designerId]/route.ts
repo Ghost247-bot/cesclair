@@ -9,10 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ designerId: string }> }
 ) {
   try {
+    console.log('[Contracts API] Starting request...');
+    
     // Check authentication
     const session = await auth.api.getSession({ headers: request.headers });
     
     if (!session?.user) {
+      console.log('[Contracts API] Not authenticated');
       return NextResponse.json(
         {
           contracts: [],
@@ -23,7 +26,9 @@ export async function GET(
       );
     }
 
+    console.log('[Contracts API] User authenticated:', session.user.email);
     const { designerId } = await params;
+    console.log('[Contracts API] Designer ID:', designerId);
 
     // Validate and convert designerId to a Number
     if (!designerId || designerId.trim() === '') {
@@ -131,6 +136,10 @@ export async function GET(
       whereConditions.push(eq(contracts.status, status));
     }
 
+    console.log('[Contracts API] Querying database for designer:', designerIdNumber);
+    console.log('[Contracts API] Where conditions:', whereConditions.length);
+    console.log('[Contracts API] Limit:', limit, 'Offset:', offset);
+
     // Try to select contractFileUrl, but handle if column doesn't exist
     let results;
     try {
@@ -157,6 +166,8 @@ export async function GET(
         .orderBy(desc(contracts.createdAt))
         .limit(limit)
         .offset(offset);
+      
+      console.log('[Contracts API] Query successful, found', results?.length || 0, 'contracts');
     } catch (selectError: any) {
       // If contractFileUrl column doesn't exist, retry without it
       if (selectError?.message?.includes('contractFileUrl') || selectError?.message?.includes('contract_file_url')) {
@@ -214,24 +225,26 @@ export async function GET(
       contractFileUrl: result.contractFileUrl || null,
     }));
 
+    console.log('[Contracts API] Returning', formattedResults.length, 'formatted contracts');
     // Always return { contracts: [] } format
     return NextResponse.json({ contracts: formattedResults }, { status: 200 });
   } catch (error) {
-    console.error('GET contracts by designer error:', error);
+    console.error('[Contracts API] GET contracts by designer error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('Error details:', {
+    console.error('[Contracts API] Error details:', {
       message: errorMessage,
       stack: errorStack,
       error: error
     });
-    // Always return { contracts: [] } format even on error to prevent frontend .map() errors
+    // Return error with proper status code so frontend can handle it
     return NextResponse.json(
       {
         contracts: [],
-        error: 'Server error occurred while fetching contracts',
+        error: `Server error: ${errorMessage}`,
+        code: 'SERVER_ERROR',
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

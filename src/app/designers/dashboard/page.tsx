@@ -379,6 +379,10 @@ export default function DesignerDashboardPage() {
 
       // Fetch contracts from Neon database
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Dashboard] Fetching contracts for designer ${designerId}...`);
+        }
+        
         const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=100`, {
           credentials: 'include',
           headers: {
@@ -387,12 +391,23 @@ export default function DesignerDashboardPage() {
           cache: 'no-store', // Ensure fresh data from database
         });
         
-        if (!contractsRes.ok) {
-          const errorData = await contractsRes.json().catch(() => ({ error: 'Failed to fetch contracts' }));
-          throw new Error(errorData.error || `Failed to fetch contracts: ${contractsRes.status}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Dashboard] Contracts API response status:`, contractsRes.status);
         }
         
         const data = await contractsRes.json();
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Dashboard] Contracts API response data:`, data);
+        }
+        
+        if (!contractsRes.ok) {
+          const errorMsg = data?.error || `Failed to fetch contracts: ${contractsRes.status}`;
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`[Dashboard] Contracts API error:`, errorMsg, data);
+          }
+          throw new Error(errorMsg);
+        }
         
         // Normalize data - handle both old array format and new { contracts: [] } format
         const contractsArray = Array.isArray(data?.contracts) 
@@ -402,23 +417,27 @@ export default function DesignerDashboardPage() {
             : [];
         
         if (process.env.NODE_ENV === 'development') {
-          console.log(`Fetched ${contractsArray.length} contracts from database for designer ${designerId}`);
+          console.log(`[Dashboard] Fetched ${contractsArray.length} contracts from database for designer ${designerId}`);
+          if (contractsArray.length > 0) {
+            console.log(`[Dashboard] Sample contract:`, contractsArray[0]);
+          }
         }
         
         setContracts(contractsArray);
         
-        // Log warning if there's an error in the response
-        if (data?.error) {
+        // Log warning if there's an error in the response (but still return data)
+        if (data?.error && contractsArray.length === 0) {
           if (process.env.NODE_ENV === 'development') {
-            console.warn("Contracts API returned error:", data.error);
+            console.warn("[Dashboard] Contracts API returned error:", data.error);
           }
-          toast.error(data.error || "Failed to load some contract data");
+          toast.error(data.error || "Failed to load contract data");
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("Error fetching contracts from database:", error);
+          console.error("[Dashboard] Error fetching contracts from database:", error);
         }
-        toast.error("Failed to load contracts. Please refresh the page.");
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to load contracts: ${errorMessage}`);
         setContracts([]);
       }
 
