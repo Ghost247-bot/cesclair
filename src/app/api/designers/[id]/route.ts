@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { designers, user } from '@/db/schema';
+import { designers, user, contracts, designs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 
@@ -362,9 +362,40 @@ export async function DELETE(
       );
     }
 
+    const designerId = parseInt(id);
+
+    // Check for related data
+    const relatedDesigns = await db.select()
+      .from(designs)
+      .where(eq(designs.designerId, designerId));
+
+    const relatedContracts = await db.select()
+      .from(contracts)
+      .where(eq(contracts.designerId, designerId));
+
+    // Delete related designs first (this will also handle designId references in contracts)
+    // For each design, we need to set designId to null in contracts before deleting
+    for (const design of relatedDesigns) {
+      // Set designId to null in contracts that reference this design
+      await db.update(contracts)
+        .set({ designId: null })
+        .where(eq(contracts.designId, design.id));
+      
+      // Delete the design
+      await db.delete(designs)
+        .where(eq(designs.id, design.id));
+    }
+
+    // Delete all contracts for this designer
+    if (relatedContracts.length > 0) {
+      await db.delete(contracts)
+        .where(eq(contracts.designerId, designerId));
+    }
+
+    // Now delete the designer (documents will be cascade deleted due to onDelete: 'cascade')
     const deleted = await db
       .delete(designers)
-      .where(eq(designers.id, parseInt(id)))
+      .where(eq(designers.id, designerId))
       .returning();
 
     if (deleted.length === 0) {
@@ -382,6 +413,8 @@ export async function DELETE(
           name: deleted[0].name,
           email: deleted[0].email,
         },
+        deletedDesigns: relatedDesigns.length,
+        deletedContracts: relatedContracts.length,
       },
       { status: 200 }
     );

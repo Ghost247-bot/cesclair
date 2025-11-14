@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { designers, designs, contracts } from '@/db/schema';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, isNotNull, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -74,6 +74,25 @@ export async function GET(
 
     const contractsCompleted = contractsCompletedResult[0]?.count || 0;
 
+    // Query total earnings from completed contracts (only count contracts that are completed AND have completedAt set)
+    // This ensures we only count contracts where the project is completed and payment has been made
+    // The completedAt timestamp indicates that the project was completed and payment was processed
+    const totalEarningsResult = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(CAST(${contracts.amount} AS NUMERIC)), 0)`,
+      })
+      .from(contracts)
+      .where(
+        and(
+          eq(contracts.designerId, designerId),
+          eq(contracts.status, 'completed'),
+          isNotNull(contracts.completedAt),
+          isNotNull(contracts.amount)
+        )
+      );
+
+    const totalEarnings = Number(totalEarningsResult[0]?.total || 0);
+
     // Return statistics
     return NextResponse.json(
       {
@@ -83,6 +102,7 @@ export async function GET(
           totalDesigns,
           contractsAwarded,
           contractsCompleted,
+          totalEarnings,
         },
       },
       { status: 200 }

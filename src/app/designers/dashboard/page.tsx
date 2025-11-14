@@ -75,6 +75,7 @@ interface Stats {
   totalDesigns: number;
   contractsAwarded: number;
   contractsCompleted: number;
+  totalEarnings: number;
 }
 
 interface Design {
@@ -357,9 +358,16 @@ export default function DesignerDashboardPage() {
       const designsData = await designsRes.json();
       setDesigns(designsData);
 
-      // Fetch contracts - increased limit to get all contracts
+      // Fetch contracts - fetch all contracts from database
       try {
-        const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=500`);
+        const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=10000`, {
+          credentials: 'include'
+        });
+        
+        if (!contractsRes.ok) {
+          throw new Error(`Failed to fetch contracts: ${contractsRes.status}`);
+        }
+        
         const data = await contractsRes.json();
         
         // Normalize data - handle both old array format and new { contracts: [] } format
@@ -374,9 +382,11 @@ export default function DesignerDashboardPage() {
         // Log warning if there's an error in the response
         if (data?.error) {
           console.warn("Contracts API returned error:", data.error);
+          toast.error(data.error || "Failed to load some contract data");
         }
       } catch (error) {
         console.error("Error fetching contracts:", error);
+        toast.error("Failed to load contracts. Please refresh the page.");
         setContracts([]);
       }
 
@@ -451,25 +461,45 @@ export default function DesignerDashboardPage() {
   const handleImageUpload = async (file: File) => {
     try {
       setUploadingImage(true);
+      
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Only JPEG, PNG, WebP, or GIF images are allowed.');
+      }
+
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new Error('File size exceeds 10MB limit. Please choose a smaller image.');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch('/api/upload/design', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Upload failed');
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Upload failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      setDesignForm(prev => ({ ...prev, imageUrl: data.url }));
+      if (!data.url) {
+        throw new Error('Upload succeeded but no URL was returned');
+      }
+      
+      setDesignForm(prev => ({ ...prev, imageUrl: data.url, imageFile: file }));
       toast.success('Image uploaded successfully');
     } catch (error) {
       console.error('Upload error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+      // Reset image file on error
+      setDesignForm(prev => ({ ...prev, imageFile: null }));
     } finally {
       setUploadingImage(false);
     }
@@ -478,9 +508,13 @@ export default function DesignerDashboardPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Set the file immediately for preview purposes
       setDesignForm(prev => ({ ...prev, imageFile: file }));
+      // Upload the file
       handleImageUpload(file);
     }
+    // Reset the input so the same file can be selected again if needed
+    e.target.value = '';
   };
 
   const openDesignModal = (design?: Design) => {
@@ -519,7 +553,15 @@ export default function DesignerDashboardPage() {
   };
 
   const handleSaveDesign = async () => {
-    if (!designer) return;
+    if (!designer) {
+      toast.error('Designer information not available. Please refresh the page.');
+      return;
+    }
+
+    if (!designer.id) {
+      toast.error('Designer ID is missing. Please refresh the page.');
+      return;
+    }
 
     if (!designForm.title.trim()) {
       toast.error('Title is required');
@@ -533,26 +575,34 @@ export default function DesignerDashboardPage() {
       
       const method = editingDesign ? 'PUT' : 'POST';
 
+      const requestBody = {
+        ...(editingDesign ? {} : { designerId: designer.id }),
+        title: designForm.title.trim(),
+        description: designForm.description.trim() || null,
+        category: designForm.category.trim() || null,
+        imageUrl: designForm.imageUrl || null,
+        status: editingDesign ? undefined : 'draft', // New designs start as draft
+      };
+
+      console.log('Saving design:', { url, method, requestBody });
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...(editingDesign ? {} : { designerId: designer.id }),
-          title: designForm.title.trim(),
-          description: designForm.description.trim() || null,
-          category: designForm.category.trim() || null,
-          imageUrl: designForm.imageUrl || null,
-          status: editingDesign ? undefined : 'draft', // New designs start as draft
-        }),
+        credentials: 'include',
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to save design');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
+        console.error('Save design API error:', { status: response.status, errorData });
+        throw new Error(errorData.error || `Failed to save design: ${response.status} ${response.statusText}`);
       }
 
+      const result = await response.json();
+      console.log('Design saved successfully:', result);
       toast.success(editingDesign ? 'Design updated successfully' : 'Design created successfully');
       closeDesignModal();
       if (designer) {
@@ -824,9 +874,8 @@ export default function DesignerDashboardPage() {
 
   // Calculate additional stats
   const pendingContracts = contracts.filter(c => c.status === "awarded" && c.envelopeStatus !== "completed").length;
-  const totalEarnings = contracts
-    .filter(c => c.status === "completed" && c.amount)
-    .reduce((sum, c) => sum + parseFloat(c.amount || "0"), 0);
+  // Total earnings is now fetched from the database via API (only counts completed contracts with completedAt set)
+  const totalEarnings = stats?.totalEarnings || 0;
   const pendingDesigns = designs.filter(d => d.status === "submitted").length;
   const approvedDesigns = designs.filter(d => d.status === "approved").length;
   
@@ -1893,8 +1942,15 @@ export default function DesignerDashboardPage() {
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-medium">MY DESIGNS</h3>
                 <button
-                  onClick={() => openDesignModal()}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors"
+                  onClick={() => {
+                    if (!designer) {
+                      toast.error('Designer information not loaded. Please refresh the page.');
+                      return;
+                    }
+                    openDesignModal();
+                  }}
+                  disabled={!designer}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   <span className="text-button-primary">UPLOAD DESIGN</span>
@@ -1927,12 +1983,24 @@ export default function DesignerDashboardPage() {
                       {/* Design Image */}
                       {design.imageUrl && (
                         <div className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden">
-                          <Image
-                            src={design.imageUrl}
-                            alt={design.title}
-                            fill
-                            className="object-cover"
-                          />
+                          {design.imageUrl.startsWith('/uploads/') ? (
+                            <img
+                              src={design.imageUrl}
+                              alt={design.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <Image
+                              src={design.imageUrl}
+                              alt={design.title}
+                              fill
+                              className="object-cover"
+                            />
+                          )}
                         </div>
                       )}
                       
@@ -2065,12 +2133,24 @@ export default function DesignerDashboardPage() {
                         {designForm.imageUrl ? (
                           <div className="space-y-2">
                             <div className="relative w-full h-64 bg-secondary rounded overflow-hidden">
-                              <Image
-                                src={designForm.imageUrl}
-                                alt="Design preview"
-                                fill
-                                className="object-cover"
-                              />
+                              {designForm.imageUrl.startsWith('/uploads/') ? (
+                                <img
+                                  src={designForm.imageUrl}
+                                  alt="Design preview"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <Image
+                                  src={designForm.imageUrl}
+                                  alt="Design preview"
+                                  fill
+                                  className="object-cover"
+                                />
+                              )}
                             </div>
                             <button
                               onClick={() => setDesignForm(prev => ({ ...prev, imageUrl: '', imageFile: null }))}
@@ -2124,12 +2204,19 @@ export default function DesignerDashboardPage() {
                         </button>
                         <button
                           onClick={handleSaveDesign}
-                          disabled={!designForm.title.trim() || uploadingImage}
+                          disabled={!designForm.title.trim() || uploadingImage || !designer}
                           className="flex-1 px-6 py-3 bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <span className="text-button-primary">
-                            {editingDesign ? 'UPDATE DESIGN' : 'CREATE DESIGN'}
-                          </span>
+                          {uploadingImage ? (
+                            <span className="text-button-primary flex items-center justify-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Uploading...
+                            </span>
+                          ) : (
+                            <span className="text-button-primary">
+                              {editingDesign ? 'UPDATE DESIGN' : 'CREATE DESIGN'}
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>

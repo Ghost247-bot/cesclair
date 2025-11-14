@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { contracts, designers } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 
 export async function GET(
@@ -115,10 +115,11 @@ export async function GET(
     // Extract query parameters and validate
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get('limit');
-    const limitNumber = limitParam ? Number(limitParam) : 50;
+    const limitNumber = limitParam ? Number(limitParam) : 1000;
+    // Allow up to 10000 contracts to be fetched (effectively all contracts for a designer)
     const limit = Math.min(
-      (isNaN(limitNumber) || limitNumber <= 0) ? 50 : limitNumber,
-      100
+      (isNaN(limitNumber) || limitNumber <= 0) ? 1000 : limitNumber,
+      10000
     );
     const offset = parseInt(searchParams.get('offset') ?? '0') || 0;
     const status = searchParams.get('status');
@@ -153,6 +154,7 @@ export async function GET(
         })
         .from(contracts)
         .where(whereConditions.length > 1 ? and(...whereConditions) : whereConditions[0])
+        .orderBy(desc(contracts.createdAt))
         .limit(limit)
         .offset(offset);
     } catch (selectError: any) {
@@ -178,6 +180,7 @@ export async function GET(
       })
       .from(contracts)
       .where(whereConditions.length > 1 ? and(...whereConditions) : whereConditions[0])
+      .orderBy(desc(contracts.createdAt))
       .limit(limit)
       .offset(offset);
       } else {

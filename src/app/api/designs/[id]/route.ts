@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { designs } from '@/db/schema';
+import { designs, contracts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(
@@ -157,6 +157,19 @@ export async function DELETE(
       );
     }
 
+    // Check if there are contracts referencing this design and count them
+    const relatedContracts = await db.select()
+      .from(contracts)
+      .where(eq(contracts.designId, parseInt(id)));
+
+    // If contracts exist, set their designId to null before deleting the design
+    // This prevents foreign key constraint violations
+    if (relatedContracts.length > 0) {
+      await db.update(contracts)
+        .set({ designId: null })
+        .where(eq(contracts.designId, parseInt(id)));
+    }
+
     // Delete design
     const deletedDesign = await db.delete(designs)
       .where(eq(designs.id, parseInt(id)))
@@ -165,7 +178,8 @@ export async function DELETE(
     return NextResponse.json(
       {
         message: 'Design deleted successfully',
-        design: deletedDesign[0]
+        design: deletedDesign[0],
+        contractsUpdated: relatedContracts.length
       },
       { status: 200 }
     );

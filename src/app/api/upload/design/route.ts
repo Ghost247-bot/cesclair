@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
-    const fileExtension = file.name.split('.').pop();
+    const fileExtension = file.name.split('.').pop() || 'jpg';
     const fileName = `design-${timestamp}-${randomString}.${fileExtension}`;
 
     // For production, you should use a cloud storage service (S3, Cloudinary, etc.)
@@ -44,15 +44,25 @@ export async function POST(request: NextRequest) {
     const uploadDir = join(process.cwd(), 'public', 'uploads', 'designs');
     
     // Create directory if it doesn't exist
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    try {
+      if (!existsSync(uploadDir)) {
+        await mkdir(uploadDir, { recursive: true });
+      }
+    } catch (dirError) {
+      console.error('Error creating upload directory:', dirError);
+      throw new Error('Failed to create upload directory');
     }
 
     const filePath = join(uploadDir, fileName);
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    await writeFile(filePath, buffer);
+    
+    try {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      await writeFile(filePath, buffer);
+    } catch (writeError) {
+      console.error('Error writing file:', writeError);
+      throw new Error('Failed to save file to disk');
+    }
 
     // Return the public URL
     const fileUrl = `/uploads/designs/${fileName}`;
