@@ -366,22 +366,30 @@ export default function DesignerDashboardPage() {
       const statsData = await statsRes.json();
       setStats(statsData.stats);
 
-      // Fetch designs with caching
+      // Fetch designs from database
       const designsRes = await fetch(`/api/designs/designer/${designerId}?limit=50`, {
-        next: { revalidate: 60 }
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store', // Ensure fresh data from database
       });
       const designsData = await designsRes.json();
       setDesigns(designsData);
 
-      // Fetch contracts - fetch with pagination
+      // Fetch contracts from Neon database
       try {
         const contractsRes = await fetch(`/api/contracts/designer/${designerId}?limit=100`, {
           credentials: 'include',
-          next: { revalidate: 60 }
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store', // Ensure fresh data from database
         });
         
         if (!contractsRes.ok) {
-          throw new Error(`Failed to fetch contracts: ${contractsRes.status}`);
+          const errorData = await contractsRes.json().catch(() => ({ error: 'Failed to fetch contracts' }));
+          throw new Error(errorData.error || `Failed to fetch contracts: ${contractsRes.status}`);
         }
         
         const data = await contractsRes.json();
@@ -392,6 +400,10 @@ export default function DesignerDashboardPage() {
           : Array.isArray(data) 
             ? data 
             : [];
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Fetched ${contractsArray.length} contracts from database for designer ${designerId}`);
+        }
         
         setContracts(contractsArray);
         
@@ -404,15 +416,19 @@ export default function DesignerDashboardPage() {
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("Error fetching contracts:", error);
+          console.error("Error fetching contracts from database:", error);
         }
         toast.error("Failed to load contracts. Please refresh the page.");
         setContracts([]);
       }
 
-      // Fetch documents with caching
+      // Fetch documents from database
       const documentsRes = await fetch(`/api/documents/designer/${designerId}`, {
-        next: { revalidate: 60 }
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store', // Ensure fresh data from database
       });
       const documentsData = await documentsRes.json();
       setDocuments(documentsData);
