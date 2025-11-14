@@ -102,9 +102,76 @@ export default function RootLayout({
         <Script
           id="route-messenger-script"
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
         <RouteMessengerScript />
+        <Script
+          id="anti-clone-protection"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window === 'undefined') return;
+                
+                try {
+                  // Disable right-click
+                  document.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    return false;
+                  });
+                  
+                  // Disable text selection
+                  document.addEventListener('selectstart', function(e) {
+                    e.preventDefault();
+                    return false;
+                  });
+                  
+                  // Disable keyboard shortcuts
+                  document.addEventListener('keydown', function(e) {
+                    if (
+                      e.key === 'F12' ||
+                      (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+                      (e.ctrlKey && (e.key === 'U' || e.key === 'S' || e.key === 'P'))
+                    ) {
+                      e.preventDefault();
+                      return false;
+                    }
+                  });
+                  
+                  // Disable drag
+                  document.addEventListener('dragstart', function(e) {
+                    e.preventDefault();
+                    return false;
+                  });
+                  
+                  // Disable copy/cut
+                  document.addEventListener('copy', function(e) {
+                    e.preventDefault();
+                    return false;
+                  });
+                  
+                  document.addEventListener('cut', function(e) {
+                    e.preventDefault();
+                    return false;
+                  });
+                  
+                  // Disable text selection via CSS
+                  document.body.style.userSelect = 'none';
+                  document.body.style.webkitUserSelect = 'none';
+                  document.body.style.mozUserSelect = 'none';
+                  document.body.style.msUserSelect = 'none';
+                  
+                  // Clear console periodically
+                  setInterval(function() {
+                    console.clear();
+                  }, 5000);
+                } catch (error) {
+                  console.error('Anti-clone protection error:', error);
+                }
+              })();
+            `,
+          }}
+        />
         {children}
         <VisualEditsMessenger />
         <Toaster />

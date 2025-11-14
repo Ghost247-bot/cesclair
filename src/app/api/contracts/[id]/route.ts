@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { contracts } from '@/db/schema';
+import { contracts, designers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // Check authentication
+    const session = await auth.api.getSession({ headers: request.headers });
+    
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
     const id = params.id;
 
     // Validate ID
@@ -30,6 +41,51 @@ export async function GET(
         { error: 'Contract not found', code: 'NOT_FOUND' },
         { status: 404 }
       );
+    }
+
+    // Check user role and authorization
+    const userRole = (session.user as any)?.role;
+    const isAdmin = userRole === 'admin';
+    const isDesigner = userRole === 'designer';
+    const sessionEmail = session.user.email?.toLowerCase().trim();
+
+    // If user is not admin, verify they can only access their own contracts
+    if (!isAdmin) {
+      if (!isDesigner) {
+        return NextResponse.json(
+          { error: 'Only designers and admins can view contracts', code: 'FORBIDDEN' },
+          { status: 403 }
+        );
+      }
+
+      // Verify the contract belongs to the logged-in designer
+      if (!sessionEmail) {
+        return NextResponse.json(
+          { error: 'User email not found', code: 'MISSING_EMAIL' },
+          { status: 400 }
+        );
+      }
+
+      const designer = await db
+        .select({ id: designers.id, email: designers.email })
+        .from(designers)
+        .where(eq(designers.email, sessionEmail))
+        .limit(1);
+
+      if (designer.length === 0) {
+        return NextResponse.json(
+          { error: 'Designer profile not found', code: 'DESIGNER_NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+
+      // Verify the contract belongs to the logged-in designer
+      if (contract[0].designerId !== designer[0].id) {
+        return NextResponse.json(
+          { error: 'You can only view your own contracts', code: 'FORBIDDEN' },
+          { status: 403 }
+        );
+      }
     }
 
     return NextResponse.json(contract[0], { status: 200 });

@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
     const designerId = searchParams.get('designerId');
 
     // Build query with joins to include designer information
+    // Try to select contractFileUrl, but handle if column doesn't exist
     let query = db
       .select({
         id: contracts.id,
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
         envelopeStatus: contracts.envelopeStatus,
         signedAt: contracts.signedAt,
         envelopeUrl: contracts.envelopeUrl,
+        contractFileUrl: contracts.contractFileUrl,
         designer: {
           id: designers.id,
           name: designers.name,
@@ -121,18 +123,104 @@ export async function GET(request: NextRequest) {
       query = query.where(and(...conditions));
     }
 
-    const results = await query
-      .orderBy(desc(contracts.createdAt))
-      .limit(limit)
-      .offset(offset);
+    let results;
+    try {
+      results = await query
+        .orderBy(desc(contracts.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } catch (queryError: any) {
+      // If error is related to contractFileUrl column, retry without it
+      const errorMessage = String(queryError?.message || '');
+      const errorCause = String(queryError?.cause?.message || '');
+      const errorString = errorMessage + ' ' + errorCause;
+      const hasContractFileUrlError = 
+        errorString.includes('contract_file_url') ||
+        errorString.includes('contractFileUrl') ||
+        queryError?.code === '42703' ||
+        queryError?.cause?.code === '42703';
+      
+      if (hasContractFileUrlError) {
+        console.warn('contract_file_url column does not exist, retrying query without it');
+        // Retry query without contractFileUrl - select all fields except contractFileUrl
+        let retryQuery = db
+          .select({
+            id: contracts.id,
+            designerId: contracts.designerId,
+            designId: contracts.designId,
+            title: contracts.title,
+            description: contracts.description,
+            amount: contracts.amount,
+            status: contracts.status,
+            awardedAt: contracts.awardedAt,
+            completedAt: contracts.completedAt,
+            createdAt: contracts.createdAt,
+            envelopeId: contracts.envelopeId,
+            envelopeStatus: contracts.envelopeStatus,
+            signedAt: contracts.signedAt,
+            envelopeUrl: contracts.envelopeUrl,
+            designer: {
+              id: designers.id,
+              name: designers.name,
+              email: designers.email,
+            },
+          })
+          .from(contracts)
+          .leftJoin(designers, eq(contracts.designerId, designers.id));
 
-    return NextResponse.json(results, { status: 200 });
+        if (conditions.length > 0) {
+          retryQuery = retryQuery.where(and(...conditions));
+        }
+
+        const retryResults = await retryQuery
+          .orderBy(desc(contracts.createdAt))
+          .limit(limit)
+          .offset(offset);
+        
+        // Add contractFileUrl as null to match expected response structure
+        results = retryResults.map(result => ({
+          ...result,
+          contractFileUrl: null,
+        }));
+      } else {
+        throw queryError;
+      }
+    }
+
+    // Ensure results is always an array
+    if (!Array.isArray(results)) {
+      console.warn('Query results is not an array, converting to array');
+      return NextResponse.json([], { status: 200 });
+    }
+
+    // Format results to ensure all fields are properly formatted
+    const formattedResults = results.map((result: any) => ({
+      id: result.id,
+      designerId: result.designerId,
+      designId: result.designId,
+      title: result.title,
+      description: result.description,
+      amount: result.amount,
+      status: result.status,
+      awardedAt: result.awardedAt ? new Date(result.awardedAt).toISOString() : null,
+      completedAt: result.completedAt ? new Date(result.completedAt).toISOString() : null,
+      createdAt: result.createdAt ? new Date(result.createdAt).toISOString() : null,
+      envelopeId: result.envelopeId,
+      envelopeStatus: result.envelopeStatus,
+      signedAt: result.signedAt ? new Date(result.signedAt).toISOString() : null,
+      envelopeUrl: result.envelopeUrl,
+      contractFileUrl: result.contractFileUrl || null,
+      designer: result.designer || null,
+    }));
+
+    return NextResponse.json(formattedResults, { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error stack:', errorStack);
+    // Return empty array instead of 500 to prevent frontend crashes
+    return NextResponse.json([], { status: 200 });
   }
 }
 

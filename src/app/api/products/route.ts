@@ -3,6 +3,10 @@ import { db } from '@/db';
 import { products } from '@/db/schema';
 import { eq, like, or, and, gte, lte, asc, desc, sql } from 'drizzle-orm';
 
+// Cache products API responses for better performance
+export const dynamic = 'force-dynamic'; // Allow dynamic rendering
+export const maxDuration = 30; // Maximum execution time
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -124,7 +128,18 @@ export async function GET(request: NextRequest) {
       results = [];
     }
     
-    return NextResponse.json(results, { status: 200 });
+    // Add caching headers for better performance
+    const response = NextResponse.json(results, { status: 200 });
+    
+    // Cache for 60 seconds for static queries (no search/filters)
+    if (!search && !category && !minPrice && !maxPrice) {
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    } else {
+      // Shorter cache for dynamic queries
+      response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+    }
+    
+    return response;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;

@@ -2,6 +2,8 @@
 # The @netlify/plugin-nextjs handles publish directory and routing automatically
 [build]
   command = "npm run build"
+  # Publish directory is handled automatically by @netlify/plugin-nextjs
+  # Leave empty or set to .next - plugin will handle it
   publish = ".next"
 
 [build.environment]

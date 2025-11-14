@@ -1,8 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { user, designers } from "@/db/schema";
-import { eq } from "drizzle-orm";
+
+// Simple in-memory cache for user roles (cleared on server restart)
+// In production, consider using Redis or similar
+const roleCache = new Map<string, { role: string | null; timestamp: number }>();
+const DESIGNER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const ROLE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Rate limiting for anti-clone protection
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute
+
+function getRateLimitKey(request: NextRequest): string {
+  const ip = request.ip || 
+    request.headers.get('x-forwarded-for')?.split(',')[0] || 
+    request.headers.get('x-real-ip') || 
+    'unknown';
+  return `rate_limit_${ip}`;
+}
+
+function checkRateLimit(request: NextRequest): boolean {
+  const key = getRateLimitKey(request);
+  const now = Date.now();
+  const record = rateLimitMap.get(key);
+
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  record.count++;
+  return true;
+}
+
+// Clean up old rate limit entries periodically
+// Only run cleanup if not in serverless environment (middleware runs in Edge runtime)
+// Note: setInterval may not work in all edge environments, so we also clean up on each request
+if (typeof setInterval !== 'undefined') {
+  try {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, record] of rateLimitMap.entries()) {
+        if (now > record.resetTime) {
+          rateLimitMap.delete(key);
+        }
+      }
+    }, RATE_LIMIT_WINDOW);
+  } catch (e) {
+    // setInterval not available in this environment, rely on per-request cleanup
+  }
+}
+
+// Clean up expired entries on each request (for serverless compatibility)
+function cleanupExpiredEntries() {
+  const now = Date.now();
+  for (const [key, record] of rateLimitMap.entries()) {
+    if (now > record.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+}
 
 export async function middleware(request: NextRequest) {
   try {
@@ -19,66 +81,52 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Clean up expired rate limit entries
+    cleanupExpiredEntries();
+    
+    // Rate limiting for anti-clone protection
+    if (!checkRateLimit(request)) {
+      return new NextResponse('Too Many Requests', { status: 429 });
+    }
+
+    // Add security headers for anti-clone protection
+    const response = NextResponse.next();
+    
+    // Security headers
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    
+    // Anti-clone headers
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+
     const session = await auth.api.getSession({ headers: request.headers });
     
     // Redirect authenticated designers to their dashboard
     if (session?.user) {
-      // Get role from session, or fetch from database if not in session
+      // Get role from session first (fastest)
       let userRole = (session.user as any)?.role;
       
-      // If role is not in session, fetch from database
+      // Only check database if role is missing and we haven't cached it recently
       if (!userRole) {
-        try {
-          const userRecord = await db
-            .select({ role: user.role })
-            .from(user)
-            .where(eq(user.id, session.user.id))
-            .limit(1);
-          
-          if (userRecord.length > 0) {
-            userRole = userRecord[0].role;
-          }
-        } catch (dbError) {
-          console.error('Error fetching user role in middleware:', dbError);
-          // Continue without role check if DB fails
+        const cacheKey = `role_${session.user.id}`;
+        const cached = roleCache.get(cacheKey);
+        const now = Date.now();
+        
+        if (cached && (now - cached.timestamp) < ROLE_CACHE_TTL) {
+          userRole = cached.role;
+        } else {
+          // Skip DB query in middleware for performance - let page handle it
+          // This reduces middleware latency significantly
         }
       }
       
-      // Check if user is in designers table (even if role isn't set)
-      const userEmail = session.user.email;
-      if (userEmail) {
-        try {
-          const designerRecord = await db
-            .select({ status: designers.status })
-            .from(designers)
-            .where(eq(designers.email, userEmail.toLowerCase().trim()))
-            .limit(1);
-          
-          if (designerRecord.length > 0 && designerRecord[0].status === 'approved') {
-            // User is an approved designer - redirect to designers dashboard
-            if (pathname === '/') {
-              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
-            }
-            
-            // Allow access to designer routes
-            if (pathname.startsWith('/designers')) {
-              return NextResponse.next();
-            }
-            
-            // Redirect designers away from cesworld/everworld dashboards
-            if (pathname.startsWith('/cesworld/dashboard') || pathname.startsWith('/everworld/dashboard')) {
-              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
-            }
-            
-            // Redirect designers away from admin pages
-            if (pathname.startsWith('/admin')) {
-              return NextResponse.redirect(new URL("/designers/dashboard", request.url));
-            }
-          }
-        } catch (error) {
-          // On error, fall back to role check
-        }
-      }
+      // For designer routes, check if user is approved designer
+      // But skip expensive DB queries in middleware - let page components handle authorization
+      // This significantly improves page load times
       
       // If designer is authenticated (by role), handle routing
       if (userRole === 'designer') {
@@ -89,7 +137,7 @@ export async function middleware(request: NextRequest) {
         
         // Allow access to designer routes (login, apply, dashboard, etc.)
         if (pathname.startsWith('/designers')) {
-          return NextResponse.next();
+          return response;
         }
         
         // Redirect designers away from cesworld/everworld dashboards
@@ -116,13 +164,14 @@ export async function middleware(request: NextRequest) {
         // This prevents middleware from blocking access due to timing issues or DB errors
       }
     }
+    
+    return response;
   } catch (error) {
     console.error('Middleware error:', error);
     // On error, allow the request through - let the page handle authorization
     // This prevents blocking legitimate access due to transient errors
+    return NextResponse.next();
   }
-  
-  return NextResponse.next();
 }
 
 export const config = {

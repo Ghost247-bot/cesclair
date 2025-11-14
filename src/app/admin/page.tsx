@@ -25,7 +25,13 @@ import {
   Download,
   FolderOpen,
   Briefcase,
-  Edit
+  Edit,
+  BarChart3,
+  TrendingUp,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Activity
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -116,7 +122,16 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"designers" | "products" | "users" | "contracts" | "audit" | "portfolios">("users");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios">("overview");
+  const [dashboardStats, setDashboardStats] = useState({
+    totalUsers: 0,
+    totalDesigners: 0,
+    totalProducts: 0,
+    totalContracts: 0,
+    pendingDesigners: 0,
+    activeContracts: 0,
+    recentActivity: [] as AuditLog[],
+  });
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [filteredDesigners, setFilteredDesigners] = useState<Designer[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -158,6 +173,8 @@ export default function AdminPage() {
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [showContractDetailsModal, setShowContractDetailsModal] = useState(false);
   const [viewingContract, setViewingContract] = useState<Contract | null>(null);
+  const [contractDocuments, setContractDocuments] = useState<any[]>([]);
+  const [loadingContractDocuments, setLoadingContractDocuments] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -264,10 +281,64 @@ export default function AdminPage() {
     }
   }, [sessionPending, roleLoading, session, userRole, isAdmin, shouldShowContent]);
 
+  // Fetch dashboard overview data
+  const fetchDashboardOverview = async () => {
+    try {
+      setLoading(true);
+      // Fetch all data in parallel for overview
+      const [usersRes, designersRes, productsRes, contractsRes, auditRes] = await Promise.all([
+        fetch("/api/admin/users?limit=500", { credentials: 'include' }),
+        fetch("/api/designers?limit=100", { credentials: 'include' }),
+        fetch("/api/products?limit=500", { credentials: 'include' }),
+        fetch("/api/admin/contracts?limit=500", { credentials: 'include' }),
+        fetch("/api/admin/audit-logs?limit=10", { credentials: 'include' }),
+      ]);
+
+      const usersData = usersRes.ok ? await usersRes.json() : [];
+      const designersData = designersRes.ok ? await designersRes.json() : { designers: [] };
+      const productsData = productsRes.ok ? await productsRes.json() : [];
+      const contractsData = contractsRes.ok ? await contractsRes.json() : { contracts: [] };
+      const auditData = auditRes.ok ? await auditRes.json() : { logs: [] };
+
+      const users = Array.isArray(usersData) ? usersData : [];
+      const designers = Array.isArray(designersData) ? designersData : (designersData.designers || []);
+      const products = Array.isArray(productsData) ? productsData : [];
+      const contracts = Array.isArray(contractsData) ? contractsData : (contractsData.contracts || []);
+      const auditLogs = Array.isArray(auditData) ? auditData : (auditData.logs || []);
+
+      setDashboardStats({
+        totalUsers: users.length,
+        totalDesigners: designers.length,
+        totalProducts: products.length,
+        totalContracts: contracts.length,
+        pendingDesigners: designers.filter((d: Designer) => d.status === 'pending').length,
+        activeContracts: contracts.filter((c: Contract) => c.status === 'awarded' || c.status === 'pending').length,
+        recentActivity: auditLogs.slice(0, 10),
+      });
+
+      // Also set the individual state for other tabs
+      setUsers(users);
+      setFilteredUsers(users);
+      setDesigners(designers);
+      setFilteredDesigners(designers);
+      setProducts(products);
+      setFilteredProducts(products);
+      setContracts(contracts);
+      setFilteredContracts(contracts);
+    } catch (error) {
+      console.error("Failed to fetch dashboard overview:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch data when admin is confirmed
   useEffect(() => {
     if (!sessionPending && !roleLoading && session?.user && isAdmin) {
-      if (activeTab === "designers") {
+      if (activeTab === "overview") {
+        fetchDashboardOverview();
+      } else if (activeTab === "designers") {
         fetchDesigners();
       } else if (activeTab === "users") {
         fetchUsers();
@@ -946,6 +1017,26 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     }
   };
 
+  const fetchContractDocuments = async (designerId: number, contractId: number) => {
+    try {
+      setLoadingContractDocuments(true);
+      const response = await fetch(`/api/documents?designerId=${designerId}&category=contract`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setContractDocuments(data || []);
+      } else {
+        setContractDocuments([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch contract documents:", error);
+      setContractDocuments([]);
+    } finally {
+      setLoadingContractDocuments(false);
+    }
+  };
+
   const createDesigner = async (designerData: {
     name: string;
     email: string;
@@ -1206,8 +1297,9 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     }
   };
 
-  const updateContract = async (id: number, updates: Partial<Contract>) => {
+  const updateContract = async (id: number, updates: any) => {
     try {
+      console.log("Updating contract:", id, updates);
       const response = await fetch(`/api/admin/contracts/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -1224,12 +1316,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         setSelectedDesignerId(null);
         fetchContracts();
       } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to update contract");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Update contract error:", errorData);
+        toast.error(errorData.error || `Failed to update contract: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
       console.error("Failed to update contract:", error);
-      toast.error("Failed to update contract");
+      toast.error(error instanceof Error ? error.message : "Failed to update contract");
     }
   };
 
@@ -1678,7 +1771,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-body text-muted-foreground">Loading admin panel...</p>
+            <p className="text-xs md:text-body text-muted-foreground">Loading admin panel...</p>
           </div>
         </div>
         <Footer />
@@ -1693,7 +1786,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-body text-muted-foreground">Redirecting...</p>
+            <p className="text-xs md:text-body text-muted-foreground">Redirecting...</p>
           </div>
         </div>
         <Footer />
@@ -1708,7 +1801,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-body text-muted-foreground">Redirecting...</p>
+            <p className="text-xs md:text-body text-muted-foreground">Redirecting...</p>
             {process.env.NODE_ENV === 'development' && (
               <p className="text-xs text-muted-foreground mt-2">Role: {userRole}</p>
             )}
@@ -1725,9 +1818,9 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         <HeaderNavigation />
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-2xl font-medium mb-2">Unable to Verify Role</h2>
-            <p className="text-body text-muted-foreground mb-4">
+            <Shield className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+            <h2 className="text-lg md:text-2xl font-medium mb-1 md:mb-2">Unable to Verify Role</h2>
+            <p className="text-xs md:text-body text-muted-foreground mb-2 md:mb-4">
               Could not verify your admin status. Please try refreshing the page.
             </p>
             <button
@@ -1750,7 +1843,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         <div className="pt-[60px] md:pt-[64px] min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-body text-muted-foreground">Loading admin panel...</p>
+            <p className="text-xs md:text-body text-muted-foreground">Loading admin panel...</p>
           </div>
         </div>
         <Footer />
@@ -1764,20 +1857,20 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
         {/* Header Section */}
         <section className="bg-white border-b border-border">
-          <div className="container mx-auto px-6 md:px-8 py-8 md:py-12">
-            <div className="flex items-center gap-4 mb-2">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Shield className="w-8 h-8 text-primary" />
+          <div className="container mx-auto px-4 md:px-8 py-4 md:py-12">
+            <div className="flex items-center gap-2 md:gap-4 mb-1 md:mb-2">
+              <div className="p-2 md:p-3 bg-primary/10 rounded-lg">
+                <Shield className="w-5 h-5 md:w-8 md:h-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl md:text-4xl font-medium">Admin Dashboard</h1>
-                <p className="text-body text-muted-foreground mt-1">
+                <h1 className="text-xl md:text-4xl font-medium">Admin Dashboard</h1>
+                <p className="text-xs md:text-body text-muted-foreground mt-0.5 md:mt-1">
                   Manage users, designers, products, and view audit logs
                 </p>
               </div>
             </div>
             {session?.user && (
-              <div className="mt-4 text-sm text-muted-foreground">
+              <div className="mt-2 md:mt-4 text-xs md:text-sm text-muted-foreground">
                 Logged in as <span className="font-medium text-foreground">{session.user.email}</span>
               </div>
             )}
@@ -1786,102 +1879,364 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
         {/* Tabs Navigation */}
         <section className="bg-white border-b border-border sticky top-[60px] md:top-[64px] z-10">
-          <div className="container mx-auto px-6 md:px-8">
-            <div className="flex gap-1 overflow-x-auto">
+          <div className="container mx-auto px-4 md:px-8">
+            <div className="flex gap-0.5 md:gap-1 overflow-x-auto">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "overview"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <BarChart3 className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                Overview
+              </button>
               <button
                 onClick={() => setActiveTab("users")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "users"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <UserCog className="w-4 h-4 inline mr-2" />
-                Users ({users.length})
+                <UserCog className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Users </span>({users.length})
               </button>
               <button
                 onClick={() => setActiveTab("designers")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "designers"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <Users className="w-4 h-4 inline mr-2" />
-                Designers ({designers.length})
+                <Users className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Designers </span>({designers.length})
               </button>
               <button
                 onClick={() => setActiveTab("products")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "products"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <Package className="w-4 h-4 inline mr-2" />
-                Products ({products.length})
+                <Package className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Products </span>({products.length})
               </button>
               <button
                 onClick={() => setActiveTab("contracts")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "contracts"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <FileText className="w-4 h-4 inline mr-2" />
-                Contracts ({contracts.length})
+                <FileText className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Contracts </span>({contracts.length})
               </button>
               <button
                 onClick={() => setActiveTab("audit")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "audit"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <FileTextIcon className="w-4 h-4 inline mr-2" />
-                Audit Logs
+                <FileTextIcon className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Audit Logs</span>
+                <span className="sm:hidden">Audit</span>
               </button>
               <button
                 onClick={() => setActiveTab("portfolios")}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                className={`px-3 md:px-6 py-2 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "portfolios"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                <Briefcase className="w-4 h-4 inline mr-2" />
-                Portfolios ({designers.filter(d => d.status === "approved").length})
+                <Briefcase className="w-3 h-3 md:w-4 md:h-4 inline mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Portfolios </span>({designers.filter(d => d.status === "approved").length})
               </button>
             </div>
           </div>
         </section>
 
         {/* Content Section */}
-        <section className="py-8 md:py-12">
-          <div className="container mx-auto px-6 md:px-8">
+        <section className="py-4 md:py-12">
+          <div className="container mx-auto px-4 md:px-8">
+            {/* Overview Tab */}
+            {activeTab === "overview" && (
+              <div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-10 md:py-20">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Statistics Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
+                      {/* Total Users Card */}
+                      <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-2 md:mb-4">
+                          <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
+                            <Users className="w-4 h-4 md:w-6 md:h-6 text-blue-600" />
+                          </div>
+                          <TrendingUp className="w-3.5 h-3.5 md:w-5 md:h-5 text-green-500" />
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold mb-0.5 md:mb-1">{dashboardStats.totalUsers}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Users</p>
+                        <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-border">
+                          <div className="flex justify-between text-[10px] md:text-xs">
+                            <span className="text-muted-foreground">Members: {users.filter(u => u.role === 'member').length}</span>
+                            <span className="text-muted-foreground">Admins: {users.filter(u => u.role === 'admin').length}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Designers Card */}
+                      <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-2 md:mb-4">
+                          <div className="p-2 md:p-3 bg-purple-100 rounded-lg">
+                            <Briefcase className="w-4 h-4 md:w-6 md:h-6 text-purple-600" />
+                          </div>
+                          {dashboardStats.pendingDesigners > 0 && (
+                            <AlertCircle className="w-3.5 h-3.5 md:w-5 md:h-5 text-orange-500" />
+                          )}
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold mb-0.5 md:mb-1">{dashboardStats.totalDesigners}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Designers</p>
+                        <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-border">
+                          <div className="flex justify-between text-[10px] md:text-xs">
+                            <span className="text-muted-foreground">Approved: {designers.filter(d => d.status === 'approved').length}</span>
+                            <span className="text-orange-600 font-medium">Pending: {dashboardStats.pendingDesigners}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Products Card */}
+                      <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-2 md:mb-4">
+                          <div className="p-2 md:p-3 bg-green-100 rounded-lg">
+                            <Package className="w-4 h-4 md:w-6 md:h-6 text-green-600" />
+                          </div>
+                          <TrendingUp className="w-3.5 h-3.5 md:w-5 md:h-5 text-green-500" />
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold mb-0.5 md:mb-1">{dashboardStats.totalProducts}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Products</p>
+                        <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-border">
+                          <div className="flex justify-between text-[10px] md:text-xs">
+                            <span className="text-muted-foreground">In Stock: {products.filter(p => (p.stock || 0) > 0).length}</span>
+                            <span className="text-muted-foreground">Out of Stock: {products.filter(p => (p.stock || 0) === 0).length}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Total Contracts Card */}
+                      <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-2 md:mb-4">
+                          <div className="p-2 md:p-3 bg-orange-100 rounded-lg">
+                            <FileText className="w-4 h-4 md:w-6 md:h-6 text-orange-600" />
+                          </div>
+                          <Activity className="w-3.5 h-3.5 md:w-5 md:h-5 text-blue-500" />
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-bold mb-0.5 md:mb-1">{dashboardStats.totalContracts}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Contracts</p>
+                        <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-border">
+                          <div className="flex justify-between text-[10px] md:text-xs">
+                            <span className="text-green-600 font-medium">Active: {dashboardStats.activeContracts}</span>
+                            <span className="text-muted-foreground">Completed: {contracts.filter(c => c.status === 'completed').length}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Stats and Recent Activity */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8">
+                      {/* Status Breakdown */}
+                      <div className="lg:col-span-2 bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm">
+                        <h2 className="text-base md:text-xl font-semibold mb-2 md:mb-4 flex items-center gap-1.5 md:gap-2">
+                          <BarChart3 className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                          Status Overview
+                        </h2>
+                        <div className="space-y-2 md:space-y-4">
+                          {/* Designer Status */}
+                          <div>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <span className="text-xs md:text-sm font-medium">Designers</span>
+                              <span className="text-[10px] md:text-xs text-muted-foreground">{designers.length} total</span>
+                            </div>
+                            <div className="flex gap-1.5 md:gap-2">
+                              <div className="flex-1 bg-green-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-green-700">{designers.filter(d => d.status === 'approved').length}</div>
+                                <div className="text-[10px] md:text-xs text-green-600">Approved</div>
+                              </div>
+                              <div className="flex-1 bg-orange-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-orange-700">{designers.filter(d => d.status === 'pending').length}</div>
+                                <div className="text-[10px] md:text-xs text-orange-600">Pending</div>
+                              </div>
+                              <div className="flex-1 bg-red-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-red-700">{designers.filter(d => d.status === 'rejected').length}</div>
+                                <div className="text-[10px] md:text-xs text-red-600">Rejected</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Contract Status */}
+                          <div>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <span className="text-xs md:text-sm font-medium">Contracts</span>
+                              <span className="text-[10px] md:text-xs text-muted-foreground">{contracts.length} total</span>
+                            </div>
+                            <div className="flex gap-1.5 md:gap-2">
+                              <div className="flex-1 bg-blue-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-blue-700">{contracts.filter(c => c.status === 'pending').length}</div>
+                                <div className="text-[10px] md:text-xs text-blue-600">Pending</div>
+                              </div>
+                              <div className="flex-1 bg-green-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-green-700">{contracts.filter(c => c.status === 'awarded').length}</div>
+                                <div className="text-[10px] md:text-xs text-green-600">Awarded</div>
+                              </div>
+                              <div className="flex-1 bg-gray-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-gray-700">{contracts.filter(c => c.status === 'completed').length}</div>
+                                <div className="text-[10px] md:text-xs text-gray-600">Completed</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* User Roles */}
+                          <div>
+                            <div className="flex justify-between items-center mb-1 md:mb-2">
+                              <span className="text-xs md:text-sm font-medium">User Roles</span>
+                              <span className="text-[10px] md:text-xs text-muted-foreground">{users.length} total</span>
+                            </div>
+                            <div className="flex gap-1.5 md:gap-2">
+                              <div className="flex-1 bg-blue-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-blue-700">{users.filter(u => u.role === 'member').length}</div>
+                                <div className="text-[10px] md:text-xs text-blue-600">Members</div>
+                              </div>
+                              <div className="flex-1 bg-purple-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-purple-700">{users.filter(u => u.role === 'designer').length}</div>
+                                <div className="text-[10px] md:text-xs text-purple-600">Designers</div>
+                              </div>
+                              <div className="flex-1 bg-orange-50 rounded p-1.5 md:p-2 text-center">
+                                <div className="text-sm md:text-lg font-bold text-orange-700">{users.filter(u => u.role === 'admin').length}</div>
+                                <div className="text-[10px] md:text-xs text-orange-600">Admins</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Recent Activity */}
+                      <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm">
+                        <h2 className="text-base md:text-xl font-semibold mb-2 md:mb-4 flex items-center gap-1.5 md:gap-2">
+                          <Clock className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                          Recent Activity
+                        </h2>
+                        <div className="space-y-2 md:space-y-3 max-h-64 md:max-h-96 overflow-y-auto">
+                          {dashboardStats.recentActivity.length > 0 ? (
+                            dashboardStats.recentActivity.map((log) => (
+                              <div key={log.id} className="border-l-2 border-primary pl-2 md:pl-3 py-1.5 md:py-2">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs md:text-sm font-medium truncate">{log.action}</p>
+                                    <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1 truncate">
+                                      {log.performedByName || log.performedByEmail || 'System'}
+                                    </p>
+                                    {log.details && (
+                                      <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1 line-clamp-1">{log.details}</p>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] md:text-xs text-muted-foreground whitespace-nowrap ml-1 md:ml-2 flex-shrink-0">
+                                    {new Date(log.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 md:py-8 text-muted-foreground">
+                              <Activity className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-1 md:mb-2 opacity-50" />
+                              <p className="text-xs md:text-sm">No recent activity</p>
+                            </div>
+                          )}
+                        </div>
+                        {dashboardStats.recentActivity.length > 0 && (
+                          <button
+                            onClick={() => setActiveTab("audit")}
+                            className="mt-2 md:mt-4 w-full text-xs md:text-sm text-primary hover:underline"
+                          >
+                            View all audit logs →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm">
+                      <h2 className="text-base md:text-xl font-semibold mb-2 md:mb-4">Quick Actions</h2>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                        <button
+                          onClick={() => setActiveTab("users")}
+                          className="p-2.5 md:p-4 border border-border rounded-lg hover:bg-primary/5 hover:border-primary transition-colors text-left"
+                        >
+                          <UserCog className="w-3.5 h-3.5 md:w-5 md:h-5 mb-1 md:mb-2 text-primary" />
+                          <div className="font-medium text-xs md:text-sm">Manage Users</div>
+                          <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">{users.length} users</div>
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("designers")}
+                          className="p-2.5 md:p-4 border border-border rounded-lg hover:bg-primary/5 hover:border-primary transition-colors text-left"
+                        >
+                          <Users className="w-3.5 h-3.5 md:w-5 md:h-5 mb-1 md:mb-2 text-primary" />
+                          <div className="font-medium text-xs md:text-sm">Manage Designers</div>
+                          <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">{designers.length} designers</div>
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("products")}
+                          className="p-2.5 md:p-4 border border-border rounded-lg hover:bg-primary/5 hover:border-primary transition-colors text-left"
+                        >
+                          <Package className="w-3.5 h-3.5 md:w-5 md:h-5 mb-1 md:mb-2 text-primary" />
+                          <div className="font-medium text-xs md:text-sm">Manage Products</div>
+                          <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">{products.length} products</div>
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("contracts")}
+                          className="p-2.5 md:p-4 border border-border rounded-lg hover:bg-primary/5 hover:border-primary transition-colors text-left"
+                        >
+                          <FileText className="w-3.5 h-3.5 md:w-5 md:h-5 mb-1 md:mb-2 text-primary" />
+                          <div className="font-medium text-xs md:text-sm">View Contracts</div>
+                          <div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">{contracts.length} contracts</div>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Users Tab */}
             {activeTab === "users" && (
               <div>
                 {/* Header with Create Button */}
-                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 w-full">
                     <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Search className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 md:w-5 md:h-5 text-muted-foreground" />
                       <input
                         type="text"
-                        placeholder="Search users by name or email..."
+                        placeholder="Search users..."
                         value={userSearchQuery}
                         onChange={(e) => setUserSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        className="w-full pl-7 md:pl-10 pr-2 md:pr-4 py-1.5 md:py-2 text-xs md:text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5 md:gap-2">
                       <select
                         value={roleFilter}
                         onChange={(e) => setRoleFilter(e.target.value)}
-                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                        className="px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
                       >
                         <option value="all">All Roles</option>
                         <option value="member">Member ({users.filter(u => u.role === 'member').length})</option>
@@ -1892,7 +2247,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   </div>
                   <button
                     onClick={() => setShowCreateUserModal(true)}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium w-full md:w-auto"
                   >
                     + Create User
                   </button>
@@ -1900,37 +2255,37 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                 {/* Users List */}
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading users...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading users...</p>
                   </div>
                 ) : filteredUsers.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-border rounded-lg">
-                    <UserCog className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-body text-muted-foreground">
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <UserCog className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
                       {userSearchQuery || roleFilter !== "all"
                         ? "No users match your filters."
                         : "No users found."}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     {filteredUsers.map((user) => (
                       <div
                         key={user.id}
-                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                        className="bg-white border border-border rounded-lg p-3 md:p-6 hover:shadow-md transition-shadow"
                       >
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
                           <div className="flex-1">
-                            <div className="flex items-start gap-4 mb-3">
-                              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                <UserCog className="w-6 h-6 text-primary" />
+                            <div className="flex items-start gap-2 md:gap-4 mb-2 md:mb-3">
+                              <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <UserCog className="w-4 h-4 md:w-6 md:h-6 text-primary" />
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <h3 className="text-xl font-medium">{user.name}</h3>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1">
+                                  <h3 className="text-sm md:text-xl font-medium truncate">{user.name}</h3>
                                   <span
-                                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                    className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${
                                       user.role === "admin"
                                         ? "bg-purple-100 text-purple-700"
                                         : user.role === "designer"
@@ -1941,18 +2296,18 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                     {user.role.toUpperCase()}
                                   </span>
                                   {user.emailVerified && (
-                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700">
+                                    <span className="text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium bg-green-100 text-green-700">
                                       VERIFIED
                                     </span>
                                   )}
                                   {!user.emailVerified && (
-                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                                    <span className="text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
                                       UNVERIFIED
                                     </span>
                                   )}
                                   {user.membership && (
                                     <span
-                                      className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                                      className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${
                                         user.membership.tier === "premier"
                                           ? "bg-purple-100 text-purple-700"
                                           : user.membership.tier === "plus"
@@ -1964,30 +2319,30 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                                  <Mail className="w-4 h-4" />
+                                <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground mb-1 md:mb-2">
+                                  <Mail className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                                   <a
                                     href={`mailto:${user.email}`}
-                                    className="hover:text-primary transition-colors"
+                                    className="hover:text-primary transition-colors truncate"
                                   >
                                     {user.email}
                                   </a>
                                 </div>
-                                <div className="flex flex-col gap-1 mt-2 text-xs text-muted-foreground">
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="w-3 h-3" />
+                                <div className="flex flex-col gap-0.5 md:gap-1 mt-1 md:mt-2 text-[10px] md:text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-1.5 md:gap-2">
+                                    <Calendar className="w-2.5 h-2.5 md:w-3 md:h-3 flex-shrink-0" />
                                     <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
                                   </div>
                                   {user.membership && (
-                                    <div className="flex flex-col gap-2 mt-2">
-                                      <div className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-1 md:gap-2 mt-1 md:mt-2">
+                                      <div className="flex items-center gap-1.5 md:gap-2">
                                         <span className="font-medium">Tier:</span>
                                         <span>{user.membership.tier.toUpperCase()}</span>
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1.5 md:gap-2">
                                         <span className="font-medium">Points:</span>
                                         {editingPointsUserId === user.id ? (
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex items-center gap-1.5 md:gap-2">
                                             <input
                                               type="number"
                                               min="0"
@@ -2012,19 +2367,19 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                                   setEditingPointsUserId(null);
                                                 }
                                               }}
-                                              className="w-24 px-2 py-1 border border-border rounded text-sm"
+                                              className="w-16 md:w-24 px-1.5 md:px-2 py-0.5 md:py-1 border border-border rounded text-xs md:text-sm"
                                               autoFocus
                                             />
                                             <button
                                               onClick={() => setEditingPointsUserId(null)}
-                                              className="text-xs text-muted-foreground hover:text-foreground"
+                                              className="text-[10px] md:text-xs text-muted-foreground hover:text-foreground"
                                             >
                                               Cancel
                                             </button>
                                           </div>
                                         ) : (
                                           <span 
-                                            className="cursor-pointer hover:text-primary underline"
+                                            className="cursor-pointer hover:text-primary underline text-[10px] md:text-xs"
                                             onClick={() => setEditingPointsUserId(user.id)}
                                           >
                                             {user.membership.points}
@@ -2164,17 +2519,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {activeTab === "audit" && (
               <div>
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading audit logs...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading audit logs...</p>
                   </div>
                 ) : auditLogs.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-border rounded-lg">
-                    <FileTextIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-body text-muted-foreground">No audit logs found.</p>
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <FileTextIcon className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">No audit logs found.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     {auditLogs.map((log) => {
                       let details = null;
                       try {
@@ -2186,46 +2541,46 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       return (
                         <div
                           key={log.id}
-                          className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                          className="bg-white border border-border rounded-lg p-3 md:p-6 hover:shadow-md transition-shadow"
                         >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <span className="text-sm font-medium text-primary">
+                          <div className="flex items-start justify-between mb-2 md:mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1 md:mb-2">
+                                <span className="text-xs md:text-sm font-medium text-primary">
                                   {log.action.replace('_', ' ').toUpperCase()}
                                 </span>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-[10px] md:text-xs text-muted-foreground">
                                   {new Date(log.createdAt).toLocaleString()}
                                 </span>
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                <p>
+                              <div className="text-xs md:text-sm text-muted-foreground">
+                                <p className="truncate">
                                   <strong>Performed by:</strong> {log.performedByName || log.performedByEmail || log.performedBy}
                                 </p>
                                 {log.targetUserId && (
-                                  <p className="mt-1">
+                                  <p className="mt-0.5 md:mt-1 truncate">
                                     <strong>Target user:</strong> {details?.targetUserName || details?.targetUserEmail || log.targetUserId}
                                   </p>
                                 )}
                                 {details && (
-                                  <div className="mt-2 p-3 bg-secondary rounded-lg space-y-1">
+                                  <div className="mt-1 md:mt-2 p-2 md:p-3 bg-secondary rounded-lg space-y-0.5 md:space-y-1">
                                     {details.oldRole && details.newRole && (
-                                      <p className="text-sm">
+                                      <p className="text-xs md:text-sm">
                                         <strong>Role change:</strong> {details.oldRole} → {details.newRole}
                                       </p>
                                     )}
                                     {details.oldTier && details.newTier && (
-                                      <p className="text-sm">
+                                      <p className="text-xs md:text-sm">
                                         <strong>Membership tier change:</strong> {details.oldTier} → {details.newTier}
                                       </p>
                                     )}
                                     {details.oldPoints !== undefined && details.newPoints !== undefined && (
-                                      <p className="text-sm">
+                                      <p className="text-xs md:text-sm">
                                         <strong>Points change:</strong> {details.oldPoints} → {details.newPoints}
                                       </p>
                                     )}
                                     {details.oldSpending && details.newSpending && (
-                                      <p className="text-sm">
+                                      <p className="text-xs md:text-sm">
                                         <strong>Spending change:</strong> ${details.oldSpending} → ${details.newSpending}
                                       </p>
                                     )}
@@ -2268,8 +2623,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {activeTab === "portfolios" && (
               <div>
                 {/* Header with Search and Filters */}
-                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
                     <div className="flex-1 relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                       <input
@@ -2297,9 +2652,9 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                 {/* Portfolios List */}
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading portfolios...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading portfolios...</p>
                   </div>
                 ) : (() => {
                   // Filter portfolios
@@ -2327,16 +2682,16 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   }
                   
                   return filtered.length === 0 ? (
-                    <div className="text-center py-16 bg-white border border-border rounded-lg">
-                      <Briefcase className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-body text-muted-foreground">
+                    <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                      <Briefcase className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                      <p className="text-xs md:text-body text-muted-foreground">
                         {portfolioSearchQuery || portfolioStatusFilter !== "all"
                           ? "No portfolios match your filters."
                           : "No portfolios found."}
                       </p>
                     </div>
                   ) : (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
                       {filtered.map((designer) => (
                         <div
                           key={designer.id}
@@ -2349,29 +2704,43 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 src={designer.bannerUrl}
                                 alt={`${designer.name} banner`}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  if (target.parentElement) {
+                                    target.parentElement.innerHTML = '<div class="w-full h-32 bg-gradient-to-br from-secondary to-accent-background"></div>';
+                                  }
+                                }}
                               />
                             </div>
                           ) : (
                             <div className="w-full h-32 bg-gradient-to-br from-secondary to-accent-background" />
                           )}
 
-                          <div className="p-6">
-                            <div className="flex items-start gap-4 mb-4 -mt-12">
+                          <div className="p-3 md:p-6">
+                            <div className="flex items-start gap-2 md:gap-4 mb-2 md:mb-4 -mt-6 md:-mt-12">
                               {/* Avatar */}
                               {designer.avatarUrl ? (
                                 <img
                                   src={designer.avatarUrl}
                                   alt={designer.name}
-                                  className="w-16 h-16 rounded-full border-4 border-white object-cover"
+                                  className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 md:border-4 border-white object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      target.parentElement.innerHTML = '<div class="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 md:border-4 border-white bg-primary/10 flex items-center justify-center"><svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                                    }
+                                  }}
                                 />
                               ) : (
-                                <div className="w-16 h-16 rounded-full border-4 border-white bg-primary/10 flex items-center justify-center">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 md:border-4 border-white bg-primary/10 flex items-center justify-center">
                                   <Users className="w-8 h-8 text-primary" />
                                 </div>
                               )}
                               <div className="flex-1 pt-12">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="text-lg font-medium">{designer.name}</h3>
+                                  <h3 className="text-sm md:text-lg font-medium">{designer.name}</h3>
                                   <span
                                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                       designer.status === "approved"
@@ -2408,7 +2777,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 href={`/designers/${designer.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium"
+                                className="inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-xs md:text-sm font-medium"
                               >
                                 <ExternalLink className="w-4 h-4" />
                                 View Portfolio
@@ -2417,7 +2786,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 onClick={() => {
                                   router.push(`/designers/${designer.id}`);
                                 }}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                                className="inline-flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-xs md:text-sm font-medium"
                               >
                                 <Edit className="w-4 h-4" />
                                 Edit Portfolio
@@ -2447,8 +2816,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {activeTab === "designers" && (
               <div>
                 {/* Header with Create Button */}
-                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
                     <div className="flex-1 relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                       <input
@@ -2479,7 +2848,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       setAvatarPreview(null);
                       setAvatarFile(null);
                     }}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
                   >
                     + Create Designer
                   </button>
@@ -2487,34 +2856,41 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                 {/* Designers List */}
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading designers...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading designers...</p>
                   </div>
                 ) : filteredDesigners.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-border rounded-lg">
-                    <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-body text-muted-foreground">
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <Users className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
                       {searchQuery || statusFilter !== "all"
                         ? "No designers match your filters."
                         : "No designers found."}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     {filteredDesigners.map((designer) => (
                       <div
                         key={designer.id}
-                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                        className="bg-white border border-border rounded-lg p-3 md:p-6 hover:shadow-md transition-shadow"
                       >
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
                           <div className="flex-1">
-                            <div className="flex items-start gap-4 mb-3">
+                            <div className="flex items-start gap-2 md:gap-4 mb-2 md:mb-3">
                               {designer.avatarUrl ? (
                                 <img
                                   src={designer.avatarUrl}
                                   alt={designer.name}
                                   className="w-12 h-12 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      target.parentElement.innerHTML = '<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center"><svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -2675,13 +3051,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 {/* CSV Upload Section */}
                 {!showProductListView && (
                   <div className="max-w-3xl mx-auto">
-                    <div className="bg-white border border-border rounded-lg p-8">
-                      <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-                          <Upload className="w-8 h-8 text-primary" />
+                    <div className="bg-white border border-border rounded-lg p-4 md:p-8">
+                      <div className="text-center mb-4 md:mb-8">
+                        <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-full mb-2 md:mb-4">
+                          <Upload className="w-6 h-6 md:w-8 md:h-8 text-primary" />
                         </div>
-                        <h2 className="text-2xl font-medium mb-2">Bulk Product Upload</h2>
-                        <p className="text-body text-muted-foreground">
+                        <h2 className="text-lg md:text-2xl font-medium mb-1 md:mb-2">Bulk Product Upload</h2>
+                        <p className="text-xs md:text-body text-muted-foreground">
                           Upload a CSV file to add multiple products at once
                         </p>
                       </div>
@@ -2813,7 +3189,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 {showProductListView && (
                   <div>
                     {/* Header with Bulk Actions */}
-                    <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
                       <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <input
@@ -2838,48 +3214,48 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                 {/* Products List */}
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading products...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading products...</p>
                   </div>
                 ) : filteredProducts.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-border rounded-lg">
-                    <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-body text-muted-foreground">
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
                       {productSearchQuery ? "No products match your search." : "No products found."}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     {filteredProducts.map((product) => (
                       <div
                         key={product.id}
-                        className="bg-white border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                        className="bg-white border border-border rounded-lg p-3 md:p-6 hover:shadow-md transition-shadow"
                       >
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                          <div className="flex-1 flex gap-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
+                          <div className="flex-1 flex gap-2 md:gap-4">
                             {product.imageUrl && (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-20 h-20 object-cover rounded-lg"
+                                className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg flex-shrink-0"
                               />
                             )}
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-xl font-medium">{product.name}</h3>
+                              <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1 md:mb-2">
+                                <h3 className="text-sm md:text-xl font-medium truncate">{product.name}</h3>
                                 {product.sku && (
-                                  <span className="text-xs px-2 py-1 bg-secondary rounded text-muted-foreground">
+                                  <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-secondary rounded text-muted-foreground">
                                     SKU: {product.sku}
                                   </span>
                                 )}
                               </div>
                               {product.description && (
-                                <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 line-clamp-2">
                                   {product.description}
                                 </p>
                               )}
-                              <div className="flex items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
                                 <span className="font-medium">${product.price}</span>
                                 {product.category && (
                                   <span className="text-muted-foreground">Category: {product.category}</span>
@@ -2934,8 +3310,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {activeTab === "contracts" && (
               <div>
                 {/* Header with Create Button */}
-                <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex flex-col md:flex-row gap-4 flex-1">
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
                     <div className="flex-1 relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                       <input
@@ -2962,7 +3338,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   </div>
                   <button
                     onClick={() => setShowCreateContractModal(true)}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
                   >
                     + Create Contract
                   </button>
@@ -2970,21 +3346,21 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                 {/* Contracts List */}
                 {loading ? (
-                  <div className="text-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-body text-muted-foreground">Loading contracts...</p>
+                  <div className="text-center py-8 md:py-16">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading contracts...</p>
                   </div>
                 ) : filteredContracts.length === 0 ? (
-                  <div className="text-center py-16 bg-white border border-border rounded-lg">
-                    <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-body text-muted-foreground">
+                  <div className="text-center py-8 md:py-16 bg-white border border-border rounded-lg">
+                    <FileText className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
                       {contractSearchQuery || contractStatusFilter !== "all"
                         ? "No contracts match your filters."
                         : "No contracts found."}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2 md:space-y-4">
                     {filteredContracts.map((contract) => (
                       <div
                         key={contract.id}
@@ -2996,9 +3372,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                           }
                           setViewingContract(contract);
                           setShowContractDetailsModal(true);
+                          if (contract.designerId) {
+                            fetchContractDocuments(contract.designerId, contract.id);
+                          }
                         }}
                       >
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="text-xl font-medium">{contract.title}</h3>
@@ -3031,12 +3410,32 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <strong>Amount:</strong> ${contract.amount}
                               </p>
                             )}
-                            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                              <Calendar className="w-3 h-3" />
-                              <span>Created: {new Date(contract.createdAt).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-3 h-3" />
+                                <span>Created: {new Date(contract.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              {contract.contractFileUrl && (
+                                <div className="flex items-center gap-2 text-green-600">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span className="font-medium">Document Uploaded</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex flex-col gap-2 md:min-w-[150px]">
+                            {contract.contractFileUrl && (
+                              <a
+                                href={contract.contractFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View Document
+                              </a>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -3240,7 +3639,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <div className="space-y-2">
                   {/* Image Preview */}
                   {avatarPreview && (
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                    <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-lg overflow-hidden border border-border">
                       <img
                         src={avatarPreview}
                         alt="Avatar preview"
@@ -3517,7 +3916,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">Current avatar</label>
                       {editingDesigner.avatarUrl ? (
-                        <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                        <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-lg overflow-hidden border border-border">
                           <img
                             src={editingDesigner.avatarUrl}
                             alt="Current avatar"
@@ -3546,7 +3945,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   
                   {/* New Upload Preview */}
                   {avatarPreview && (
-                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border border-border">
+                    <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-lg overflow-hidden border border-border">
                       <img
                         src={avatarPreview}
                         alt="New avatar preview"
@@ -3972,25 +4371,57 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-medium mb-4">Edit Contract</h2>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
-                updateContract(editingContract.id, {
-                  title: formData.get("title") as string,
-                  description: formData.get("description") as string || undefined,
-                  amount: formData.get("amount") as string || undefined,
+                const designerIdValue = formData.get("designerId") as string;
+                const designIdValue = formData.get("designId") as string;
+                
+                // Ensure designerId is always sent (required field)
+                const designerId = designerIdValue && designerIdValue !== "" 
+                  ? parseInt(designerIdValue) 
+                  : editingContract.designerId;
+                
+                if (!designerId) {
+                  toast.error("Designer is required");
+                  return;
+                }
+                
+                const titleValue = (formData.get("title") as string)?.trim();
+                if (!titleValue) {
+                  toast.error("Title is required");
+                  return;
+                }
+                
+                const updates: Partial<Contract> = {
+                  title: titleValue,
                   status: formData.get("status") as string,
-                  designerId: formData.get("designerId") ? parseInt(formData.get("designerId") as string) : undefined,
-                  designId: formData.get("designId") ? parseInt(formData.get("designId") as string) : undefined,
-                });
+                  designerId: designerId,
+                };
+                
+                const description = (formData.get("description") as string)?.trim() || "";
+                const amount = (formData.get("amount") as string)?.trim() || "";
+                
+                const updatePayload: any = { ...updates };
+                updatePayload.description = description || null;
+                updatePayload.amount = amount || null;
+                
+                if (designIdValue && designIdValue !== "") {
+                  updatePayload.designId = parseInt(designIdValue);
+                } else if (editingContract.designId) {
+                  updatePayload.designId = null;
+                }
+                
+                await updateContract(editingContract.id, updatePayload);
               }}
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm font-medium mb-1">Designer</label>
+                <label className="block text-sm font-medium mb-1">Designer *</label>
                 <select
                   name="designerId"
                   defaultValue={editingContract.designerId}
+                  required
                   onChange={(e) => {
                     const designerId = parseInt(e.target.value);
                     setSelectedDesignerId(designerId || null);
@@ -4104,6 +4535,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 onClick={() => {
                   setShowContractDetailsModal(false);
                   setViewingContract(null);
+                  setContractDocuments([]);
                 }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -4249,40 +4681,80 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               <div>
                 <h3 className="text-lg font-medium mb-4 pb-2 border-b">Documents</h3>
                 <div className="space-y-3">
-                  {viewingContract.contractFileUrl ? (
-                    <div className="border border-border rounded-lg p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <FileTextIcon className="w-8 h-8 text-red-600" />
-                        <div>
-                          <p className="font-medium">Contract PDF</p>
-                          <p className="text-sm text-muted-foreground">Contract document</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <a
-                          href={viewingContract.contractFileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          View
-                        </a>
-                        <a
-                          href={viewingContract.contractFileUrl}
-                          download
-                          className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download
-                        </a>
-                      </div>
+                  {loadingContractDocuments ? (
+                    <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
+                      <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin text-primary" />
+                      <p className="text-sm">Loading documents...</p>
                     </div>
                   ) : (
-                    <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
-                      <FileTextIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>No contract document available</p>
-                    </div>
+                    <>
+                      {viewingContract.contractFileUrl && (
+                        <div className="border border-border rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileTextIcon className="w-8 h-8 text-red-600" />
+                            <div>
+                              <p className="font-medium">Contract PDF</p>
+                              <p className="text-sm text-muted-foreground">Contract document</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href={viewingContract.contractFileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              View
+                            </a>
+                            <a
+                              href={viewingContract.contractFileUrl}
+                              download
+                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      {contractDocuments.map((doc) => (
+                        <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <FileTextIcon className="w-8 h-8 text-blue-600" />
+                            <div>
+                              <p className="font-medium">{doc.title}</p>
+                              <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <a
+                              href={doc.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              View
+                            </a>
+                            <a
+                              href={doc.fileUrl}
+                              download
+                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                            >
+                              <Download className="w-4 h-4" />
+                              Download
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                      {!viewingContract.contractFileUrl && contractDocuments.length === 0 && (
+                        <div className="border border-border rounded-lg p-4 text-center text-muted-foreground">
+                          <FileTextIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No contract document available</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -4293,6 +4765,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   onClick={() => {
                     setViewingContract(null);
                     setShowContractDetailsModal(false);
+                    setContractDocuments([]);
                     setEditingContract(viewingContract);
                     setShowEditContractModal(true);
                   }}
@@ -4305,6 +4778,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   onClick={() => {
                     setShowContractDetailsModal(false);
                     setViewingContract(null);
+                    setContractDocuments([]);
                   }}
                   className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary"
                 >
