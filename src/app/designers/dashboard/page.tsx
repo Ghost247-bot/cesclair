@@ -576,12 +576,12 @@ export default function DesignerDashboardPage() {
       const method = editingDesign ? 'PUT' : 'POST';
 
       const requestBody = {
-        ...(editingDesign ? {} : { designerId: designer.id }),
-        title: designForm.title.trim(),
-        description: designForm.description.trim() || null,
-        category: designForm.category.trim() || null,
-        imageUrl: designForm.imageUrl || null,
-        status: editingDesign ? undefined : 'draft', // New designs start as draft
+          ...(editingDesign ? {} : { designerId: designer.id }),
+          title: designForm.title.trim(),
+          description: designForm.description.trim() || null,
+          category: designForm.category.trim() || null,
+          imageUrl: designForm.imageUrl || null,
+          status: editingDesign ? undefined : 'draft', // New designs start as draft
       };
 
       console.log('Saving design:', { url, method, requestBody });
@@ -1994,12 +1994,12 @@ export default function DesignerDashboardPage() {
                               }}
                             />
                           ) : (
-                            <Image
-                              src={design.imageUrl}
-                              alt={design.title}
-                              fill
-                              className="object-cover"
-                            />
+                          <Image
+                            src={design.imageUrl}
+                            alt={design.title}
+                            fill
+                            className="object-cover"
+                          />
                           )}
                         </div>
                       )}
@@ -2144,12 +2144,12 @@ export default function DesignerDashboardPage() {
                                   }}
                                 />
                               ) : (
-                                <Image
-                                  src={designForm.imageUrl}
-                                  alt="Design preview"
-                                  fill
-                                  className="object-cover"
-                                />
+                              <Image
+                                src={designForm.imageUrl}
+                                alt="Design preview"
+                                fill
+                                className="object-cover"
+                              />
                               )}
                             </div>
                             <button
@@ -2213,9 +2213,9 @@ export default function DesignerDashboardPage() {
                               Uploading...
                             </span>
                           ) : (
-                            <span className="text-button-primary">
-                              {editingDesign ? 'UPDATE DESIGN' : 'CREATE DESIGN'}
-                            </span>
+                          <span className="text-button-primary">
+                            {editingDesign ? 'UPDATE DESIGN' : 'CREATE DESIGN'}
+                          </span>
                           )}
                         </button>
                       </div>

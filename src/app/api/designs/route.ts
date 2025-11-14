@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Pagination parameters
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 100);
+    // Pagination parameters - allow up to 10000 designs to be fetched (effectively all designs)
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 10000);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     
     // Filter parameters
@@ -45,13 +45,15 @@ export async function GET(request: NextRequest) {
     // Build WHERE conditions
     const conditions = [];
 
-    // Search condition
+    // Search condition - search in design fields and designer name/email
     if (search) {
       conditions.push(
         or(
           like(designs.title, `%${search}%`),
           like(designs.description, `%${search}%`),
-          like(designs.category, `%${search}%`)
+          like(designs.category, `%${search}%`),
+          like(designers.name, `%${search}%`),
+          like(designers.email, `%${search}%`)
         )
       );
     }

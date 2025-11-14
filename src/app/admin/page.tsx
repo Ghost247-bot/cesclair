@@ -581,23 +581,52 @@ export default function AdminPage() {
   const fetchDesignsForReview = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/designs?limit=500", {
+      const response = await fetch("/api/designs?limit=10000", {
         credentials: 'include'
       });
-      if (response.ok) {
-        const data = await response.json();
-        const designsList = Array.isArray(data) ? data : [];
-        setDesignsForReview(designsList);
-        setFilteredDesignsForReview(designsList);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData?.error || "Failed to load designs";
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
+        const errorMessage = errorData?.error || `Failed to load designs: ${response.status} ${response.statusText}`;
         console.error("Failed to fetch designs:", errorData);
         toast.error(errorMessage);
+        setDesignsForReview([]);
+        setFilteredDesignsForReview([]);
+        return;
       }
+      
+      const data = await response.json();
+      const designsList = Array.isArray(data) ? data : [];
+      
+      // Ensure all designs have the required structure with designer information
+      const formattedDesigns = designsList.map((design: any) => ({
+        id: design.id,
+        designerId: design.designerId,
+        title: design.title,
+        description: design.description || null,
+        imageUrl: design.imageUrl || null,
+        category: design.category || null,
+        status: design.status || 'draft',
+        createdAt: design.createdAt ? new Date(design.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: design.updatedAt ? new Date(design.updatedAt).toISOString() : new Date().toISOString(),
+        designer: design.designer || {
+          id: design.designerId,
+          name: 'Unknown Designer',
+          email: '',
+          bio: null,
+          portfolioUrl: null,
+          specialties: null,
+          avatarUrl: null,
+        },
+      }));
+      
+      setDesignsForReview(formattedDesigns);
+      setFilteredDesignsForReview(formattedDesigns);
     } catch (error) {
       console.error("Failed to fetch designs:", error);
       toast.error("Failed to load designs. Please check your connection.");
+      setDesignsForReview([]);
+      setFilteredDesignsForReview([]);
     } finally {
       setLoading(false);
     }
@@ -5128,7 +5157,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     if (contractToEdit) {
                       setEditingContract(contractToEdit);
                       setSelectedDesignerId(contractToEdit.designerId);
-                      setShowEditContractModal(true);
+                    setShowEditContractModal(true);
                     }
                   }}
                   className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center justify-center gap-2"
