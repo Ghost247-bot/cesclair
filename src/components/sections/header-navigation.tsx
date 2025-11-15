@@ -599,7 +599,7 @@ const HeaderNavigation = () => {
                 </div>
 
                 <Link
-                  href="/checkout?step=shipping"
+                  href="/checkout?step=cart"
                   onClick={() => setIsCartOpen(false)}
                   className="w-full bg-primary text-primary-foreground uppercase text-[13px] font-medium tracking-[0.05em] py-4 rounded-[2px] hover:bg-gray-800 transition-colors text-center block"
                 >

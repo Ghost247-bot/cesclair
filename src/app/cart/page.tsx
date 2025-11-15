@@ -102,7 +102,7 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    router.push('/checkout?step=shipping');
+    router.push('/checkout?step=cart');
   };
 
   if (loading) {

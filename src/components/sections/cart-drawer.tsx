@@ -79,9 +79,12 @@ export default function CartDrawer() {
             <p className="text-lg font-bold">$0.00</p>
           </div>
 
-          <button className="w-full bg-primary text-primary-foreground uppercase text-[13px] font-medium tracking-[0.05em] py-4 rounded-[2px] hover:bg-gray-800 transition-colors">
+          <Link
+            href="/checkout?step=cart"
+            className="w-full bg-primary text-primary-foreground uppercase text-[13px] font-medium tracking-[0.05em] py-4 rounded-[2px] hover:bg-gray-800 transition-colors text-center block"
+          >
             Continue to Checkout
-          </button>
+          </Link>
         </div>
       </aside>
     </div>

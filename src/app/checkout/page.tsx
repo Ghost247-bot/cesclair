@@ -216,6 +216,73 @@ function CheckoutContent() {
 
   const currentStepIndex = steps.findIndex((s) => s.id === step);
 
+  // Determine which steps are completed based on saved data and progress
+  const isStepCompleted = (stepId: string, currentIndex: number) => {
+    const stepIndex = steps.findIndex((s) => s.id === stepId);
+    
+    // Steps before the current step are always completed
+    if (stepIndex < currentIndex) return true;
+    
+    // For the current step and beyond, check if data exists
+    if (stepId === 'cart') {
+      return cartItems.length > 0; // Cart is completed if there are items
+    }
+    if (stepId === 'auth') {
+      // Auth is completed if user is logged in OR guest checkout is selected
+      return !!session?.user || localStorage.getItem('checkout_guest') === 'true';
+    }
+    if (stepId === 'shipping') {
+      // Shipping is completed if shipping data exists
+      return !!localStorage.getItem('checkout_shipping');
+    }
+    if (stepId === 'payment') {
+      // Payment is completed if payment data exists
+      return !!localStorage.getItem('checkout_payment');
+    }
+    if (stepId === 'review') {
+      // Review is only completed if we've placed the order (redirected to success)
+      return false;
+    }
+    
+    return false;
+  };
+
+  // Validate step access - prevent skipping steps
+  const canAccessStep = (stepId: string, currentIndex: number) => {
+    const stepIndex = steps.findIndex((s) => s.id === stepId);
+    
+    // Can access current step or any completed step
+    if (stepIndex === currentIndex) return true;
+    if (stepIndex < currentIndex) return true;
+    
+    // Can access next step only if current step is completed
+    if (stepIndex === currentIndex + 1) {
+      const currentStepId = steps[currentIndex].id;
+      return isStepCompleted(currentStepId, currentIndex);
+    }
+    
+    // Cannot access future steps beyond next
+    return false;
+  };
+
+  // Redirect if trying to access an invalid step
+  useEffect(() => {
+    if (!loading && step && !canAccessStep(step, currentStepIndex)) {
+      // Find the furthest accessible step
+      let furthestStep = 'cart';
+      for (let i = 0; i < steps.length; i++) {
+        if (isStepCompleted(steps[i].id, currentStepIndex) || i === currentStepIndex) {
+          furthestStep = steps[i].id;
+        } else {
+          break;
+        }
+      }
+      if (furthestStep !== step) {
+        router.push(`/checkout?step=${furthestStep}`);
+      }
+    }
+  }, [step, currentStepIndex, loading, router, session]);
+
   if (loading) {
     return (
       <>
@@ -265,8 +332,9 @@ function CheckoutContent() {
               {steps.map((stepItem, index) => {
                 const Icon = stepItem.icon;
                 const isActive = index === currentStepIndex;
-                const isCompleted = index < currentStepIndex;
-                const isClickable = index <= currentStepIndex;
+                const isCompleted = isStepCompleted(stepItem.id, currentStepIndex);
+                // Allow clicking on current step or any completed step, but not future steps
+                const isClickable = isCompleted || isActive;
 
                 return (
                   <React.Fragment key={stepItem.id}>
@@ -281,7 +349,7 @@ function CheckoutContent() {
                             : 'border-gray-300 bg-white text-gray-400'
                         } ${!isClickable ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                       >
-                        {isCompleted && stepItem.id !== 'auth' ? (
+                        {isCompleted ? (
                           <Check className="w-5 h-5 sm:w-6 sm:h-6" />
                         ) : (
                           <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -289,7 +357,7 @@ function CheckoutContent() {
                       </Link>
                       <span
                         className={`mt-2 text-[10px] sm:text-xs font-medium uppercase tracking-wider text-center ${
-                          isActive ? 'text-black' : 'text-gray-400'
+                          isActive || isCompleted ? 'text-black' : 'text-gray-400'
                         }`}
                       >
                         {stepItem.label}
@@ -362,7 +430,9 @@ function CheckoutContent() {
                     </div>
                     <button
                       onClick={() => {
-                        // Check if user is logged in, if not go to auth step
+                        // Stay on cart step - no need to navigate
+                        // The button text should probably be "Continue to Shipping" or removed
+                        // But for now, if user is not logged in, go to auth step
                         if (!sessionPending && !session?.user) {
                           router.push('/checkout?step=auth');
                         } else {
@@ -371,7 +441,7 @@ function CheckoutContent() {
                       }}
                       className="w-full bg-black text-white py-3 sm:py-4 uppercase text-xs sm:text-sm font-medium tracking-wider hover:bg-gray-800 transition-colors"
                     >
-                      Continue to Checkout
+                      Continue to Shipping
                     </button>
                   </div>
                 </div>
@@ -815,10 +885,10 @@ function CheckoutContent() {
                   </p>
                   <div className="space-y-3 sm:space-y-4">
                     <button
-                      onClick={() => router.push('/checkout/success')}
+                      onClick={() => router.push('/checkout/review')}
                       className="w-full bg-black text-white py-3 sm:py-4 uppercase text-xs sm:text-sm font-medium tracking-wider hover:bg-gray-800 transition-colors"
                     >
-                      Place Order
+                      Continue to Review
                     </button>
                     <button
                       onClick={() => router.push('/checkout?step=payment')}
