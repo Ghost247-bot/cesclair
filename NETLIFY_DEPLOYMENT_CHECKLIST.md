@@ -41,11 +41,8 @@ Use this checklist to ensure a successful deployment to Netlify.
 
 ### Optional Environment Variables
 - [ ] `BETTER_AUTH_URL` - If different from site URL
-- [ ] `DOCUSIGN_USER_ID` - If using DocuSign
-- [ ] `DOCUSIGN_ACCOUNT_ID` - If using DocuSign
-- [ ] `DOCUSIGN_BASE_PATH` - If using DocuSign
-- [ ] `DOCUSIGN_INTEGRATION_KEY` - If using DocuSign
-- [ ] `DOCUSIGN_PRIVATE_KEY` - If using DocuSign
+- [ ] `SIGNWELL_API_KEY` - If using SignWell integration
+- [ ] `SIGNWELL_API_BASE` - If using SignWell integration (optional)
 
 ## 🚀 Deployment
 

@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Footer from "@/components/sections/footer";
-import { SigningFrame } from "@/components/docusign/SigningFrame";
+import { SigningFrame } from "@/components/signwell/SigningFrame";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 import {
@@ -494,10 +494,9 @@ export default function DesignerDashboardPage() {
   };
 
   const handleSignContract = (contract: Contract) => {
-    // Show a warning if envelopeId is missing, but still allow signing
-    // since SigningFrame is a placeholder and doesn't require DocuSign integration yet
-    if (!contract.envelopeId) {
-      toast.warning('This contract does not have an envelope ID. Signing will proceed without DocuSign integration.');
+    if (!contract.contractFileUrl) {
+      toast.warning('This contract does not have a file attached. Please attach a contract file first.');
+      return;
     }
     setSigningContract(contract);
     // Scroll to signing section after a brief delay
@@ -2580,6 +2579,7 @@ export default function DesignerDashboardPage() {
                     contractTitle={signingContract.title}
                     contractDescription={signingContract.description || ""}
                     amount={signingContract.amount || "0"}
+                    contractFileUrl={signingContract.contractFileUrl || null}
                     onSigningComplete={handleSigningComplete}
                     onError={handleSigningError}
                   />
@@ -3374,7 +3374,7 @@ export default function DesignerDashboardPage() {
                   {/* Envelope URL */}
                   {viewingContract.envelopeUrl && (
                     <div className="pt-4 border-t border-border">
-                      <label className="text-label text-muted-foreground block mb-3">DocuSign Envelope</label>
+                      <label className="text-label text-muted-foreground block mb-3">Signing Document</label>
                       <a
                         href={viewingContract.envelopeUrl || undefined}
                         target="_blank"
@@ -3382,7 +3382,7 @@ export default function DesignerDashboardPage() {
                         className="inline-flex items-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
                       >
                         <ExternalLink className="w-4 h-4" />
-                        <span>Open in DocuSign</span>
+                        <span>Open Signing Page</span>
                       </a>
                     </div>
                   )}

@@ -188,7 +188,19 @@ export default function ProductDetailPageClient() {
         throw new Error(errorData.error || 'Failed to add to cart');
       }
       
+      const data = await response.json();
+      
+      // Store session ID in localStorage if provided (for guest users)
+      if (data.sessionId) {
+        localStorage.setItem('cart_session_id', data.sessionId);
+      }
+      
       toast.success('Added to bag');
+      
+      // Wait a bit for cookie to be set, then dispatch event
+      setTimeout(() => {
+        window.dispatchEvent(new Event('cartUpdated'));
+      }, 100);
       
       // Reset quantity after successful add
       setQuantity(1);

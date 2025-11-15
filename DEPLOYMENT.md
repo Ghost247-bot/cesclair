@@ -10,7 +10,7 @@ Use this checklist to ensure your application is ready for deployment.
 - [ ] Generate a secure `BETTER_AUTH_SECRET` using: `openssl rand -base64 32`
 - [ ] Verify `DATABASE_URL` is correctly configured for production
 - [ ] Set `NEXT_PUBLIC_SITE_URL` to your production domain
-- [ ] Configure DocuSign credentials (if using DocuSign integration)
+- [ ] Configure SignWell credentials (if using SignWell integration)
 
 ### Database
 - [ ] Ensure Neon PostgreSQL database is accessible from your deployment platform
@@ -52,11 +52,8 @@ Use this checklist to ensure your application is ready for deployment.
    - [ ] `BETTER_AUTH_SECRET` - Secure random string (32+ characters)
    - [ ] `NEXT_PUBLIC_SITE_URL` - Your Vercel deployment URL
    - [ ] `BETTER_AUTH_URL` - (Optional) Override auth URL
-   - [ ] `DOCUSIGN_USER_ID` - (If using DocuSign)
-   - [ ] `DOCUSIGN_ACCOUNT_ID` - (If using DocuSign)
-   - [ ] `DOCUSIGN_BASE_PATH` - (If using DocuSign)
-   - [ ] `DOCUSIGN_INTEGRATION_KEY` - (If using DocuSign)
-   - [ ] `DOCUSIGN_PRIVATE_KEY` - (If using DocuSign)
+   - [ ] `SIGNWELL_API_KEY` - (If using SignWell)
+   - [ ] `SIGNWELL_API_BASE` - (If using SignWell, optional)
 
 4. **Deploy**
    - [ ] Click "Deploy"

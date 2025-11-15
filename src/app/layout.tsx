@@ -4,6 +4,7 @@ import "./dashboard-responsive.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
+import Footer from "@/components/sections/footer";
 import Script from "next/script";
 import RouteMessengerScript from "@/components/RouteMessengerScript";
 import { Toaster } from "@/components/ui/sonner";
@@ -178,6 +179,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        <Footer />
         <VisualEditsMessenger />
         <Toaster />
       </body>

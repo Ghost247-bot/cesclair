@@ -106,6 +106,23 @@ export default function CesworldRegister() {
 
       toast.success("Account created successfully!");
 
+      // Link any guest orders to the new account
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const linkResponse = await fetch('/api/orders/link-guest-orders', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (linkResponse.ok) {
+          const linkData = await linkResponse.json();
+          if (linkData.linkedCount > 0) {
+            console.log(`Linked ${linkData.linkedCount} guest order(s) to account`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to link guest orders:', error);
+      }
+
       // Create Cesworld member profile for all new registrations
       try {
         // Wait a bit more for session to be fully set

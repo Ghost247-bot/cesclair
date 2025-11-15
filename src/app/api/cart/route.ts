@@ -3,14 +3,35 @@ import { db } from '@/db';
 import { cartItems, products } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { auth } from '@/lib/auth';
 
 // GET - Get cart items
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id');
+    // Try to get authenticated user first
+    let userId: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: request.headers });
+      userId = session?.user?.id || null;
+    } catch (error) {
+      // If auth fails, continue as guest
+    }
+
+    // Fall back to header or session cookie for guest users
+    if (!userId) {
+      userId = request.headers.get('x-user-id');
+    }
+    // Check header first (from localStorage), then cookie
     const sessionId = request.headers.get('x-session-id') || request.cookies.get('session_id')?.value;
 
-    if (!userId && !sessionId) {
+    // Build where condition
+    let whereCondition;
+    if (userId) {
+      whereCondition = eq(cartItems.userId, userId);
+    } else if (sessionId) {
+      whereCondition = eq(cartItems.sessionId, sessionId);
+    } else {
+      // No user or session, return empty cart
       return NextResponse.json({ items: [], total: 0, subtotal: '0.00' });
     }
 
@@ -31,11 +52,7 @@ export async function GET(request: NextRequest) {
       })
       .from(cartItems)
       .leftJoin(products, eq(cartItems.productId, products.id))
-      .where(
-        userId
-          ? eq(cartItems.userId, userId)
-          : eq(cartItems.sessionId, sessionId || '')
-      );
+      .where(whereCondition);
 
     const subtotal = items.reduce((sum, item) => {
       const price = parseFloat(item.product?.price || '0');
@@ -68,7 +85,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { productId, quantity = 1, size, color } = body;
-    const userId = request.headers.get('x-user-id');
+    
+    // Try to get authenticated user first
+    let userId: string | null = null;
+    try {
+      const session = await auth.api.getSession({ headers: request.headers });
+      userId = session?.user?.id || null;
+    } catch (error) {
+      // If auth fails, continue as guest
+    }
+
+    // Fall back to header or session cookie for guest users
+    if (!userId) {
+      userId = request.headers.get('x-user-id');
+    }
     const sessionId = request.headers.get('x-session-id') || request.cookies.get('session_id')?.value || nanoid();
 
     if (!productId) {
@@ -110,12 +140,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true, sessionId: !userId ? sessionId : undefined });
     if (!userId && sessionId) {
       response.cookies.set('session_id', sessionId, {
         maxAge: 60 * 60 * 24 * 30, // 30 days
-        httpOnly: true,
+        httpOnly: true, // Keep httpOnly for security
         sameSite: 'lax',
+        path: '/',
       });
     }
     return response;

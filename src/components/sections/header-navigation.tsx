@@ -1,11 +1,27 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ShoppingBag, Menu, X } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Minus, Plus } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import SearchModal from './search-modal';
 import AccountMenu from './account-menu';
+
+interface CartItem {
+  id: number;
+  productId: number;
+  quantity: number;
+  size?: string;
+  color?: string;
+  product?: {
+    id: number;
+    name: string;
+    price: string;
+    imageUrl?: string;
+    sku?: string;
+  };
+}
 
 const HeaderNavigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -15,6 +31,10 @@ const HeaderNavigation = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartSubtotal, setCartSubtotal] = useState('0.00');
+  const [cartLoading, setCartLoading] = useState(false);
+  const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -32,6 +52,109 @@ const HeaderNavigation = () => {
       document.body.style.overflow = 'unset';
     }
   }, [isMobileMenuOpen]);
+
+  // Fetch cart data
+  const fetchCart = async () => {
+    try {
+      setCartLoading(true);
+      
+      // Get session ID from localStorage if available (for guest users)
+      const sessionId = localStorage.getItem('cart_session_id');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (sessionId) {
+        headers['x-session-id'] = sessionId;
+      }
+      
+      const response = await fetch('/api/cart', {
+        credentials: 'include',
+        headers,
+      });
+      
+      const data = await response.json();
+      if (data.items) {
+        setCartItems(data.items);
+        setCartSubtotal(data.subtotal || '0.00');
+      } else {
+        // If no items returned, clear cart
+        setCartItems([]);
+        setCartSubtotal('0.00');
+      }
+    } catch (error) {
+      console.error('Failed to fetch cart:', error);
+      setCartItems([]);
+      setCartSubtotal('0.00');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  // Fetch cart on mount and when cart opens
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  useEffect(() => {
+    if (isCartOpen) {
+      fetchCart();
+    }
+  }, [isCartOpen]);
+
+  // Listen for cart updates from other components
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      fetchCart();
+    };
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, []);
+
+  const updateQuantity = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      removeItem(itemId);
+      return;
+    }
+
+    setUpdatingItem(itemId);
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ itemId, quantity: newQuantity }),
+      });
+
+      if (response.ok) {
+        await fetchCart();
+      }
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    } finally {
+      setUpdatingItem(null);
+    }
+  };
+
+  const removeItem = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/cart?itemId=${itemId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchCart();
+      }
+    } catch (error) {
+      console.error('Error removing item:', error);
+    }
+  };
+
+  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleMouseEnter = (label: string) => {
     if (dropdownTimeoutRef.current) {
@@ -161,10 +284,7 @@ const HeaderNavigation = () => {
 
   return (
     <>
-      <motion.header
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+      <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-white border-b border-border'
         }`}
@@ -184,12 +304,9 @@ const HeaderNavigation = () => {
 
             {/* Desktop Navigation - Left */}
             <nav className="hidden lg:flex items-center gap-8 flex-1">
-              {navigationItems.map((item, index) => (
-                <motion.div
+              {navigationItems.map((item) => (
+                <div
                   key={item.label}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
                   className="relative"
                   onMouseEnter={() => item.dropdown && handleMouseEnter(item.label)}
                   onMouseLeave={handleMouseLeave}
@@ -200,29 +317,20 @@ const HeaderNavigation = () => {
                       className="text-navigation hover:opacity-70 transition-opacity relative group"
                     >
                       {item.label}
-                      <motion.span
-                        className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300"
-                        initial={false}
-                      />
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300" />
                     </Link>
                   ) : (
                     <button className="text-navigation hover:opacity-70 transition-opacity relative group">
                       {item.label}
-                      <motion.span
-                        className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300"
-                        initial={false}
-                      />
+                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300" />
                     </button>
                   )}
-                </motion.div>
+                </div>
               ))}
             </nav>
 
             {/* Logo - Centered on all screen sizes */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
+            <div
               className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto"
               style={{
                 maxWidth: 'calc(100% - 140px)'
@@ -231,83 +339,62 @@ const HeaderNavigation = () => {
               <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
                 CESCLAIR
               </Link>
-            </motion.div>
+            </div>
 
             {/* Right Icons */}
             <div className="flex-shrink-0 z-20 ml-auto">
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-                className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-6"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-6">
+                <button
                   onClick={() => setIsSearchOpen(true)}
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 
                   aria-label="Search"
                 >
                   <Search className="w-4 h-4 sm:w-5 sm:h-5" />
-                </motion.button>
+                </button>
                 <div className="relative flex-shrink-0">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
+                  <button
                     onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
                     className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20" 
                     aria-label="Account"
                   >
                     <User className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </motion.button>
+                  </button>
                   <AccountMenu isOpen={isAccountMenuOpen} onClose={() => setIsAccountMenuOpen(false)} />
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={() => setIsCartOpen(true)}
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 
                   aria-label="Shopping bag"
                 >
                   <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
-                </motion.button>
-              </motion.div>
+                  {cartItemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-black text-white text-[10px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
+                      {cartItemCount > 99 ? '99+' : cartItemCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Desktop Dropdown Menus */}
-        <AnimatePresence>
-          {activeDropdown && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="hidden lg:block absolute top-[48px] sm:top-[51px] md:top-[54px] lg:top-[57px] left-0 right-0 bg-white border-b border-border shadow-sm"
-              onMouseEnter={cancelHideDropdown}
-              onMouseLeave={handleMouseLeave}
-            >
+        {activeDropdown && (
+          <div
+            className="hidden lg:block absolute top-[48px] sm:top-[51px] md:top-[54px] lg:top-[57px] left-0 right-0 bg-white border-b border-border shadow-sm"
+            onMouseEnter={cancelHideDropdown}
+            onMouseLeave={handleMouseLeave}
+          >
               <div className="container mx-auto py-8 lg:py-12">
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8 xl:gap-12">
                   {navigationItems
                     .find((item) => item.label === activeDropdown)
                     ?.dropdown?.categories.map((category, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: idx * 0.1 }}
-                      >
+                      <div key={idx}>
                         <h3 className="text-label font-medium mb-4">{category.title}</h3>
                         <ul className="space-y-3">
                           {category.items.map((item, itemIdx) => (
-                            <motion.li
-                              key={itemIdx}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.2, delay: (idx * 0.1) + (itemIdx * 0.05) }}
-                            >
+                            <li key={itemIdx}>
                               <Link
                                 href={item.link}
                                 className="text-body hover:opacity-70 transition-opacity block"
@@ -315,17 +402,16 @@ const HeaderNavigation = () => {
                               >
                                 {item.name}
                               </Link>
-                            </motion.li>
+                            </li>
                           ))}
                         </ul>
-                      </motion.div>
+                      </div>
                     ))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-      </motion.header>
+      </header>
 
       {/* Search Modal */}
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
@@ -361,8 +447,10 @@ const HeaderNavigation = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center px-6 py-4">
-              <h2 className="text-[11px] font-medium uppercase tracking-[0.08em]">Your Bag (0)</h2>
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border">
+              <h2 className="text-[11px] font-medium uppercase tracking-[0.08em]">
+                Your Bag ({cartItemCount})
+              </h2>
               <button 
                 onClick={() => setIsCartOpen(false)}
                 aria-label="Close cart" 
@@ -372,53 +460,145 @@ const HeaderNavigation = () => {
               </button>
             </div>
 
-            <div className="flex-grow flex flex-col items-center pt-8 pb-12 px-6 overflow-y-auto">
-              <div className="w-full flex flex-col items-center text-center">
-                <div className="relative w-full max-w-[352px] aspect-[4/5]">
-                  <img
-                    src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/Empty_Bag_State_Image-1.jpg"
-                    alt="Your cart is empty"
-                    className="w-full h-full object-contain"
-                  />
+            <div className="flex-grow overflow-y-auto">
+              {cartLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
                 </div>
-                <h3 className="text-xl font-medium mt-4">
-                  Your bag is empty.
-                  <br />
-                  Not sure where to start?
-                </h3>
-                <div className="mt-8 flex flex-col items-center space-y-4">
-                  <Link 
-                    href="/women/new-arrivals" 
-                    onClick={() => setIsCartOpen(false)}
-                    className="text-[11px] font-medium uppercase tracking-[0.05em] text-primary-text hover:text-link-hover underline"
-                  >
-                    Shop New Arrivals →
-                  </Link>
-                  <Link 
-                    href="/women/best-sellers"
-                    onClick={() => setIsCartOpen(false)}
-                    className="text-[11px] font-medium uppercase tracking-[0.05em] text-primary-text hover:text-link-hover underline"
-                  >
-                    Shop Best Sellers →
-                  </Link>
+              ) : cartItems.length === 0 ? (
+                <div className="flex flex-col items-center text-center pt-8 pb-12 px-6">
+                  <div className="relative w-full max-w-[352px] aspect-[4/5]">
+                    <img
+                      src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/Empty_Bag_State_Image-1.jpg"
+                      alt="Your cart is empty"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <h3 className="text-xl font-medium mt-4">
+                    Your bag is empty.
+                    <br />
+                    Not sure where to start?
+                  </h3>
+                  <div className="mt-8 flex flex-col items-center space-y-4">
+                    <Link 
+                      href="/women/new-arrivals" 
+                      onClick={() => setIsCartOpen(false)}
+                      className="text-[11px] font-medium uppercase tracking-[0.05em] text-primary-text hover:text-link-hover underline"
+                    >
+                      Shop New Arrivals →
+                    </Link>
+                    <Link 
+                      href="/women/best-sellers"
+                      onClick={() => setIsCartOpen(false)}
+                      className="text-[11px] font-medium uppercase tracking-[0.05em] text-primary-text hover:text-link-hover underline"
+                    >
+                      Shop Best Sellers →
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="px-6 py-4 space-y-4">
+                  {cartItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex gap-4 pb-4 border-b border-border last:border-0"
+                    >
+                      {item.product?.imageUrl ? (
+                        <Link
+                          href={`/products/${item.productId}`}
+                          onClick={() => setIsCartOpen(false)}
+                          className="w-20 h-20 relative flex-shrink-0 overflow-hidden rounded"
+                        >
+                          <Image
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            fill
+                            className="object-cover rounded"
+                            sizes="80px"
+                          />
+                        </Link>
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center">
+                          <ShoppingBag className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/products/${item.productId}`}
+                          onClick={() => setIsCartOpen(false)}
+                          className="block mb-1"
+                        >
+                          <h3 className="text-sm font-medium hover:text-gray-600 transition-colors truncate">
+                            {item.product?.name || 'Product'}
+                          </h3>
+                        </Link>
+                        {item.size && (
+                          <p className="text-xs text-secondary-text">Size: {item.size}</p>
+                        )}
+                        {item.color && (
+                          <p className="text-xs text-secondary-text">Color: {item.color}</p>
+                        )}
+
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center border border-border rounded">
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              disabled={updatingItem === item.id || item.quantity <= 1}
+                              className="p-1.5 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="px-3 py-1 text-xs font-medium min-w-[2rem] text-center">
+                              {updatingItem === item.id ? '...' : item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              disabled={updatingItem === item.id}
+                              className="p-1.5 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="text-xs text-secondary-text hover:text-black transition-colors"
+                            aria-label="Remove item"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-medium">
+                          ${(parseFloat(item.product?.price || '0') * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="mt-auto px-6 pt-4 pb-6 border-t border-border bg-white">
-              <div className="flex justify-between items-center py-4">
-                <h3 className="text-lg font-bold">SUBTOTAL</h3>
-                <p className="text-lg font-bold">$0.00</p>
-              </div>
+            {cartItems.length > 0 && (
+              <div className="mt-auto px-6 pt-4 pb-6 border-t border-border bg-white">
+                <div className="flex justify-between items-center py-4">
+                  <h3 className="text-lg font-bold">SUBTOTAL</h3>
+                  <p className="text-lg font-bold">${cartSubtotal}</p>
+                </div>
 
-              <Link
-                href="/checkout"
-                onClick={() => setIsCartOpen(false)}
-                className="w-full bg-primary text-primary-foreground uppercase text-[13px] font-medium tracking-[0.05em] py-4 rounded-[2px] hover:bg-gray-800 transition-colors text-center block"
-              >
-                Continue to Checkout
-              </Link>
-            </div>
+                <Link
+                  href="/checkout?step=shipping"
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-full bg-primary text-primary-foreground uppercase text-[13px] font-medium tracking-[0.05em] py-4 rounded-[2px] hover:bg-gray-800 transition-colors text-center block"
+                >
+                  Continue to Checkout
+                </Link>
+              </div>
+            )}
           </motion.aside>
         </div>
         )}

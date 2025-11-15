@@ -44,14 +44,11 @@ BETTER_AUTH_SECRET=your-generated-secret-here
 npm run generate-secret
 ```
 
-#### Optional Variables (if using DocuSign):
+#### Optional Variables (if using SignWell):
 
 ```bash
-DOCUSIGN_USER_ID=your-user-id
-DOCUSIGN_ACCOUNT_ID=your-account-id
-DOCUSIGN_BASE_PATH=https://na4.docusign.net
-DOCUSIGN_INTEGRATION_KEY=your-integration-key
-DOCUSIGN_PRIVATE_KEY=your-private-key
+SIGNWELL_API_KEY=your-signwell-api-key
+SIGNWELL_API_BASE=https://www.signwell.com/api/v1
 ```
 
 **Important:** 

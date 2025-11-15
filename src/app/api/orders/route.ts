@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { orders, orderItems, cartItems, products } from '@/db/schema';
+import { orders, orderItems, cartItems, products, user } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { auth } from '@/lib/auth';
 
 // GET - Get user orders
 export async function GET(request: NextRequest) {
@@ -63,15 +64,45 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      email,
+      email: providedEmail,
       shippingAddress,
       paymentMethod,
       paymentIntentId,
       discountCode,
     } = body;
 
-    const userId = request.headers.get('x-user-id') || null;
+    // Try to get user session
+    let session = null;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (error) {
+      // Session not available, continue as guest
+    }
+
+    const userId = session?.user?.id || request.headers.get('x-user-id') || null;
     const sessionId = request.headers.get('x-session-id') || request.cookies.get('session_id')?.value || null;
+
+    // Get email from session if available, otherwise use provided email
+    let email = providedEmail;
+    if (!email && session?.user?.email) {
+      email = session.user.email;
+    }
+
+    // If still no email, try to get from database if userId exists
+    if (!email && userId) {
+      try {
+        const dbUser = await db
+          .select({ email: user.email })
+          .from(user)
+          .where(eq(user.id, userId))
+          .limit(1);
+        if (dbUser.length > 0 && dbUser[0].email) {
+          email = dbUser[0].email;
+        }
+      } catch (error) {
+        console.error('Error fetching user email:', error);
+      }
+    }
 
     if (!email) {
       return NextResponse.json(

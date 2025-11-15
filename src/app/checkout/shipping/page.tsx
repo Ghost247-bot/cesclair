@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 import Footer from '@/components/sections/footer';
 
 interface ShippingFormData {
@@ -16,6 +16,20 @@ interface ShippingFormData {
   zipCode: string;
   country: string;
   phone: string;
+}
+
+interface SavedAddress {
+  id: number;
+  firstName: string;
+  lastName: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string | null;
+  isDefault: boolean;
 }
 
 export default function CheckoutShippingPage() {
@@ -33,6 +47,10 @@ export default function CheckoutShippingPage() {
   });
   const [errors, setErrors] = useState<Partial<ShippingFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -62,23 +80,138 @@ export default function CheckoutShippingPage() {
     if (!validate()) return;
 
     setIsSubmitting(true);
-    // Save shipping address to session/localStorage
-    localStorage.setItem('checkout_shipping', JSON.stringify(formData));
-    setIsSubmitting(false);
-    router.push('/checkout/payment');
+    try {
+      // If using a saved address, just save to localStorage
+      if (selectedAddressId) {
+        localStorage.setItem('checkout_shipping', JSON.stringify({ ...formData, addressId: selectedAddressId }));
+      } else {
+        // Try to save new address to database if user is logged in
+        try {
+          const response = await fetch('/api/account/addresses', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              ...formData,
+              isDefault: savedAddresses.length === 0, // Set as default if it's the first address
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('checkout_shipping', JSON.stringify({ ...formData, addressId: data.address.id }));
+          } else {
+            // Not logged in, just save to localStorage
+            localStorage.setItem('checkout_shipping', JSON.stringify(formData));
+          }
+        } catch (error) {
+          // Not logged in or error, just save to localStorage
+          localStorage.setItem('checkout_shipping', JSON.stringify(formData));
+        }
+      }
+      router.push('/checkout/payment');
+    } catch (error) {
+      console.error('Error saving shipping address:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  // Load saved addresses for logged-in users
   useEffect(() => {
-    // Load saved shipping address if exists
-    const saved = localStorage.getItem('checkout_shipping');
-    if (saved) {
+    const loadAddresses = async () => {
       try {
-        setFormData(JSON.parse(saved));
+        const response = await fetch('/api/account/addresses', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.addresses && data.addresses.length > 0) {
+            setSavedAddresses(data.addresses);
+            // Auto-select default address if available
+            const defaultAddress = data.addresses.find((addr: SavedAddress) => addr.isDefault);
+            if (defaultAddress) {
+              setSelectedAddressId(defaultAddress.id);
+              setFormData({
+                firstName: defaultAddress.firstName,
+                lastName: defaultAddress.lastName,
+                addressLine1: defaultAddress.addressLine1,
+                addressLine2: defaultAddress.addressLine2 || '',
+                city: defaultAddress.city,
+                state: defaultAddress.state,
+                zipCode: defaultAddress.zipCode,
+                country: defaultAddress.country,
+                phone: defaultAddress.phone || '',
+              });
+            }
+          } else {
+            setShowNewAddressForm(true);
+          }
+        } else {
+          // Not logged in or no addresses, check localStorage
+          const saved = localStorage.getItem('checkout_shipping');
+          if (saved) {
+            try {
+              setFormData(JSON.parse(saved));
+            } catch (error) {
+              console.error('Failed to load saved shipping address:', error);
+            }
+          }
+          setShowNewAddressForm(true);
+        }
       } catch (error) {
-        console.error('Failed to load saved shipping address:', error);
+        console.error('Failed to load addresses:', error);
+        // Fallback to localStorage
+        const saved = localStorage.getItem('checkout_shipping');
+        if (saved) {
+          try {
+            setFormData(JSON.parse(saved));
+          } catch (err) {
+            console.error('Failed to load saved shipping address:', err);
+          }
+        }
+        setShowNewAddressForm(true);
+      } finally {
+        setIsLoadingAddresses(false);
       }
-    }
+    };
+
+    loadAddresses();
   }, []);
+
+  const handleSelectAddress = (address: SavedAddress) => {
+    setSelectedAddressId(address.id);
+    setFormData({
+      firstName: address.firstName,
+      lastName: address.lastName,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2 || '',
+      city: address.city,
+      state: address.state,
+      zipCode: address.zipCode,
+      country: address.country,
+      phone: address.phone || '',
+    });
+    setShowNewAddressForm(false);
+  };
+
+  const handleUseNewAddress = () => {
+    setSelectedAddressId(null);
+    setFormData({
+      firstName: '',
+      lastName: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'United States',
+      phone: '',
+    });
+    setShowNewAddressForm(true);
+  };
 
   return (
     <>
@@ -100,15 +233,119 @@ export default function CheckoutShippingPage() {
               </p>
             </div>
 
+            {/* Saved Addresses */}
+            {isLoadingAddresses ? (
+              <div className="bg-white border border-border rounded-lg p-8">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+                </div>
+              </div>
+            ) : savedAddresses.length > 0 && !showNewAddressForm ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white border border-border rounded-lg p-8"
+              >
+                <h2 className="text-lg font-medium mb-4">Select Shipping Address</h2>
+                <div className="space-y-3 mb-6">
+                  {savedAddresses.map((address) => (
+                    <button
+                      key={address.id}
+                      type="button"
+                      onClick={() => handleSelectAddress(address)}
+                      className={`w-full text-left p-4 border-2 rounded-lg transition-colors ${
+                        selectedAddressId === address.id
+                          ? 'border-black bg-gray-50'
+                          : 'border-border hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium">
+                              {address.firstName} {address.lastName}
+                            </p>
+                            {address.isDefault && (
+                              <span className="text-xs bg-black text-white px-2 py-0.5 rounded">DEFAULT</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-secondary-text">{address.addressLine1}</p>
+                          {address.addressLine2 && (
+                            <p className="text-sm text-secondary-text">{address.addressLine2}</p>
+                          )}
+                          <p className="text-sm text-secondary-text">
+                            {address.city}, {address.state} {address.zipCode}
+                          </p>
+                          <p className="text-sm text-secondary-text">{address.country}</p>
+                          {address.phone && (
+                            <p className="text-sm text-secondary-text mt-1">Phone: {address.phone}</p>
+                          )}
+                        </div>
+                        {selectedAddressId === address.id && (
+                          <div className="w-5 h-5 border-2 border-black bg-black rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUseNewAddress}
+                  className="w-full flex items-center justify-center gap-2 py-3 border border-border rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium mb-6"
+                >
+                  <Plus className="w-4 h-4" />
+                  Use a Different Address
+                </button>
+                <form onSubmit={handleSubmit}>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !selectedAddressId}
+                    className="w-full bg-black text-white py-4 uppercase text-sm font-medium tracking-wider hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        Continue to Payment
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </motion.div>
+            ) : null}
+
             {/* Form */}
-            <motion.form
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleSubmit}
-              className="bg-white border border-border rounded-lg p-8"
-            >
-              <div className="space-y-6">
+            {showNewAddressForm && (
+              <motion.form
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                onSubmit={handleSubmit}
+                className="bg-white border border-border rounded-lg p-8"
+              >
+                {savedAddresses.length > 0 && (
+                  <div className="mb-6 pb-6 border-b border-border">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (savedAddresses.length > 0) {
+                          const defaultAddr = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+                          handleSelectAddress(defaultAddr);
+                        } else {
+                          setShowNewAddressForm(false);
+                        }
+                      }}
+                      className="text-sm text-secondary-text hover:text-black transition-colors"
+                    >
+                      ← Use a saved address
+                    </button>
+                  </div>
+                )}
+                <div className="space-y-6">
                 {/* Name Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -305,8 +542,9 @@ export default function CheckoutShippingPage() {
                     </>
                   )}
                 </button>
-              </div>
-            </motion.form>
+                </div>
+              </motion.form>
+            )}
           </div>
         </div>
       </main>

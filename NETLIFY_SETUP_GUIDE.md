@@ -58,12 +58,9 @@ BETTER_AUTH_URL=https://your-site-name.netlify.app
 # Database debugging
 DATABASE_DEBUG=false
 
-# DocuSign (if using DocuSign integration)
-DOCUSIGN_USER_ID=your-docusign-user-id
-DOCUSIGN_ACCOUNT_ID=your-docusign-account-id
-DOCUSIGN_BASE_PATH=https://na4.docusign.net
-DOCUSIGN_INTEGRATION_KEY=your-docusign-integration-key
-DOCUSIGN_PRIVATE_KEY=your-docusign-private-key
+# SignWell (if using SignWell integration)
+SIGNWELL_API_KEY=your-signwell-api-key
+SIGNWELL_API_BASE=https://www.signwell.com/api/v1
 ```
 
 **Important:** 

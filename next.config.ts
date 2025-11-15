@@ -94,6 +94,10 @@ const nextConfig: NextConfig = {
   // Ensure output is compatible with Netlify
   // Don't use 'export' output mode - Netlify plugin handles this
   // output is undefined by default, which is correct for Netlify
+  
+  // Ensure proper asset handling for Netlify
+  trailingSlash: false,
+  
   // Temporarily disabled Turbopack custom loader to fix "Next.js package not found" error
   // turbopack: {
   //   rules: {

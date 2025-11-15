@@ -41,14 +41,11 @@ NEXT_PUBLIC_SITE_URL=https://your-site-name.netlify.app
 ```
 *(Update this after deployment with your actual Netlify URL)*
 
-#### Optional Environment Variables (if using DocuSign):
+#### Optional Environment Variables (if using SignWell):
 
 ```
-DOCUSIGN_USER_ID=66b17dd5-a43c-4d16-b5b9-3fa96caffad7
-DOCUSIGN_ACCOUNT_ID=36e68b88-4496-495f-89ea-161a1aef45b7
-DOCUSIGN_BASE_PATH=https://na4.docusign.net
-DOCUSIGN_INTEGRATION_KEY=sojm96fffub4/K0fjxafQrXnY1lK3A9TLQ/n5OTWYx0=
-DOCUSIGN_PRIVATE_KEY=(your private key)
+SIGNWELL_API_KEY=your-signwell-api-key
+SIGNWELL_API_BASE=https://www.signwell.com/api/v1
 ```
 
 ### Step 4: Deploy

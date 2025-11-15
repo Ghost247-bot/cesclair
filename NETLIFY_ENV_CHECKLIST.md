@@ -146,16 +146,13 @@ https://your-auth-domain.com
 
 ---
 
-### 6. DocuSign Configuration (If using DocuSign)
+### 6. SignWell Configuration (If using SignWell)
 
 **Variables:**
-- `DOCUSIGN_USER_ID` - Your DocuSign user ID
-- `DOCUSIGN_ACCOUNT_ID` - Your DocuSign account ID
-- `DOCUSIGN_BASE_PATH` - DocuSign API base path (usually `https://na4.docusign.net`)
-- `DOCUSIGN_INTEGRATION_KEY` - Your DocuSign integration key
-- `DOCUSIGN_PRIVATE_KEY` - Your DocuSign private key
+- `SIGNWELL_API_KEY` - Your SignWell API key
+- `SIGNWELL_API_BASE` - SignWell API base URL (default: `https://www.signwell.com/api/v1`)
 
-**When to use:** Only if you're using DocuSign integration for contract signing
+**When to use:** Only if you're using SignWell integration for contract signing
 
 ---
 
@@ -168,7 +165,7 @@ Use this checklist when setting up your Netlify environment:
 - [ ] `BETTER_AUTH_SECRET` - Generated and set (32+ characters)
 - [ ] `BETTER_AUTH_URL` - Set only if different from site URL (optional)
 - [ ] `DATABASE_DEBUG` - Set to `false` for production (optional)
-- [ ] `DOCUSIGN_*` - Set if using DocuSign (optional)
+- [ ] `SIGNWELL_*` - Set if using SignWell (optional)
 
 ---
 

@@ -36,7 +36,7 @@ Before deploying, ensure these are set in Netlify Dashboard:
 
 - `BETTER_AUTH_URL` - If different from NEXT_PUBLIC_SITE_URL
 - `DATABASE_DEBUG` - Set to `"true"` for troubleshooting
-- DocuSign variables (if using DocuSign integration)
+- SignWell variables (if using SignWell integration)
 
 ## 🚀 Deployment Steps
 

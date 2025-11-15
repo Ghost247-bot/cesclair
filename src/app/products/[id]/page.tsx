@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ],
     image: productImage,
     url: `/products/${id}`,
-    type: 'product',
+    type: 'website',
   });
 }
 

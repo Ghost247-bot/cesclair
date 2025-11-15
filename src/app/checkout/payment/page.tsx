@@ -13,6 +13,18 @@ interface PaymentFormData {
   cardholderName: string;
 }
 
+interface BillingFormData {
+  firstName: string;
+  lastName: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  phone: string;
+}
+
 export default function CheckoutPaymentPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<PaymentFormData>({
@@ -21,8 +33,21 @@ export default function CheckoutPaymentPage() {
     cvv: '',
     cardholderName: '',
   });
+  const [billingData, setBillingData] = useState<BillingFormData>({
+    firstName: '',
+    lastName: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'United States',
+    phone: '',
+  });
   const [errors, setErrors] = useState<Partial<PaymentFormData>>({});
+  const [billingErrors, setBillingErrors] = useState<Partial<BillingFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useSameAsShipping, setUseSameAsShipping] = useState(true);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,9 +76,19 @@ export default function CheckoutPaymentPage() {
     }
   };
 
+  const handleBillingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setBillingData((prev) => ({ ...prev, [name]: value }));
+    if (billingErrors[name as keyof BillingFormData]) {
+      setBillingErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
   const validate = (): boolean => {
     const newErrors: Partial<PaymentFormData> = {};
+    const newBillingErrors: Partial<BillingFormData> = {};
 
+    // Payment validation
     if (!formData.cardNumber.replace(/\s/g, '').match(/^\d{16}$/)) {
       newErrors.cardNumber = 'Please enter a valid 16-digit card number';
     }
@@ -67,8 +102,20 @@ export default function CheckoutPaymentPage() {
       newErrors.cardholderName = 'Cardholder name is required';
     }
 
+    // Billing address validation (only if not using same as shipping)
+    if (!useSameAsShipping) {
+      if (!billingData.firstName.trim()) newBillingErrors.firstName = 'First name is required';
+      if (!billingData.lastName.trim()) newBillingErrors.lastName = 'Last name is required';
+      if (!billingData.addressLine1.trim()) newBillingErrors.addressLine1 = 'Address is required';
+      if (!billingData.city.trim()) newBillingErrors.city = 'City is required';
+      if (!billingData.state.trim()) newBillingErrors.state = 'State is required';
+      if (!billingData.zipCode.trim()) newBillingErrors.zipCode = 'ZIP code is required';
+      if (!billingData.country.trim()) newBillingErrors.country = 'Country is required';
+    }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setBillingErrors(newBillingErrors);
+    return Object.keys(newErrors).length === 0 && Object.keys(newBillingErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,23 +123,81 @@ export default function CheckoutPaymentPage() {
     if (!validate()) return;
 
     setIsSubmitting(true);
-    // Save payment info to session/localStorage (in production, this would be handled securely)
-    localStorage.setItem('checkout_payment', JSON.stringify(formData));
+    // Save payment and billing info to localStorage
+    localStorage.setItem('checkout_payment', JSON.stringify({
+      payment: formData,
+      billing: useSameAsShipping ? null : billingData,
+      useSameAsShipping,
+    }));
     setIsSubmitting(false);
     router.push('/checkout/review');
   };
 
   useEffect(() => {
+    // Load saved shipping address to use for billing if "same as shipping" is checked
+    const savedShipping = localStorage.getItem('checkout_shipping');
+    if (savedShipping) {
+      try {
+        const shipping = JSON.parse(savedShipping);
+        if (useSameAsShipping) {
+          setBillingData({
+            firstName: shipping.firstName || '',
+            lastName: shipping.lastName || '',
+            addressLine1: shipping.addressLine1 || '',
+            addressLine2: shipping.addressLine2 || '',
+            city: shipping.city || '',
+            state: shipping.state || '',
+            zipCode: shipping.zipCode || '',
+            country: shipping.country || 'United States',
+            phone: shipping.phone || '',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load saved shipping address:', error);
+      }
+    }
+
     // Load saved payment info if exists
     const saved = localStorage.getItem('checkout_payment');
     if (saved) {
       try {
-        setFormData(JSON.parse(saved));
+        const payment = JSON.parse(saved);
+        setFormData(payment.payment || formData);
+        if (payment.billing) {
+          setBillingData(payment.billing);
+          setUseSameAsShipping(false);
+        }
       } catch (error) {
         console.error('Failed to load saved payment info:', error);
       }
     }
   }, []);
+
+  useEffect(() => {
+    // Update billing address when "same as shipping" is toggled
+    if (useSameAsShipping) {
+      const savedShipping = localStorage.getItem('checkout_shipping');
+      if (savedShipping) {
+        try {
+          const shipping = JSON.parse(savedShipping);
+          setBillingData({
+            firstName: shipping.firstName || '',
+            lastName: shipping.lastName || '',
+            addressLine1: shipping.addressLine1 || '',
+            addressLine2: shipping.addressLine2 || '',
+            city: shipping.city || '',
+            state: shipping.state || '',
+            zipCode: shipping.zipCode || '',
+            country: shipping.country || 'United States',
+            phone: shipping.phone || '',
+          });
+          setBillingErrors({});
+        } catch (error) {
+          console.error('Failed to load saved shipping address:', error);
+        }
+      }
+    }
+  }, [useSameAsShipping]);
 
   return (
     <>
@@ -124,6 +229,196 @@ export default function CheckoutPaymentPage() {
               className="bg-white border border-border rounded-lg p-8"
             >
               <div className="space-y-6">
+                {/* Billing Address Section */}
+                <div className="pb-6 border-b border-border">
+                  <h3 className="text-lg font-medium mb-4">Billing Address</h3>
+                  
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={useSameAsShipping}
+                        onChange={(e) => setUseSameAsShipping(e.target.checked)}
+                        className="w-4 h-4 border-border rounded focus:ring-black"
+                      />
+                      <span className="text-sm">Use same address as shipping</span>
+                    </label>
+                  </div>
+
+                  {!useSameAsShipping && (
+                    <div className="space-y-4 mt-4">
+                      {/* Name Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="billingFirstName" className="block text-sm font-medium mb-2">
+                            First Name *
+                          </label>
+                          <input
+                            type="text"
+                            id="billingFirstName"
+                            name="firstName"
+                            value={billingData.firstName}
+                            onChange={handleBillingChange}
+                            className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                              billingErrors.firstName ? 'border-red-500' : 'border-[#d4d4d4]'
+                            }`}
+                            required={!useSameAsShipping}
+                          />
+                          {billingErrors.firstName && (
+                            <p className="mt-1 text-sm text-red-500">{billingErrors.firstName}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label htmlFor="billingLastName" className="block text-sm font-medium mb-2">
+                            Last Name *
+                          </label>
+                          <input
+                            type="text"
+                            id="billingLastName"
+                            name="lastName"
+                            value={billingData.lastName}
+                            onChange={handleBillingChange}
+                            className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                              billingErrors.lastName ? 'border-red-500' : 'border-[#d4d4d4]'
+                            }`}
+                            required={!useSameAsShipping}
+                          />
+                          {billingErrors.lastName && (
+                            <p className="mt-1 text-sm text-red-500">{billingErrors.lastName}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Address Line 1 */}
+                      <div>
+                        <label htmlFor="billingAddressLine1" className="block text-sm font-medium mb-2">
+                          Address Line 1 *
+                        </label>
+                        <input
+                          type="text"
+                          id="billingAddressLine1"
+                          name="addressLine1"
+                          value={billingData.addressLine1}
+                          onChange={handleBillingChange}
+                          className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                            billingErrors.addressLine1 ? 'border-red-500' : 'border-[#d4d4d4]'
+                          }`}
+                          required={!useSameAsShipping}
+                        />
+                        {billingErrors.addressLine1 && (
+                          <p className="mt-1 text-sm text-red-500">{billingErrors.addressLine1}</p>
+                        )}
+                      </div>
+
+                      {/* Address Line 2 */}
+                      <div>
+                        <label htmlFor="billingAddressLine2" className="block text-sm font-medium mb-2">
+                          Address Line 2 (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          id="billingAddressLine2"
+                          name="addressLine2"
+                          value={billingData.addressLine2}
+                          onChange={handleBillingChange}
+                          className="w-full px-4 py-3 border border-[#d4d4d4] rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none"
+                        />
+                      </div>
+
+                      {/* City, State, ZIP */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label htmlFor="billingCity" className="block text-sm font-medium mb-2">
+                            City *
+                          </label>
+                          <input
+                            type="text"
+                            id="billingCity"
+                            name="city"
+                            value={billingData.city}
+                            onChange={handleBillingChange}
+                            className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                              billingErrors.city ? 'border-red-500' : 'border-[#d4d4d4]'
+                            }`}
+                            required={!useSameAsShipping}
+                          />
+                          {billingErrors.city && (
+                            <p className="mt-1 text-sm text-red-500">{billingErrors.city}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label htmlFor="billingState" className="block text-sm font-medium mb-2">
+                            State *
+                          </label>
+                          <input
+                            type="text"
+                            id="billingState"
+                            name="state"
+                            value={billingData.state}
+                            onChange={handleBillingChange}
+                            className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                              billingErrors.state ? 'border-red-500' : 'border-[#d4d4d4]'
+                            }`}
+                            required={!useSameAsShipping}
+                          />
+                          {billingErrors.state && (
+                            <p className="mt-1 text-sm text-red-500">{billingErrors.state}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label htmlFor="billingZipCode" className="block text-sm font-medium mb-2">
+                            ZIP Code *
+                          </label>
+                          <input
+                            type="text"
+                            id="billingZipCode"
+                            name="zipCode"
+                            value={billingData.zipCode}
+                            onChange={handleBillingChange}
+                            className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                              billingErrors.zipCode ? 'border-red-500' : 'border-[#d4d4d4]'
+                            }`}
+                            required={!useSameAsShipping}
+                          />
+                          {billingErrors.zipCode && (
+                            <p className="mt-1 text-sm text-red-500">{billingErrors.zipCode}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Country */}
+                      <div>
+                        <label htmlFor="billingCountry" className="block text-sm font-medium mb-2">
+                          Country *
+                        </label>
+                        <select
+                          id="billingCountry"
+                          name="country"
+                          value={billingData.country}
+                          onChange={handleBillingChange}
+                          className={`w-full px-4 py-3 border rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none ${
+                            billingErrors.country ? 'border-red-500' : 'border-[#d4d4d4]'
+                          }`}
+                          required={!useSameAsShipping}
+                        >
+                          <option value="United States">United States</option>
+                          <option value="Canada">Canada</option>
+                          <option value="United Kingdom">United Kingdom</option>
+                          <option value="Australia">Australia</option>
+                        </select>
+                        {billingErrors.country && (
+                          <p className="mt-1 text-sm text-red-500">{billingErrors.country}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Information */}
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Payment Information</h3>
+                </div>
+
                 {/* Card Number */}
                 <div>
                   <label htmlFor="cardNumber" className="block text-sm font-medium mb-2">

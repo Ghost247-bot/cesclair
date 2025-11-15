@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { orders, orderItems, products } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 
 // GET user orders
 export async function GET(request: NextRequest) {
@@ -16,11 +16,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get orders for user
+    // Get orders for user by userId OR email (to include guest orders)
     const userOrders = await db
       .select()
       .from(orders)
-      .where(eq(orders.userId, session.user.id))
+      .where(
+        or(
+          eq(orders.userId, session.user.id),
+          eq(orders.email, session.user.email || '')
+        )
+      )
       .orderBy(desc(orders.createdAt));
 
     // Get order items for each order

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { ArrowLeft, Check, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSession } from '@/lib/auth-client';
 import Footer from '@/components/sections/footer';
 
 interface CartItem {
@@ -44,6 +45,7 @@ interface PaymentData {
 
 export default function CheckoutReviewPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [shippingData, setShippingData] = useState<ShippingData | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
@@ -109,8 +111,13 @@ export default function CheckoutReviewPage() {
     setIsPlacingOrder(true);
 
     try {
-      // Get original payment data (not masked)
-      const originalPayment = JSON.parse(localStorage.getItem('checkout_payment') || '{}');
+      // Get email from session if available, otherwise use email from shipping data
+      const isGuestCheckout = localStorage.getItem('checkout_guest') === 'true';
+      const email = session?.user?.email || 
+                    (shippingData.email || 
+                     (isGuestCheckout && shippingData.firstName && shippingData.lastName
+                       ? `${shippingData.firstName.toLowerCase()}.${shippingData.lastName.toLowerCase()}@guest.temp`
+                       : shippingData.firstName.toLowerCase() + '@example.com'));
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -118,7 +125,7 @@ export default function CheckoutReviewPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: shippingData.firstName + '@example.com', // In production, get from user
+          email: email, // API will prioritize session email if available
           shippingAddress: shippingData,
           paymentMethod: 'card',
           paymentIntentId: null, // In production, create Stripe payment intent
@@ -131,9 +138,19 @@ export default function CheckoutReviewPage() {
         // Clear checkout data
         localStorage.removeItem('checkout_shipping');
         localStorage.removeItem('checkout_payment');
+        localStorage.removeItem('checkout_guest');
 
-        // Redirect to success page
-        router.push(`/checkout/success?orderNumber=${data.orderNumber}`);
+        // If guest checkout and user just signed up, try to link orders
+        if (isGuestCheckout && session?.user) {
+          try {
+            await fetch('/api/orders/link-guest-orders', { method: 'POST' });
+          } catch (error) {
+            console.error('Failed to link guest orders:', error);
+          }
+        }
+
+        // Redirect to success page with order number
+        router.push(`/checkout/success?orderNumber=${data.order.orderNumber || data.orderNumber}`);
       } else {
         toast.error(data.error || 'Failed to place order');
         setIsPlacingOrder(false);

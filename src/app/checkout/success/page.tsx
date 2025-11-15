@@ -24,7 +24,7 @@ function CheckoutSuccessContent() {
 
   const fetchOrderDetails = async () => {
     try {
-      const response = await fetch(`/api/orders?orderId=${orderNumber}`);
+      const response = await fetch(`/api/orders/status/${orderNumber}`);
       if (response.ok) {
         const data = await response.json();
         setOrderData(data);
@@ -142,11 +142,20 @@ function CheckoutSuccessContent() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {orderNumber && (
+                  <Link
+                    href={`/orders/status?orderNumber=${orderNumber}`}
+                    className="inline-flex items-center justify-center gap-2 bg-black text-white px-8 py-4 uppercase text-sm font-medium tracking-wider hover:bg-gray-800 transition-colors"
+                  >
+                    Check Order Status
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
                 <Link
                   href="/account/orders"
-                  className="inline-flex items-center justify-center gap-2 bg-black text-white px-8 py-4 uppercase text-sm font-medium tracking-wider hover:bg-gray-800 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-white border border-black text-black px-8 py-4 uppercase text-sm font-medium tracking-wider hover:bg-gray-50 transition-colors"
                 >
-                  View Order
+                  View All Orders
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link

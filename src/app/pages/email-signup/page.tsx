@@ -5,8 +5,6 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Loader2, Check, Mail, Gift, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function EmailSignupPage() {
   const [email, setEmail] = useState('');
@@ -82,9 +80,7 @@ export default function EmailSignupPage() {
   };
 
   return (
-    <>
-      <HeaderNavigation />
-      <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
+    <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
         <div className="container mx-auto px-6 py-16 md:py-24">
           <div className="max-w-2xl mx-auto">
             {/* Hero Section */}
@@ -279,8 +275,6 @@ export default function EmailSignupPage() {
           </div>
         </div>
       </main>
-      <Footer />
-    </>
   );
 }
 

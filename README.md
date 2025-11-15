@@ -33,7 +33,8 @@ Required environment variables:
 
 Optional environment variables:
 - `BETTER_AUTH_URL` - Override auth URL if different from site URL
-- `DOCUSIGN_*` - DocuSign integration credentials (if using DocuSign)
+- `SIGNWELL_API_KEY` - SignWell API key (if using SignWell integration)
+- `SIGNWELL_API_BASE` - SignWell API base URL (default: https://www.signwell.com/api/v1)
 
 ## Deployment
 
@@ -60,11 +61,8 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
    - `DATABASE_URL` - Your Neon PostgreSQL connection string
    - `BETTER_AUTH_SECRET` - Generate a secure secret (use: `openssl rand -base64 32`)
    - `NEXT_PUBLIC_SITE_URL` - Your Vercel deployment URL (e.g., `https://your-app.vercel.app`)
-   - `DOCUSIGN_USER_ID` - (if using DocuSign)
-   - `DOCUSIGN_ACCOUNT_ID` - (if using DocuSign)
-   - `DOCUSIGN_BASE_PATH` - (if using DocuSign)
-   - `DOCUSIGN_INTEGRATION_KEY` - (if using DocuSign)
-   - `DOCUSIGN_PRIVATE_KEY` - (if using DocuSign)
+   - `SIGNWELL_API_KEY` - (if using SignWell integration)
+   - `SIGNWELL_API_BASE` - (if using SignWell integration, optional)
 
 4. **Deploy**
    - Click "Deploy"
@@ -101,11 +99,8 @@ Netlify provides excellent support for Next.js applications with serverless func
    - `DATABASE_URL` - Your Neon PostgreSQL connection string
    - `BETTER_AUTH_SECRET` - Generate a secure secret (use: `openssl rand -base64 32`)
    - `NEXT_PUBLIC_SITE_URL` - Your Netlify deployment URL (e.g., `https://your-app.netlify.app`)
-   - `DOCUSIGN_USER_ID` - (if using DocuSign)
-   - `DOCUSIGN_ACCOUNT_ID` - (if using DocuSign)
-   - `DOCUSIGN_BASE_PATH` - (if using DocuSign)
-   - `DOCUSIGN_INTEGRATION_KEY` - (if using DocuSign)
-   - `DOCUSIGN_PRIVATE_KEY` - (if using DocuSign)
+   - `SIGNWELL_API_KEY` - (if using SignWell integration)
+   - `SIGNWELL_API_BASE` - (if using SignWell integration, optional)
 
 5. **Deploy**
    - Click "Deploy site"
