@@ -4,6 +4,7 @@
 import { db } from '@/db';
 import { products } from '@/db/schema';
 import { eq, like, or, and, desc, asc } from 'drizzle-orm';
+import { normalizeImagePath } from './utils';
 
 export interface ProductFromDB {
   id: number;
@@ -118,7 +119,7 @@ export function convertProductForDisplay(product: ProductFromDB): ProductForDisp
     id: product.id.toString(),
     name: product.name,
     price: parseFloat(product.price) || 0,
-    image: product.imageUrl || '/placeholder-image.jpg',
+    image: normalizeImagePath(product.imageUrl),
     category: product.category || undefined,
     description: product.description || undefined,
     stock: product.stock,

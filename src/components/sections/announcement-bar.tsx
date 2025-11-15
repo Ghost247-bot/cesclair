@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, FC } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useHydrated } from "@/lib/useHydrated";
 
 const LinkArrow: FC = () => (
   <svg width="9" height="8" viewBox="0 0 9 8" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -37,6 +38,7 @@ const slides = [
 
 const AnnouncementBar = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const hydrated = useHydrated();
 
   const nextSlide = useCallback(() => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % slides.length);
@@ -59,7 +61,7 @@ const AnnouncementBar = () => {
             <div className="overflow-hidden">
               <div
                 className="flex transition-transform duration-700 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                style={hydrated ? { transform: `translateX(-${currentIndex * 100}%)` } : undefined}
               >
                 {slides.map((slide) => (
                   <div key={slide.id} className="min-w-full flex-shrink-0 px-8">

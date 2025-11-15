@@ -71,3 +71,35 @@ export function determineProductCategory(title?: string, description?: string): 
   // If no specific category found, return undefined
   return undefined;
 }
+
+/**
+ * Normalizes image paths for Next.js Image component
+ * - Converts relative paths starting with /uploads/ to use /api/uploads/
+ * - Handles external URLs
+ * - Handles absolute paths from public folder
+ * - Returns placeholder if image is missing
+ */
+export function normalizeImagePath(imagePath: string | null | undefined, placeholder: string = '/placeholder-image.jpg'): string {
+  // If no image path, return placeholder
+  if (!imagePath) {
+    return placeholder;
+  }
+
+  // If it's already an external URL (http:// or https://), return as-is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+
+  // If it starts with /uploads/, convert to /api/uploads/ for API route handling
+  if (imagePath.startsWith('/uploads/')) {
+    return `/api${imagePath}`;
+  }
+
+  // If it's an absolute path starting with /, return as-is (e.g., /icon.png)
+  if (imagePath.startsWith('/')) {
+    return imagePath;
+  }
+
+  // If it's a relative path, make it absolute
+  return `/${imagePath}`;
+}

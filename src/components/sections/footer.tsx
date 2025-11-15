@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Instagram, Youtube, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { toast } from 'sonner';
+import { useHydrated } from '@/lib/useHydrated';
 
 const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -123,24 +124,34 @@ const legalLinks = [
   { text: 'Vendor Code of Conduct', href: '/vendor-code' },
 ];
 
-const LinkColumn = ({ title, links, index }: { title: string; links: Array<{ text: string; href: string }>, index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-50px" }}
-    transition={{ duration: 0.4, delay: index * 0.1 }}
-    className="text-[13px] uppercase tracking-[0.05em] font-medium"
-  >
-    <h3 className="mb-4">{title}</h3>
-    <ul className="space-y-3 font-normal">
-      {links.map((link, linkIndex) => (
-        <motion.li
-          key={link.text}
-          initial={{ opacity: 0, x: -10 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.3, delay: (index * 0.1) + (linkIndex * 0.05) }}
-        >
+const LinkColumn = ({ title, links, index }: { title: string; links: Array<{ text: string; href: string }>, index: number }) => {
+  const hydrated = useHydrated();
+  const columnControls = useAnimation();
+  const linkControls = links.map(() => useAnimation());
+
+  useEffect(() => {
+    if (hydrated) {
+      columnControls.start({ opacity: 1, y: 0 });
+      linkControls.forEach((control, i) => {
+        control.start({ opacity: 1, x: 0 });
+      });
+    }
+  }, [hydrated, columnControls, linkControls]);
+
+  return (
+    <motion.div
+      initial={false}
+      animate={columnControls}
+      className="text-[13px] uppercase tracking-[0.05em] font-medium"
+    >
+      <h3 className="mb-4">{title}</h3>
+      <ul className="space-y-3 font-normal">
+        {links.map((link, linkIndex) => (
+          <motion.li
+            key={link.text}
+            initial={false}
+            animate={linkControls[linkIndex]}
+          >
           <motion.div
             whileHover={{ x: 4 }}
             transition={{ duration: 0.2 }}
@@ -153,26 +164,37 @@ const LinkColumn = ({ title, links, index }: { title: string; links: Array<{ tex
       ))}
     </ul>
   </motion.div>
-);
+  );
+};
 
-const ConnectColumn = ({ index }: { index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-50px" }}
-    transition={{ duration: 0.4, delay: index * 0.1 }}
-    className="text-[13px] uppercase tracking-[0.05em] font-medium"
-  >
-    <h3 className="mb-4">CONNECT</h3>
-    <ul className="space-y-3 font-normal">
-      {connectLinks.map(({ text, Icon, href }, linkIndex) => (
-        <motion.li
-          key={text}
-          initial={{ opacity: 0, x: -10 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.3, delay: (index * 0.1) + (linkIndex * 0.05) }}
-        >
+const ConnectColumn = ({ index }: { index: number }) => {
+  const hydrated = useHydrated();
+  const columnControls = useAnimation();
+  const linkControls = connectLinks.map(() => useAnimation());
+
+  useEffect(() => {
+    if (hydrated) {
+      columnControls.start({ opacity: 1, y: 0 });
+      linkControls.forEach((control) => {
+        control.start({ opacity: 1, x: 0 });
+      });
+    }
+  }, [hydrated, columnControls, linkControls]);
+
+  return (
+    <motion.div
+      initial={false}
+      animate={columnControls}
+      className="text-[13px] uppercase tracking-[0.05em] font-medium"
+    >
+      <h3 className="mb-4">CONNECT</h3>
+      <ul className="space-y-3 font-normal">
+        {connectLinks.map(({ text, Icon, href }, linkIndex) => (
+          <motion.li
+            key={text}
+            initial={false}
+            animate={linkControls[linkIndex]}
+          >
           <motion.div
             whileHover={{ x: 4 }}
             transition={{ duration: 0.2 }}
@@ -198,13 +220,28 @@ const ConnectColumn = ({ index }: { index: number }) => (
       ))}
     </ul>
   </motion.div>
-);
+  );
+};
 
 export default function Footer() {
+  const hydrated = useHydrated();
+  const footerControls = useAnimation();
+  const newsletterControls = useAnimation();
+  const newsletterTitleControls = useAnimation();
+  const newsletterFormControls = useAnimation();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (hydrated) {
+      footerControls.start({ opacity: 1, y: 0 });
+      newsletterControls.start({ opacity: 1, x: 0 });
+      newsletterTitleControls.start({ opacity: 1, y: 0 });
+      newsletterFormControls.start({ opacity: 1, y: 0 });
+    }
+  }, [hydrated, footerControls, newsletterControls, newsletterTitleControls, newsletterFormControls]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,10 +338,8 @@ export default function Footer() {
 
   return (
     <motion.footer
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      initial={false}
+      animate={footerControls}
       className="bg-white text-[#333333] font-sans"
     >
       <div className="container mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-20">
@@ -319,26 +354,20 @@ export default function Footer() {
 
           {/* Right Side - Newsletter */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            initial={false}
+            animate={newsletterControls}
             className="lg:col-span-1"
           >
             <motion.h3
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.4 }}
+              initial={false}
+              animate={newsletterTitleControls}
               className="text-base font-normal normal-case tracking-normal mb-4"
             >
               Sign up to receive 20% off your first order
             </motion.h3>
             <motion.form
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.5 }}
+              initial={false}
+              animate={newsletterFormControls}
               onSubmit={handleSubmit}
               className="bg-white border border-border rounded-lg p-4 sm:p-6"
             >
@@ -347,7 +376,7 @@ export default function Footer() {
                 <AnimatePresence>
                   {isSuccess && successMessage && (
                     <motion.div
-                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      initial={false}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
                       exit={{ opacity: 0, y: -10, height: 0 }}
                       transition={{ duration: 0.3 }}
@@ -418,7 +447,7 @@ export default function Footer() {
                   </div>
                 </div>
                 <motion.p
-                  initial={{ opacity: 0 }}
+                  initial={false}
                   whileInView={{ opacity: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: 0.6 }}
@@ -442,7 +471,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-12 md:mb-16 pb-12 md:pb-16 border-b border-border">
           {/* Company Links */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -453,7 +482,7 @@ export default function Footer() {
               {companyLinks.map((link, index) => (
                 <motion.li
                   key={link.text}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: 0.1 + (index * 0.05) }}
@@ -473,7 +502,7 @@ export default function Footer() {
 
           {/* Get Help Links */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -484,7 +513,7 @@ export default function Footer() {
               {helpLinks.map((link, index) => (
                 <motion.li
                   key={link.text}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: 0.2 + (index * 0.05) }}
@@ -504,7 +533,7 @@ export default function Footer() {
 
           {/* Account Links */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.4, delay: 0.3 }}
@@ -515,7 +544,7 @@ export default function Footer() {
               {accountLinks.map((link, index) => (
                 <motion.li
                   key={link.text}
-                  initial={{ opacity: 0, x: -10 }}
+                  initial={false}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: 0.3 + (index * 0.05) }}
@@ -535,13 +564,13 @@ export default function Footer() {
 
           {/* Designers & Connect */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3, delay: 0.5 }}
@@ -552,7 +581,7 @@ export default function Footer() {
                 {designerLinks.map((link, index) => (
                   <motion.li
                     key={link.text}
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={false}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.3, delay: 0.5 + (index * 0.05) }}
@@ -575,7 +604,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.5, delay: 0.6 }}
@@ -591,7 +620,7 @@ export default function Footer() {
             {legalLinks.map((link, index) => (
               <motion.div
                 key={link.text}
-                initial={{ opacity: 0, x: -10 }}
+                initial={false}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: 0.6 + (index * 0.05) }}
@@ -607,7 +636,7 @@ export default function Footer() {
               </motion.div>
             ))}
             <motion.span
-              initial={{ opacity: 0 }}
+              initial={false}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3, delay: 0.8 }}

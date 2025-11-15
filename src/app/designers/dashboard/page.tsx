@@ -54,6 +54,7 @@ import Footer from "@/components/sections/footer";
 import { SigningFrame } from "@/components/signwell/SigningFrame";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { normalizeImagePath } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -2066,24 +2067,13 @@ export default function DesignerDashboardPage() {
                       {/* Design Image */}
                       {design.imageUrl && (
                         <div className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden">
-                          {design.imageUrl.startsWith('/uploads/') ? (
-                            <img
-                              src={design.imageUrl}
-                              alt={design.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          ) : (
                           <Image
-                            src={design.imageUrl}
+                            src={normalizeImagePath(design.imageUrl)}
                             alt={design.title}
                             fill
                             className="object-cover"
+                            unoptimized
                           />
-                          )}
                         </div>
                       )}
                       
@@ -2216,24 +2206,13 @@ export default function DesignerDashboardPage() {
                         {designForm.imageUrl ? (
                           <div className="space-y-2">
                             <div className="relative w-full h-64 bg-secondary rounded overflow-hidden">
-                              {designForm.imageUrl.startsWith('/uploads/') ? (
-                                <img
-                                  src={designForm.imageUrl}
-                                  alt="Design preview"
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                  }}
-                                />
-                              ) : (
                               <Image
-                                src={designForm.imageUrl}
+                                src={normalizeImagePath(designForm.imageUrl)}
                                 alt="Design preview"
                                 fill
                                 className="object-cover"
+                                unoptimized
                               />
-                              )}
                             </div>
                             <button
                               onClick={() => setDesignForm(prev => ({ ...prev, imageUrl: '', imageFile: null }))}

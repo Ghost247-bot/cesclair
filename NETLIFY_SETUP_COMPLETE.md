@@ -1,144 +1,163 @@
 # ✅ Netlify Setup Complete
 
-Your project is now fully configured for Netlify deployment!
+Your project is ready for Netlify deployment!
 
-## 📦 What's Been Configured
+## 📋 Setup Summary
 
-### 1. **netlify.toml** ✅
-- Build command: `npm run build`
-- Node.js version: 20
-- Next.js plugin: `@netlify/plugin-nextjs` (already in package.json)
-- Security headers configured
-- Caching headers for static assets
-- Function configuration optimized
+### ✅ Configuration Files
 
-### 2. **Configuration Files** ✅
-- `.nvmrc` - Specifies Node.js 20
-- `next.config.ts` - Optimized for production
-- `package.json` - Includes `@netlify/plugin-nextjs`
+- ✅ **netlify.toml** - Configured with Next.js plugin
+- ✅ **next.config.ts** - Optimized for Netlify
+- ✅ **package.json** - All dependencies included
+- ✅ **@netlify/plugin-nextjs** - Installed (v5.14.5)
 
-### 3. **Documentation** ✅
-- `NETLIFY_QUICK_SETUP.md` - Quick 5-minute setup guide
-- `NETLIFY_SETUP.md` - Comprehensive deployment guide
-- `NETLIFY_DEPLOYMENT_CHECKLIST.md` - Step-by-step checklist
-- `NETLIFY_ENV_CHECKLIST.md` - Environment variables guide
+### ✅ Build Configuration
 
-## 🚀 Next Steps
+**From `netlify.toml`:**
+- ✅ Build command: `npm run build`
+- ✅ Node version: `20`
+- ✅ Next.js plugin: Auto-installed during deployment
+- ✅ Function bundler: `esbuild`
+- ✅ Security headers: Configured
+- ✅ Cache headers: Configured
 
-### 1. Deploy to Netlify
+### ✅ Environment Variables Template
 
-**Option A: Via Web Interface (Recommended)**
-1. Go to [Netlify Dashboard](https://app.netlify.com)
-2. Click "Add new site" → "Import an existing project"
-3. Connect GitHub and select your repository
-4. Netlify will auto-detect settings from `netlify.toml`
-
-**Option B: Via CLI**
+**Required Variables:**
 ```bash
-npm install -g netlify-cli
-netlify login
-netlify init
-netlify deploy --prod
+DATABASE_URL=postgresql://user:password@host-pooler.region.aws.neon.tech/database?sslmode=require
+BETTER_AUTH_SECRET=[generate with: npm run generate-secret]
+NEXT_PUBLIC_SITE_URL=https://your-site.netlify.app
 ```
 
-### 2. Set Environment Variables
-
-**Required:**
-- `DATABASE_URL` - Your Neon PostgreSQL connection string (use pooler endpoint)
-- `NEXT_PUBLIC_SITE_URL` - Your production site URL (update after first deploy)
-- `BETTER_AUTH_SECRET` - Generate with: `npm run generate-secret`
-
-**How to set:**
-1. Netlify Dashboard → Site settings → Environment variables
-2. Add each variable
-3. Select all scopes: Production, Deploy previews, Branch deploys
-4. Save and trigger new deployment
-
-### 3. Verify Deployment
-
-After deployment, test these URLs:
-- Homepage: `https://your-site.netlify.app`
-- Diagnostics: `https://your-site.netlify.app/api/test/production-diagnostics`
-- Database Test: `https://your-site.netlify.app/api/test/db-connection`
-
-## 📚 Documentation Reference
-
-- **Quick Start:** `NETLIFY_QUICK_SETUP.md`
-- **Full Guide:** `NETLIFY_SETUP.md`
-- **Checklist:** `NETLIFY_DEPLOYMENT_CHECKLIST.md`
-- **Environment Variables:** `NETLIFY_ENV_CHECKLIST.md`
-
-## ⚙️ Configuration Details
-
-### Build Settings
-- **Command:** `npm run build`
-- **Publish Directory:** `.next` (handled by plugin)
-- **Node Version:** 20
-- **NPM Flags:** `--legacy-peer-deps`
-
-### Plugin Configuration
-- **Plugin:** `@netlify/plugin-nextjs`
-- **Features:** SSR, API routes, SSG, image optimization, routing
-
-### Function Configuration
-- **Bundler:** esbuild
-- **External Modules:** `@neondatabase/serverless`
-- **Included Files:** `src/**/*`
-
-### Security Headers
-- X-Frame-Options: DENY
-- X-XSS-Protection: 1; mode=block
-- X-Content-Type-Options: nosniff
-- Referrer-Policy: strict-origin-when-cross-origin
-- Strict-Transport-Security: max-age=63072000
-
-### Caching
-- Static assets: 1 year (immutable)
-- Images: 1 year (immutable)
-- Uploads: 1 year (immutable)
-- API files: 1 year (immutable)
-
-## 🔍 Important Notes
-
-1. **Database Connection:**
-   - Use **pooler** endpoint for serverless functions
-   - Format: `postgresql://user:pass@host-pooler/db?sslmode=require`
-
-2. **Environment Variables:**
-   - Must be set in Netlify Dashboard (not just `.env`)
-   - Redeploy after adding/updating variables
-   - `NEXT_PUBLIC_*` variables are injected at build time
-
-3. **First Deployment:**
-   - May take 5-10 minutes
-   - Subsequent builds are faster (caching)
-   - Update `NEXT_PUBLIC_SITE_URL` after first deploy
-
-4. **Custom Domain:**
-   - Configure in Netlify Dashboard → Domain settings
-   - SSL certificate is automatic
-   - Update `NEXT_PUBLIC_SITE_URL` after domain is active
-
-## 🎯 Quick Commands
-
+**Optional Variables:**
 ```bash
-# Generate auth secret
-npm run generate-secret
-
-# Check database connection
-npm run db:check
-
-# Build locally (test before deploy)
-npm run build
-
-# Deploy via CLI
-netlify deploy --prod
+BETTER_AUTH_URL=https://your-site.netlify.app
+SIGNWELL_API_KEY=YWNjZXNzOjhiYWUyMTI2MzgxMmQ0YzVlMTUzMDE1MDM1ZWY4OWU4
+SIGNWELL_API_BASE=https://www.signwell.com/api/v1
 ```
-
-## ✅ Ready to Deploy!
-
-Your project is fully configured and ready for Netlify deployment. Follow the steps in `NETLIFY_QUICK_SETUP.md` to deploy in minutes!
 
 ---
 
-**Questions?** Check the comprehensive guide in `NETLIFY_SETUP.md` or review the troubleshooting section.
+## 🚀 Deployment Steps
+
+### Step 1: Generate Auth Secret
+
+```bash
+npm run generate-secret
+```
+
+Copy the generated secret - you'll need it in Step 3.
+
+### Step 2: Connect to Netlify
+
+1. Go to [Netlify Dashboard](https://app.netlify.com)
+2. Click **"Add new site"** → **"Import an existing project"**
+3. Connect GitHub and select `Ghost247-bot/cesclair`
+4. Click **"Deploy site"**
+
+### Step 3: Add Environment Variables
+
+After first deployment:
+
+**Go to:** Site settings → Environment variables
+
+Add all required variables (see `NETLIFY_ENV_VARIABLES.md` for details)
+
+### Step 4: Redeploy
+
+1. Go to **Deploys** tab
+2. Click **"Trigger deploy"** → **"Clear cache and deploy site"**
+3. Wait for deployment
+
+### Step 5: Test
+
+Visit your Netlify URL and test:
+- ✅ Homepage loads
+- ✅ Authentication works
+- ✅ Checkout flow works
+- ✅ Orders work
+
+---
+
+## 📚 Documentation Files
+
+- ✅ **NETLIFY_QUICK_START.md** - 5-minute quick start guide
+- ✅ **NETLIFY_DEPLOYMENT_CHECKLIST.md** - Complete deployment checklist
+- ✅ **NETLIFY_ENV_VARIABLES.md** - Environment variables guide
+- ✅ **NETLIFY_SETUP_GUIDE.md** - Full setup guide with troubleshooting
+
+---
+
+## 🔍 Pre-Deployment Verification
+
+Run these commands before deploying:
+
+```bash
+# Test build locally
+npm run build
+
+# Test database connection
+npm run db:check
+
+# Generate auth secret
+npm run generate-secret
+```
+
+---
+
+## 🎯 Next Steps
+
+1. **Push to GitHub** (if not already)
+   ```bash
+   git push origin main
+   ```
+
+2. **Connect to Netlify**
+   - Follow Step 2 above
+
+3. **Set Environment Variables**
+   - Follow Step 3 above
+
+4. **Deploy**
+   - Netlify will auto-deploy on push
+   - Or trigger manual deployment
+
+5. **Test**
+   - Verify all functionality works
+   - Check build and function logs
+
+---
+
+## 🐛 Quick Troubleshooting
+
+### Build Fails
+- Check build logs
+- Verify Node.js 20 is set
+- Ensure dependencies are installed
+
+### Variables Not Working
+- Redeploy after adding variables
+- Verify variable names (case-sensitive)
+- Check all scopes selected
+
+### Database Error
+- Use pooler endpoint
+- Verify `DATABASE_URL` format
+- Check `?sslmode=require` present
+
+### Auth Not Working
+- Verify `NEXT_PUBLIC_SITE_URL` matches actual URL
+- Check `BETTER_AUTH_SECRET` is set
+- Review function logs
+
+---
+
+## ✅ All Set!
+
+Your project is configured and ready for Netlify deployment! 🎉
+
+**Need help?** Check the guides:
+- Quick Start: `NETLIFY_QUICK_START.md`
+- Full Guide: `NETLIFY_SETUP_GUIDE.md`
+- Variables: `NETLIFY_ENV_VARIABLES.md`

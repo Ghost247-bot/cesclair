@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Footer from "@/components/sections/footer";
 import { useSession } from '@/lib/auth-client';
 import { toast } from 'sonner';
+import { normalizeImagePath } from '@/lib/utils';
 
 interface Product {
   id: number;
@@ -139,7 +140,7 @@ export default function ProductDetailPageClient() {
 
   // Default product images if none available
   const productImages = product?.imageUrl 
-    ? [product.imageUrl] 
+    ? [normalizeImagePath(product.imageUrl)] 
     : ['/placeholder-image.jpg'];
   
   // Mock colors for now - can be enhanced later
@@ -367,6 +368,7 @@ export default function ProductDetailPageClient() {
                 fill
                 className="object-cover"
                 priority
+                unoptimized
               />
             </div>
 
@@ -386,6 +388,7 @@ export default function ProductDetailPageClient() {
                       alt={`${product.name} view ${index + 1}`}
                       fill
                       className="object-cover"
+                      unoptimized
                     />
                   </button>
                 ))}

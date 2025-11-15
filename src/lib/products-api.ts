@@ -1,5 +1,7 @@
 // Utility functions for fetching products from the API
 
+import { normalizeImagePath } from './utils';
+
 export interface ProductFromDB {
   id: number;
   name: string;
@@ -104,7 +106,7 @@ export function convertProductForDisplay(product: ProductFromDB): ProductForDisp
     id: product.id.toString(),
     name: product.name,
     price: parseFloat(product.price) || 0,
-    image: product.imageUrl || '/placeholder-image.jpg',
+    image: normalizeImagePath(product.imageUrl),
     category: product.category || undefined,
     description: product.description || undefined,
     stock: product.stock,

@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import Footer from "@/components/sections/footer";
+import { normalizeImagePath } from '@/lib/utils';
 
 export default function NoFailOutfitsPage() {
   const outfits = [
@@ -55,10 +56,11 @@ export default function NoFailOutfitsPage() {
               {/* Image */}
               <div className={`relative aspect-[3/4] ${index % 2 === 1 ? 'md:col-start-2' : ''}`}>
                 <Image
-                  src={outfit.image}
+                  src={normalizeImagePath(outfit.image)}
                   alt={outfit.title}
                   fill
                   className="object-cover"
+                  unoptimized
                 />
               </div>
 

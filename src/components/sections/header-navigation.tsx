@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import SearchModal from './search-modal';
 import AccountMenu from './account-menu';
+import { normalizeImagePath } from '@/lib/utils';
 
 interface CartItem {
   id: number;
@@ -25,6 +26,7 @@ interface CartItem {
 
 const HeaderNavigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileActiveTab, setMobileActiveTab] = useState<'women' | 'men'>('women');
@@ -37,10 +39,14 @@ const HeaderNavigation = () => {
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Ensure client-side only for scroll state to prevent hydration mismatch
   useEffect(() => {
+    setIsMounted(true);
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
+    // Set initial scroll state on mount
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -285,12 +291,13 @@ const HeaderNavigation = () => {
   return (
     <>
       <header
+        suppressHydrationWarning
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-white border-b border-border'
+          isMounted && isScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-white border-b border-border'
         }`}
       >
         <div className="container mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex items-center justify-between h-[48px] sm:h-[51px] md:h-[54px] lg:h-[57px] relative">
+          <div className="flex items-center justify-between h-[60px] md:h-[64px] relative">
             {/* Mobile Menu Button - Left Side */}
             <div className="lg:hidden flex-shrink-0 w-10 flex items-center justify-start z-10">
               <button
@@ -310,6 +317,7 @@ const HeaderNavigation = () => {
                   className="relative"
                   onMouseEnter={() => item.dropdown && handleMouseEnter(item.label)}
                   onMouseLeave={handleMouseLeave}
+                  suppressHydrationWarning
                 >
                   {item.link ? (
                     <Link
@@ -331,10 +339,7 @@ const HeaderNavigation = () => {
 
             {/* Logo - Centered on all screen sizes */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto"
-              style={{
-                maxWidth: 'calc(100% - 140px)'
-              }}
+              className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto max-w-[calc(100%-140px)]"
             >
               <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
                 CESCLAIR
@@ -381,7 +386,7 @@ const HeaderNavigation = () => {
         {/* Desktop Dropdown Menus */}
         {activeDropdown && (
           <div
-            className="hidden lg:block absolute top-[48px] sm:top-[51px] md:top-[54px] lg:top-[57px] left-0 right-0 bg-white border-b border-border shadow-sm"
+            className="hidden lg:block absolute top-[60px] md:top-[64px] left-0 right-0 bg-white border-b border-border shadow-sm"
             onMouseEnter={cancelHideDropdown}
             onMouseLeave={handleMouseLeave}
           >
@@ -421,7 +426,7 @@ const HeaderNavigation = () => {
         {isCartOpen && (
           <div className="fixed inset-0 z-50">
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
@@ -430,7 +435,7 @@ const HeaderNavigation = () => {
               aria-hidden="true" 
             />
             <motion.aside
-              initial={{ x: '100%' }}
+              initial={false}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
@@ -468,10 +473,12 @@ const HeaderNavigation = () => {
               ) : cartItems.length === 0 ? (
                 <div className="flex flex-col items-center text-center pt-8 pb-12 px-6">
                   <div className="relative w-full max-w-[352px] aspect-[4/5]">
-                    <img
-                      src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/Empty_Bag_State_Image-1.jpg"
+                    <Image
+                      src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/Empty_Bag_State_Image-1.jpg")}
                       alt="Your cart is empty"
-                      className="w-full h-full object-contain"
+                      fill
+                      className="object-contain"
+                      unoptimized
                     />
                   </div>
                   <h3 className="text-xl font-medium mt-4">
@@ -510,11 +517,12 @@ const HeaderNavigation = () => {
                           className="w-20 h-20 relative flex-shrink-0 overflow-hidden rounded"
                         >
                           <Image
-                            src={item.product.imageUrl}
+                            src={normalizeImagePath(item.product.imageUrl)}
                             alt={item.product.name}
                             fill
                             className="object-cover rounded"
                             sizes="80px"
+                            unoptimized
                           />
                         </Link>
                       ) : (
@@ -610,7 +618,7 @@ const HeaderNavigation = () => {
           <>
             {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
@@ -620,7 +628,7 @@ const HeaderNavigation = () => {
 
             {/* Drawer */}
             <motion.div
-              initial={{ x: '-100%' }}
+              initial={false}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}

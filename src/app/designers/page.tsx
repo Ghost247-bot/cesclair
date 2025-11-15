@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Users, ArrowRight, Briefcase } from "lucide-react";
 import Footer from "@/components/sections/footer";
+import { normalizeImagePath } from "@/lib/utils";
 
 interface Designer {
   id: number; // Designer ID from designers table
@@ -117,10 +118,11 @@ export default function DesignersPage() {
                   <div className="relative h-48 bg-secondary overflow-hidden">
                   {designer.bannerUrl ? (
                       <Image
-                        src={designer.bannerUrl}
+                        src={normalizeImagePath(designer.bannerUrl)}
                         alt={`${designer.name} banner`}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -136,10 +138,11 @@ export default function DesignersPage() {
                       <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
                         {designer.avatarUrl ? (
                           <Image
-                            src={designer.avatarUrl}
+                            src={normalizeImagePath(designer.avatarUrl)}
                             alt={designer.name}
                             fill
                             className="object-cover"
+                            unoptimized
                           />
                         ) : (
                           <div className="w-full h-full bg-secondary flex items-center justify-center">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ProductCard from './product-card';
+import { normalizeImagePath } from '@/lib/utils';
 
 interface ProductFromDB {
   id: number;
@@ -117,7 +118,7 @@ export default function ProductListClient({
           id={product.id.toString()}
           name={product.name}
           price={parseFloat(product.price) || 0}
-          image={product.imageUrl || '/placeholder-image.jpg'}
+          image={normalizeImagePath(product.imageUrl)}
           colors={1}
           href={`/products/${product.id}`}
         />

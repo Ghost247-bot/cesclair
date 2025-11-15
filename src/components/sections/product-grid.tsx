@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { normalizeImagePath } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -181,7 +182,7 @@ const ProductGrid = ({ title, description, products, showFilters = true }: Produ
             {isFilterOpen && (
               <>
                 <motion.div
-                  initial={{ opacity: 0 }}
+                  initial={false}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
@@ -189,7 +190,7 @@ const ProductGrid = ({ title, description, products, showFilters = true }: Produ
                   onClick={() => setIsFilterOpen(false)}
                 />
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }}
+                  initial={false}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3 }}
@@ -347,10 +348,11 @@ const ProductGrid = ({ title, description, products, showFilters = true }: Produ
             >
               <div className="relative aspect-[3/4] mb-3 overflow-hidden bg-secondary">
                 <Image
-                  src={product.image}
+                  src={normalizeImagePath(product.image)}
                   alt={product.name}
                   fill
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  unoptimized
                 />
               </div>
               <div className="space-y-1">

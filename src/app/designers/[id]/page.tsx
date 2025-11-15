@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ArrowLeft, Users, Briefcase, Mail, Calendar, Tag, Edit, Trash2, Loader2, Upload, X } from "lucide-react";
 import Footer from "@/components/sections/footer";
 import { useSession } from "@/lib/auth-client";
+import { normalizeImagePath } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -449,13 +450,13 @@ export default function DesignerPortfolioPage() {
         {designer.bannerUrl && (
           <div className="fixed inset-0 -z-10 w-full h-full">
             <Image
-              src={designer.bannerUrl}
+              src={normalizeImagePath(designer.bannerUrl)}
               alt={`${designer.name} background`}
               fill
-              className="object-cover opacity-10"
-              style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+              className="object-cover opacity-10 blur-[20px] scale-110"
               sizes="100vw"
               priority
+              unoptimized
             />
             <div className="absolute inset-0 bg-background/80" />
           </div>
@@ -585,12 +586,12 @@ export default function DesignerPortfolioPage() {
                                 />
                               ) : (
                                 <Image
-                                  src={avatarPreview || editForm.avatarUrl || ''}
+                                  src={avatarPreview || normalizeImagePath(editForm.avatarUrl) || ''}
                                   alt="Avatar preview"
                                   fill
                                   className="object-cover rounded-full"
                                   sizes="128px"
-                                  unoptimized={!avatarPreview && editForm.avatarUrl?.startsWith('http')}
+                                  unoptimized
                                 />
                               )}
                               <button
@@ -651,12 +652,12 @@ export default function DesignerPortfolioPage() {
                                 />
                               ) : (
                                 <Image
-                                  src={bannerPreview || editForm.bannerUrl || ''}
+                                  src={bannerPreview || normalizeImagePath(editForm.bannerUrl) || ''}
                                   alt="Banner preview"
                                   fill
                                   className="object-cover"
                                   sizes="(max-width: 768px) 100vw, 768px"
-                                  unoptimized={!bannerPreview && editForm.bannerUrl?.startsWith('http')}
+                                  unoptimized
                                 />
                               )}
                               <button
@@ -876,13 +877,13 @@ export default function DesignerPortfolioPage() {
           {designer.bannerUrl && !bannerImageError ? (
             <div className="relative w-full h-64 md:h-96 bg-secondary overflow-hidden">
               <Image
-                src={designer.bannerUrl}
+                src={normalizeImagePath(designer.bannerUrl)}
                 alt={`${designer.name} banner`}
                 fill
                 className="object-cover"
                 sizes="100vw"
                 priority
-                unoptimized={designer.bannerUrl?.startsWith('http') && !designer.bannerUrl?.includes('supabase.co') && !designer.bannerUrl?.includes('localhost')}
+                unoptimized
                 onError={() => {
                   console.error('Banner image failed to load:', designer.bannerUrl);
                   setBannerImageError(true);
@@ -903,12 +904,12 @@ export default function DesignerPortfolioPage() {
                   <div className="relative w-32 h-32 md:w-40 md:h-40 border-4 border-white rounded-full bg-white shadow-md overflow-hidden">
                     {designer.avatarUrl && !avatarImageError ? (
                       <Image
-                        src={designer.avatarUrl}
+                        src={normalizeImagePath(designer.avatarUrl)}
                         alt={designer.name}
                         fill
                         className="object-cover rounded-full"
                         sizes="(max-width: 768px) 128px, 160px"
-                        unoptimized={designer.avatarUrl?.startsWith('http') && !designer.avatarUrl?.includes('supabase.co') && !designer.avatarUrl?.includes('localhost')}
+                        unoptimized
                         onError={() => {
                           console.error('Avatar image failed to load:', designer.avatarUrl);
                           setAvatarImageError(true);
@@ -1000,10 +1001,11 @@ export default function DesignerPortfolioPage() {
                     {design.imageUrl ? (
                       <div className="relative w-full h-64 bg-secondary">
                         <Image
-                          src={design.imageUrl}
+                          src={normalizeImagePath(design.imageUrl)}
                           alt={design.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          unoptimized
                         />
                       </div>
                     ) : (

@@ -1,5 +1,9 @@
+"use client";
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { normalizeImagePath } from '@/lib/utils';
+import { useState } from 'react';
 
 interface ProductCardProps {
   id: string;
@@ -22,6 +26,7 @@ export default function ProductCard({
   originalPrice,
   isOnSale 
 }: ProductCardProps) {
+  const [imgError, setImgError] = useState(false);
   const discountPercentage = originalPrice && originalPrice > price
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
@@ -29,12 +34,20 @@ export default function ProductCard({
   return (
     <Link href={href} className="group">
       <div className="relative aspect-[3/4] overflow-hidden bg-secondary mb-3">
-        <Image
-          src={image}
-          alt={name}
-          fill
-          className="object-cover transition-transform duration-400 group-hover:scale-105"
-        />
+        {!imgError ? (
+          <Image
+            src={normalizeImagePath(image)}
+            alt={name}
+            fill
+            className="object-cover transition-transform duration-400 group-hover:scale-105"
+            unoptimized
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+            <span className="text-xs text-gray-400 text-center px-2">{name}</span>
+          </div>
+        )}
         {isOnSale && discountPercentage > 0 && (
           <div className="absolute top-2 left-2 bg-black text-white px-2 py-1 text-xs font-medium">
             {discountPercentage}% OFF

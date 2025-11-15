@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
@@ -46,10 +46,10 @@ interface Order {
   items: OrderItem[];
 }
 
-export default function OrderStatusPage() {
+function OrderStatusContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [orderNumber, setOrderNumber] = useState(searchParams.get('orderNumber') || '');
+  const [orderNumber, setOrderNumber] = useState<string>('');
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +59,8 @@ export default function OrderStatusPage() {
     if (orderNum) {
       setOrderNumber(orderNum);
       fetchOrderStatus(orderNum);
+    } else {
+      setOrderNumber('');
     }
   }, [searchParams]);
 
@@ -396,6 +398,29 @@ export default function OrderStatusPage() {
       </main>
       <Footer />
     </>
+  );
+}
+
+function OrderStatusLoading() {
+  return (
+    <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
+      <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm text-secondary-text">Loading order status...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function OrderStatusPage() {
+  return (
+    <Suspense fallback={<OrderStatusLoading />}>
+      <OrderStatusContent />
+    </Suspense>
   );
 }
 

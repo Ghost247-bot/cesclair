@@ -62,6 +62,7 @@ export default function Cesworld() {
           fill
           className="object-cover object-center"
           priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-br from-accent/60 to-accent-background/60" />
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">

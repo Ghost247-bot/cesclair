@@ -2,7 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { useHydrated } from '@/lib/useHydrated';
+import { normalizeImagePath } from '@/lib/utils';
 
 const categories = [
   {
@@ -87,51 +90,81 @@ const headingVariants = {
 };
 
 const CategoryGrid = () => {
+  const hydrated = useHydrated();
+  const headingControls = useAnimation();
+  const containerControls = useAnimation();
+
+  useEffect(() => {
+    if (hydrated) {
+      headingControls.start("visible");
+      containerControls.start("visible");
+    }
+  }, [hydrated, headingControls, containerControls]);
+
   return (
     <section className="bg-[#f7f7f7] py-8 sm:py-12 md:py-16 overflow-hidden">
       <div className="container px-4 sm:px-6">
         <motion.h3 
           className="mb-6 sm:mb-8 text-center text-xs sm:text-sm md:text-[14px] font-normal uppercase tracking-[0.1em] text-foreground"
           variants={headingVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
+          initial={false}
+          animate={headingControls}
         >
           CLEAN LUXURY. BETTER FOR YOU.
         </motion.h3>
         <motion.div 
           className="flex snap-x snap-mandatory gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide md:grid md:grid-cols-3 md:gap-4 md:pb-0 lg:grid-cols-6"
           variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
+          initial={false}
+          animate={containerControls}
         >
-          {categories.map((category, index) => (
-            <motion.div
-              key={category.name}
-              className="w-[70%] flex-shrink-0 snap-start sm:w-2/5 md:w-auto"
-              variants={itemVariants}
-              whileHover={{ 
-                scale: 1.02,
-                transition: { duration: 0.2 }
-              }}
-            >
-              <Link href={category.href} className="group block">
-                <motion.div 
-                  className="overflow-hidden bg-gray-200 rounded-sm"
-                  whileHover={{ 
-                    scale: 1.05,
-                    transition: { duration: 0.3 }
-                  }}
-                >
-                  <Image
-                    src={category.image}
-                    alt={category.alt}
-                    width={480}
-                    height={640}
-                    className="aspect-[3/4] w-full object-cover"
-                  />
-                </motion.div>
+          {categories.map((category, index) => {
+            const CategoryImage = ({ category }: { category: typeof categories[0] }) => {
+              const [imgError, setImgError] = useState(false);
+              const imageSrc = normalizeImagePath(category.image);
+              
+              if (imgError) {
+                return (
+                  <div className="aspect-[3/4] w-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-xs text-gray-400 text-center px-2">{category.alt}</span>
+                  </div>
+                );
+              }
+              
+              return (
+                <Image
+                  src={imageSrc}
+                  alt={category.alt}
+                  width={480}
+                  height={640}
+                  className="aspect-[3/4] w-full object-cover"
+                  unoptimized
+                  onError={() => setImgError(true)}
+                />
+              );
+            };
+            
+            return (
+              <motion.div
+                key={category.name}
+                className="w-[70%] flex-shrink-0 snap-start sm:w-2/5 md:w-auto"
+                variants={itemVariants}
+                initial={false}
+                whileHover={{ 
+                  scale: 1.02,
+                  transition: { duration: 0.2 }
+                }}
+              >
+                <Link href={category.href} className="group block">
+                  <motion.div 
+                    className="overflow-hidden bg-gray-200 rounded-sm"
+                    whileHover={{ 
+                      scale: 1.05,
+                      transition: { duration: 0.3 }
+                    }}
+                  >
+                    <CategoryImage category={category} />
+                  </motion.div>
                 <motion.p 
                   className="mt-3 sm:mt-4 text-center text-xs sm:text-[13px] font-medium uppercase tracking-wider text-foreground transition-colors group-hover:text-link-hover"
                   whileHover={{ 
@@ -143,7 +176,8 @@ const CategoryGrid = () => {
                 </motion.p>
               </Link>
             </motion.div>
-          ))}
+            );
+          })}
         </motion.div>
       </div>
     </section>

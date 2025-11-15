@@ -14,9 +14,21 @@ const getBaseURL = () => {
 	if (process.env.BETTER_AUTH_URL) {
 		return process.env.BETTER_AUTH_URL;
 	}
-	// For production environments, try to construct from VERCEL_URL or similar
+	// For Netlify deployment, use NETLIFY_URL
+	if (process.env.NETLIFY_URL) {
+		return `https://${process.env.NETLIFY_URL}`;
+	}
+	// For Vercel deployment, use VERCEL_URL
 	if (process.env.VERCEL_URL) {
 		return `https://${process.env.VERCEL_URL}`;
+	}
+	// For Netlify, also check CONTEXT and URL
+	if (process.env.CONTEXT === 'production' && process.env.URL) {
+		return process.env.URL;
+	}
+	// For Netlify deploy previews
+	if (process.env.DEPLOY_PRIME_URL) {
+		return process.env.DEPLOY_PRIME_URL;
 	}
 	// Default to localhost for development
 	return "http://localhost:3002";
@@ -24,12 +36,34 @@ const getBaseURL = () => {
 
 const baseURL = getBaseURL();
 
-// Log baseURL in production to help debug issues
-if (process.env.NODE_ENV === 'production') {
-	console.log('Better Auth baseURL:', baseURL);
-	if (!process.env.NEXT_PUBLIC_SITE_URL && !process.env.BETTER_AUTH_URL) {
-		console.warn('WARNING: NEXT_PUBLIC_SITE_URL or BETTER_AUTH_URL not set in production! Using:', baseURL);
-		console.warn('This may cause authentication issues. Please set NEXT_PUBLIC_SITE_URL=https://cesclair.store');
+// Log baseURL in production runtime (not during build) to help debug issues
+// Suppress warnings during build time - only warn at runtime
+// During build, Next.js static generation may not have env vars set, so we skip the warning
+// Check if we're in a build context by checking for build-specific indicators
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                    process.env.NEXT_PHASE === 'phase-development-build' ||
+                    process.env.NEXT_PHASE === 'phase-production-compile' ||
+                    // During static generation, __NEXT_DATA__ might not be available
+                    (typeof window === 'undefined' && !process.env.NEXT_RUNTIME);
+
+// Only warn at runtime, not during build/static generation
+// In production builds, env vars should be set in Netlify, so warnings are only for runtime
+// Suppress all warnings during build to avoid noise in build logs
+if (process.env.NODE_ENV === 'production' && !isBuildTime) {
+	// Only log if we're actually in a runtime context (not during build)
+	// Check if we're in a serverless function or actual runtime
+	const isRuntime = process.env.NEXT_RUNTIME || typeof window !== 'undefined';
+	
+	if (isRuntime) {
+		try {
+			console.log('Better Auth baseURL:', baseURL);
+			if (!process.env.NEXT_PUBLIC_SITE_URL && !process.env.BETTER_AUTH_URL) {
+				console.warn('WARNING: NEXT_PUBLIC_SITE_URL or BETTER_AUTH_URL not set in production! Using:', baseURL);
+				console.warn('This may cause authentication issues. Please set NEXT_PUBLIC_SITE_URL=https://cesclair.store');
+			}
+		} catch (e) {
+			// Silently ignore if console is not available
+		}
 	}
 }
 
