@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import Footer from "@/components/sections/footer";
 import { useDebounce } from "@/lib/hooks/useDebounce";
+import { determineProductCategory } from "@/lib/utils";
 import { SkeletonStats, SkeletonTable } from "@/components/skeleton-loaders";
 import { 
   Shield, 
@@ -1844,6 +1845,11 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           // Use first image URL, fallback to second if first is empty
           const finalImageUrl = imageUrl || secondImageUrl;
           
+          // Determine category from title and description if not already set
+          if (!category && (name || description)) {
+            category = determineProductCategory(name, description);
+          }
+          
           if (name && name.trim() && price && price.trim()) {
             product = {
               name: name.trim(),
@@ -1908,6 +1914,11 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             }
           }
           
+          // Determine category from title and description if not already set
+          if (!category && (name || description)) {
+            category = determineProductCategory(name, description);
+          }
+          
           if (name && name.trim() && price && price.trim()) {
             product = {
               name: name.trim(),
@@ -1921,6 +1932,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           }
         } else {
           // Legacy format: map headers to product fields
+          let titleValue: string | undefined;
           headers.forEach((header, index) => {
             if (values[index]) {
               const cleanValue = values[index].replace(/^"|"$/g, '');
@@ -1928,6 +1940,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               const headerLower = header.toLowerCase();
               if (headerLower.includes('name') || headerLower === 'product name') {
                 product.name = cleanValue;
+              } else if (headerLower === 'title' || headerLower.includes('title')) {
+                // Store title separately - use it for category detection if name is not available
+                titleValue = cleanValue;
+                // If name is not set, use title as name
+                if (!product.name) {
+                  product.name = cleanValue;
+                }
               } else if (headerLower.includes('price')) {
                 product.price = cleanValue.replace(/[$,]/g, '').trim();
               } else if (headerLower.includes('description')) {
@@ -1946,6 +1965,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               }
             }
           });
+          
+          // Determine category from title and description if not already set
+          // Use title if available, otherwise use name
+          const titleForCategory = titleValue || product.name;
+          if (!product.category && (titleForCategory || product.description)) {
+            product.category = determineProductCategory(titleForCategory, product.description);
+          }
         }
 
         // Validate product has required fields and valid price
