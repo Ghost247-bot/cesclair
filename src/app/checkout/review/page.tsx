@@ -62,8 +62,22 @@ export default function CheckoutReviewPage() {
 
   const loadCheckoutData = async () => {
     try {
+      // Build headers with session info for cart
+      const cartHeaders: Record<string, string> = {};
+      const sessionId = localStorage.getItem('cart_session_id');
+      
+      if (sessionId) {
+        cartHeaders['x-session-id'] = sessionId;
+      }
+      
+      if (session?.user?.id) {
+        cartHeaders['x-user-id'] = session.user.id;
+      }
+
       // Load cart
-      const cartResponse = await fetch('/api/cart');
+      const cartResponse = await fetch('/api/cart', {
+        headers: cartHeaders,
+      });
       const cartData = await cartResponse.json();
       if (cartData.items) {
         setCartItems(cartData.items);
@@ -119,22 +133,59 @@ export default function CheckoutReviewPage() {
                        ? `${shippingData.firstName.toLowerCase()}.${shippingData.lastName.toLowerCase()}@guest.temp`
                        : shippingData.firstName.toLowerCase() + '@example.com'));
 
+      // Get session ID from localStorage for guest checkout
+      const sessionId = localStorage.getItem('cart_session_id');
+      
+      console.log('Placing order with data:', {
+        email,
+        shippingAddress: shippingData,
+        userId: session?.user?.id,
+        sessionId,
+      });
+
+      // Build headers with session info
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add session ID for guest checkout
+      if (sessionId) {
+        headers['x-session-id'] = sessionId;
+      }
+      
+      // Add user ID if available
+      if (session?.user?.id) {
+        headers['x-user-id'] = session.user.id;
+      }
+
+      // Include cart items in the request as a fallback
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           email: email, // API will prioritize session email if available
           shippingAddress: shippingData,
           paymentMethod: 'card',
           paymentIntentId: null, // In production, create Stripe payment intent
+          items: cartItems, // Include cart items as fallback if database lookup fails
         }),
       });
 
       const data = await response.json();
+      console.log('Order API response:', { status: response.status, data });
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        const orderNumber = data.orderNumber || data.order?.orderNumber;
+        
+        if (!orderNumber) {
+          console.error('Order created but no order number returned:', data);
+          toast.error('Order placed but order number not received. Please contact support.');
+          setIsPlacingOrder(false);
+          return;
+        }
+
+        console.log('Order placed successfully with order number:', orderNumber);
+
         // Clear checkout data
         localStorage.removeItem('checkout_shipping');
         localStorage.removeItem('checkout_payment');
@@ -150,14 +201,20 @@ export default function CheckoutReviewPage() {
         }
 
         // Redirect to success page with order number
-        router.push(`/checkout/success?orderNumber=${data.order.orderNumber || data.orderNumber}`);
+        router.push(`/checkout/success?orderNumber=${orderNumber}`);
       } else {
-        toast.error(data.error || 'Failed to place order');
+        console.error('Order creation failed:', data);
+        const errorMessage = data.message || data.error || 'Failed to place order';
+        toast.error(errorMessage);
         setIsPlacingOrder(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Place order error:', error);
-      toast.error('Failed to place order. Please try again.');
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+      });
+      toast.error(error?.message || 'Failed to place order. Please try again.');
       setIsPlacingOrder(false);
     }
   };

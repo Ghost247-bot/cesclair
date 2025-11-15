@@ -34,7 +34,10 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  Activity
+  Activity,
+  ShoppingBag,
+  Truck,
+  XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -125,7 +128,7 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders">("overview");
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalDesigners: 0,
@@ -145,6 +148,42 @@ export default function AdminPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<Contract[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [orders, setOrders] = useState<Array<{
+    id: number;
+    orderNumber: string;
+    userId: string | null;
+    email: string;
+    status: string;
+    subtotal: string;
+    shipping: string;
+    tax: string;
+    discount: string;
+    total: string;
+    shippingFirstName: string | null;
+    shippingLastName: string | null;
+    shippingAddressLine1: string | null;
+    shippingCity: string | null;
+    shippingState: string | null;
+    shippingZipCode: string | null;
+    shippingCountry: string | null;
+    trackingNumber: string | null;
+    shippedAt: Date | null;
+    deliveredAt: Date | null;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+    items: Array<{
+      id: number;
+      productId: number;
+      productName: string;
+      quantity: number;
+      price: string;
+      size: string | null;
+      color: string | null;
+    }>;
+  }>>([]);
+  const [filteredOrders, setFilteredOrders] = useState<typeof orders>([]);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [designs, setDesigns] = useState<Array<{ id: number; title: string; designerId: number }>>([]);
   const [selectedDesignerId, setSelectedDesignerId] = useState<number | null>(null);
   // Designs for review
@@ -401,6 +440,8 @@ export default function AdminPage() {
         fetchDesigners(); // Portfolios use the same data as designers
       } else if (activeTab === "designs") {
         fetchDesignsForReview();
+      } else if (activeTab === "orders") {
+        fetchOrders();
       }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
@@ -546,6 +587,38 @@ export default function AdminPage() {
 
     setFilteredDesignsForReview(filtered);
   }, [designsForReview, designSearchQuery, designStatusFilter]);
+
+  // Filter orders based on search and status
+  const debouncedOrderSearchQuery = useDebounce(orderSearchQuery, 300);
+  useEffect(() => {
+    let filtered = orders;
+
+    if (debouncedOrderSearchQuery) {
+      const query = debouncedOrderSearchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (o) =>
+          o.orderNumber.toLowerCase().includes(query) ||
+          o.email.toLowerCase().includes(query) ||
+          o.shippingFirstName?.toLowerCase().includes(query) ||
+          o.shippingLastName?.toLowerCase().includes(query) ||
+          o.shippingCity?.toLowerCase().includes(query) ||
+          o.trackingNumber?.toLowerCase().includes(query)
+      );
+    }
+
+    if (orderStatusFilter !== "all") {
+      filtered = filtered.filter((o) => o.status === orderStatusFilter);
+    }
+
+    setFilteredOrders(filtered);
+  }, [orders, debouncedOrderSearchQuery, orderStatusFilter]);
+
+  // Refetch orders when status filter changes
+  useEffect(() => {
+    if (activeTab === "orders" && !sessionPending && !roleLoading && session?.user && isAdmin) {
+      fetchOrders();
+    }
+  }, [orderStatusFilter]);
 
   const fetchDesigners = async () => {
     try {
@@ -1233,6 +1306,73 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       setAuditLogs([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const statusParam = orderStatusFilter !== "all" ? `&status=${orderStatusFilter}` : "";
+      const response = await fetch(`/api/admin/orders?limit=100${statusParam}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const ordersList = data.orders || [];
+        setOrders(ordersList);
+        setFilteredOrders(ordersList);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Failed to load orders:", response.status, errorData);
+        }
+        toast.error(errorData.error || "Failed to load orders");
+        setOrders([]);
+        setFilteredOrders([]);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch orders:", error);
+      }
+      toast.error("Failed to load orders. Please try again.");
+      setOrders([]);
+      setFilteredOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: number, status: string, trackingNumber?: string) => {
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ status, trackingNumber: trackingNumber || null }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        const updatedOrders = orders.map((o) => (o.id === orderId ? updated.order : o));
+        setOrders(updatedOrders);
+        setFilteredOrders(updatedOrders);
+        
+        const statusMessages: Record<string, string> = {
+          processing: "Order confirmed",
+          shipped: "Order shipped",
+          cancelled: "Order cancelled",
+          delivered: "Order marked as delivered",
+        };
+        toast.success(statusMessages[status] || "Order status updated successfully");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update order status");
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to update order status:", error);
+      }
+      toast.error("Failed to update order status");
     }
   };
 
@@ -2238,6 +2378,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <span className="hidden sm:inline">Contracts </span>({contracts.length})
               </button>
               <button
+                onClick={() => setActiveTab("orders")}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "orders"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <ShoppingBag className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Orders </span>({orders.length})
+              </button>
+              <button
                 onClick={() => setActiveTab("designs")}
                 className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === "designs"
@@ -2944,6 +3095,226 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 )}
                               </div>
                             </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Orders Tab */}
+            {activeTab === "orders" && (
+              <div>
+                {/* Header with Search and Filters */}
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search orders by order number, email, name, city, or tracking..."
+                        value={orderSearchQuery}
+                        onChange={(e) => setOrderSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={orderStatusFilter}
+                        onChange={(e) => setOrderStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Orders</option>
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Orders List */}
+                {loading ? (
+                  <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14">
+                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                    <p className="text-xs md:text-body text-muted-foreground">Loading orders...</p>
+                  </div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14 bg-white border border-border rounded-lg">
+                    <ShoppingBag className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                    <p className="text-xs md:text-body text-muted-foreground">
+                      {orderSearchQuery || orderStatusFilter !== "all"
+                        ? "No orders match your filters."
+                        : "No orders found."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 md:space-y-4">
+                    {filteredOrders.map((order) => {
+                      const getStatusColor = (status: string) => {
+                        switch (status.toLowerCase()) {
+                          case 'pending':
+                            return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+                          case 'processing':
+                            return 'text-blue-600 bg-blue-50 border-blue-200';
+                          case 'shipped':
+                            return 'text-purple-600 bg-purple-50 border-purple-200';
+                          case 'delivered':
+                            return 'text-green-600 bg-green-50 border-green-200';
+                          case 'cancelled':
+                            return 'text-red-600 bg-red-50 border-red-200';
+                          default:
+                            return 'text-gray-600 bg-gray-50 border-gray-200';
+                        }
+                      };
+
+                      const canConfirm = order.status === 'pending';
+                      const canShip = order.status === 'processing' || order.status === 'pending';
+                      const canCancel = order.status === 'pending' || order.status === 'processing';
+
+                      return (
+                        <div
+                          key={order.id}
+                          className="bg-white border border-border rounded-lg p-3 md:p-4 lg:p-5 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 mb-3 md:mb-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
+                                <h3 className="text-base md:text-lg font-semibold">
+                                  Order #{order.orderNumber}
+                                </h3>
+                                <span className={`px-2 py-1 text-xs md:text-sm font-medium rounded border ${getStatusColor(order.status)}`}>
+                                  {order.status.toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="space-y-1 text-xs md:text-sm text-muted-foreground">
+                                <p>
+                                  <strong>Email:</strong> {order.email}
+                                </p>
+                                <p>
+                                  <strong>Date:</strong> {new Date(order.createdAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                                {order.shippingFirstName && order.shippingLastName && (
+                                  <p>
+                                    <strong>Customer:</strong> {order.shippingFirstName} {order.shippingLastName}
+                                  </p>
+                                )}
+                                {order.shippingCity && (
+                                  <p>
+                                    <strong>Shipping to:</strong> {order.shippingCity}, {order.shippingState} {order.shippingZipCode}
+                                  </p>
+                                )}
+                                {order.trackingNumber && (
+                                  <p>
+                                    <strong>Tracking:</strong> {order.trackingNumber}
+                                  </p>
+                                )}
+                                {order.shippedAt && (
+                                  <p>
+                                    <strong>Shipped:</strong> {new Date(order.shippedAt).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg md:text-xl font-bold mb-1">
+                                ${parseFloat(order.total).toFixed(2)}
+                              </p>
+                              <p className="text-xs md:text-sm text-muted-foreground">
+                                Subtotal: ${parseFloat(order.subtotal).toFixed(2)}
+                              </p>
+                              {parseFloat(order.shipping) > 0 && (
+                                <p className="text-xs md:text-sm text-muted-foreground">
+                                  Shipping: ${parseFloat(order.shipping).toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Order Items */}
+                          {order.items && order.items.length > 0 && (
+                            <div className="mb-3 md:mb-4 pb-3 md:pb-4 border-b border-border">
+                              <h4 className="text-sm md:text-base font-medium mb-2">Items:</h4>
+                              <div className="space-y-1">
+                                {order.items.map((item) => (
+                                  <div key={item.id} className="flex justify-between items-center text-xs md:text-sm">
+                                    <span>
+                                      {item.productName} × {item.quantity}
+                                      {item.size && ` (Size: ${item.size})`}
+                                      {item.color && ` (Color: ${item.color})`}
+                                    </span>
+                                    <span className="font-medium">${parseFloat(item.price).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap gap-2">
+                            {canConfirm && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Confirm this order and change status to Processing?')) {
+                                    updateOrderStatus(order.id, 'processing');
+                                  }
+                                }}
+                                className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 md:gap-2"
+                              >
+                                <Check className="w-3 h-3 md:w-4 md:h-4" />
+                                Confirm
+                              </button>
+                            )}
+                            {canShip && (
+                              <button
+                                onClick={() => {
+                                  const trackingNumber = window.prompt('Enter tracking number (optional):');
+                                  if (trackingNumber !== null) {
+                                    updateOrderStatus(order.id, 'shipped', trackingNumber || undefined);
+                                  }
+                                }}
+                                className="px-3 py-1.5 md:px-4 md:py-2 bg-purple-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1.5 md:gap-2"
+                              >
+                                <Truck className="w-3 h-3 md:w-4 md:h-4" />
+                                Ship
+                              </button>
+                            )}
+                            {order.status === 'shipped' && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Mark this order as delivered?')) {
+                                    updateOrderStatus(order.id, 'delivered');
+                                  }
+                                }}
+                                className="px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1.5 md:gap-2"
+                              >
+                                <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4" />
+                                Mark Delivered
+                              </button>
+                            )}
+                            {canCancel && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+                                    updateOrderStatus(order.id, 'cancelled');
+                                  }
+                                }}
+                                className="px-3 py-1.5 md:px-4 md:py-2 bg-red-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1.5 md:gap-2"
+                              >
+                                <XCircle className="w-3 h-3 md:w-4 md:h-4" />
+                                Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
