@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { orders, orderItems, cartItems, products, user } from '@/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { orders, orderItems, cartItems, products, user, CesworldMembers, CesworldTransactions } from '@/db/schema';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 
@@ -330,6 +330,83 @@ export async function POST(request: NextRequest) {
     } catch (cartError: any) {
       console.error('Error clearing cart:', cartError);
       // Don't fail the order if cart clearing fails
+    }
+
+    // Create transaction for member if user is logged in and is a member
+    if (userId) {
+      try {
+        // Check if user is a member
+        const member = await db
+          .select()
+          .from(CesworldMembers)
+          .where(eq(CesworldMembers.userId, userId))
+          .limit(1);
+
+        if (member.length > 0) {
+          const memberData = member[0];
+          
+          // Calculate points based on tier
+          // Member: 1 point per $1
+          // Plus: 1.25 points per $1
+          // Premier: 1.5 points per $1
+          let pointsPerDollar = 1;
+          if (memberData.tier === 'plus') {
+            pointsPerDollar = 1.25;
+          } else if (memberData.tier === 'premier') {
+            pointsPerDollar = 1.5;
+          }
+          
+          const orderTotal = parseFloat(total.toFixed(2));
+          const pointsEarned = Math.floor(orderTotal * pointsPerDollar);
+          
+          // Create transaction record
+          await db.insert(CesworldTransactions).values({
+            memberId: memberData.id,
+            type: 'purchase',
+            amount: total.toFixed(2),
+            points: pointsEarned,
+            description: `Purchase - Order #${orderNumber}`,
+            orderId: String(newOrder.id),
+            createdAt: new Date(),
+          });
+
+          // Update member points and annual spending
+          const currentSpending = parseFloat(memberData.annualSpending || '0');
+          const newAnnualSpending = (currentSpending + orderTotal).toFixed(2);
+          const newPoints = memberData.points + pointsEarned;
+
+          // Determine new tier based on annual spending
+          let newTier = memberData.tier;
+          if (parseFloat(newAnnualSpending) >= 1000 && memberData.tier !== 'premier') {
+            newTier = 'premier';
+          } else if (parseFloat(newAnnualSpending) >= 500 && memberData.tier === 'member') {
+            newTier = 'plus';
+          }
+
+          // Update member record
+          await db
+            .update(CesworldMembers)
+            .set({
+              points: newPoints,
+              annualSpending: newAnnualSpending,
+              tier: newTier,
+              lastTierUpdate: newTier !== memberData.tier ? new Date() : memberData.lastTierUpdate,
+            })
+            .where(eq(CesworldMembers.id, memberData.id));
+
+          console.log('Transaction created and member updated:', {
+            memberId: memberData.id,
+            pointsEarned,
+            newPoints,
+            newAnnualSpending,
+            newTier,
+          });
+        }
+      } catch (transactionError: any) {
+        console.error('Error creating transaction:', transactionError);
+        // Don't fail the order if transaction creation fails
+        // The order is already created successfully
+      }
     }
 
     console.log('Order creation complete. Order number:', newOrder.orderNumber);

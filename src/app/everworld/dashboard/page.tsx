@@ -86,13 +86,18 @@ export default function CesworldDashboard() {
           setMember(memberData);
 
           // Fetch transactions
-          const transactionsRes = await fetch(`/api/cesworld/transactions/member/${memberData.id}?limit=10`, {
+          const transactionsRes = await fetch(`/api/cesworld/transactions/member/${memberData.id}?limit=100`, {
             credentials: 'include',
           });
 
           if (transactionsRes.ok) {
             const transactionsData = await transactionsRes.json();
-            setTransactions(transactionsData);
+            // Ensure transactions is an array
+            setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+            console.log('Loaded transactions:', transactionsData.length || 0);
+          } else {
+            console.error('Failed to fetch transactions:', transactionsRes.status);
+            setTransactions([]);
           }
 
           // Fetch rewards
@@ -120,6 +125,10 @@ export default function CesworldDashboard() {
           if (createRes.ok) {
             const newMember = await createRes.json();
             setMember(newMember);
+            
+            // Initialize empty transactions and rewards for new member
+            setTransactions([]);
+            setRewards([]);
           } else {
             const errorData = await createRes.json().catch(() => null);
             console.error("Failed to create member profile:", createRes.status, createRes.statusText, errorData);
