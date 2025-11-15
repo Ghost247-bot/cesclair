@@ -66,15 +66,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/icon.png', type: 'image/png', sizes: '32x32' },
-      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+      { url: `${siteUrl}/favicon.ico`, sizes: 'any' },
+      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '32x32' },
+      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '192x192' },
+      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '512x512' },
     ],
     apple: [
-      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: `${siteUrl}/apple-icon.png`, sizes: '180x180', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: `${siteUrl}/favicon.ico`,
   },
   manifest: '/manifest.json',
   verification: {

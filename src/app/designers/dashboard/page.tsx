@@ -494,9 +494,10 @@ export default function DesignerDashboardPage() {
   };
 
   const handleSignContract = (contract: Contract) => {
+    // Show a warning if envelopeId is missing, but still allow signing
+    // since SigningFrame is a placeholder and doesn't require DocuSign integration yet
     if (!contract.envelopeId) {
-      toast.error('This contract does not have an envelope ID. Please contact admin.');
-      return;
+      toast.warning('This contract does not have an envelope ID. Signing will proceed without DocuSign integration.');
     }
     setSigningContract(contract);
     // Scroll to signing section after a brief delay
@@ -2603,7 +2604,7 @@ export default function DesignerDashboardPage() {
                             { label: 'Created', date: contract.createdAt, icon: Plus, color: 'gray' },
                             contract.awardedAt && { label: 'Awarded', date: contract.awardedAt, icon: Award, color: 'blue' },
                             contract.signedAt && { label: 'Signed', date: contract.signedAt, icon: FileSignature, color: 'purple' },
-                            contract.completedAt && { label: 'Completed', date: contract.completedAt, icon: CheckCircle, color: 'green' },
+                            contract.completedAt && contract.status === 'completed' && { label: 'Completed', date: contract.completedAt, icon: CheckCircle, color: 'green' },
                           ].filter(Boolean) as Array<{ label: string; date: string; icon: any; color: string }>;
                           
                           return (
@@ -2736,7 +2737,7 @@ export default function DesignerDashboardPage() {
                             {new Date(contract.signedAt).toLocaleDateString()}
                           </div>
                         )}
-                        {contract.completedAt && (
+                        {contract.completedAt && contract.status === 'completed' && (
                           <div>
                             <span className="text-label">COMPLETED:</span>{" "}
                             {new Date(contract.completedAt).toLocaleDateString()}
@@ -3263,7 +3264,7 @@ export default function DesignerDashboardPage() {
                       </div>
                     )}
 
-                    {viewingContract.completedAt && (
+                    {viewingContract.completedAt && viewingContract.status === 'completed' && (
                       <div>
                         <label className="text-label text-muted-foreground block mb-1">Completed</label>
                         <p className="text-body">{viewingContract.completedAt ? new Date(viewingContract.completedAt).toLocaleString() : ''}</p>

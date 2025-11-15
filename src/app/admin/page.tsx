@@ -5109,7 +5109,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </p>
                     </div>
                   )}
-                  {viewingContract.completedAt && (
+                  {viewingContract.completedAt && viewingContract.status === 'completed' && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Completed At</label>
                       <p className="text-base mt-1">
