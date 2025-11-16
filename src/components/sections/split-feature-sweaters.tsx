@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 const SplitFeatureSweaters = () => {
   const [imgError, setImgError] = useState(false);
-  const imageSrc = normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg");
+  const imageSrc = normalizeImagePath("https://media.everlane.com/image/upload/c_scale,dpr_1.5,f_auto,q_auto,w_auto/v1/i/281884a3_6e36.jpg");
   
   return (
     <section className="flex flex-col md:block md:relative md:aspect-[4/5]">

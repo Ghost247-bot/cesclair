@@ -12,7 +12,7 @@ import { useState } from "react";
 
 const HeroSection = () => {
   const [imgError, setImgError] = useState(false);
-  const imageSrc = normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/287f132e_bc45-2.jpg");
+  const imageSrc = normalizeImagePath("https://media.everlane.com/image/upload/c_scale,dpr_1.5,f_auto,q_auto,w_auto/v1/i/b9da87d5_7538.jpg");
   
   return (
     <section className="relative w-full aspect-[4/5] md:aspect-video overflow-hidden bg-secondary">
@@ -26,7 +26,10 @@ const HeroSection = () => {
           sizes="100vw"
           quality={85}
           unoptimized
-          onError={() => setImgError(true)}
+          onError={() => {
+            console.error('Image failed to load:', imageSrc);
+            setImgError(true);
+          }}
         />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">

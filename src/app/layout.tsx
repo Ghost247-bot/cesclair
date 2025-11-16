@@ -105,6 +105,12 @@ export default function RootLayout({
         <HeaderNavigation />
         <link rel="preconnect" href="https://slelguoygbfzlpylpxfs.supabase.co" />
         <link rel="dns-prefetch" href="https://slelguoygbfzlpylpxfs.supabase.co" />
+        <link rel="preconnect" href="https://media.everlane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://media.everlane.com" />
+        <link rel="preconnect" href="https://www.everlane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.everlane.com" />
+        <link rel="preconnect" href="https://www.ceslane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.ceslane.com" />
         <Script
           id="route-messenger-script"
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"

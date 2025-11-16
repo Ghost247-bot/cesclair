@@ -9,7 +9,7 @@ const contentData = [
   {
     title: 'No-Fail Outfits',
     href: '/content/no-fail-outfits',
-    imageSrc: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/415060f1_ee5b-13.jpg',
+    imageSrc: 'https://media.everlane.com/image/upload/v1762539648/w6ksfhdjo8w3cmy1pwm5.jpg',
     imageAlt: 'Model wearing a brown track jacket and wide-leg pants in a minimalist setting.',
   },
   {
@@ -21,7 +21,7 @@ const contentData = [
       </>
     ),
     href: '/collections/holiday-edit',
-    imageSrc: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/5cde1622_bc63-14.jpg',
+    imageSrc: 'https://media.everlane.com/image/upload/c_scale,dpr_1.5,f_auto,q_auto,w_auto/v1/i/b9da87d5_7538.jpg',
     imageAlt: 'Close-up of a person wearing a textured brown fleece jacket.',
   },
 ];

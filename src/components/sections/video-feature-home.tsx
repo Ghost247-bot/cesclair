@@ -27,6 +27,8 @@ const VideoFeatureHome = () => {
           autoPlay
           loop
           muted
+          crossOrigin="anonymous"
+          preload="auto"
           onError={(e) => {
             // Handle video load errors gracefully
             console.warn('Video failed to load, using fallback');
@@ -35,9 +37,17 @@ const VideoFeatureHome = () => {
               video.style.display = 'none';
             }
           }}
+          onLoadedMetadata={() => {
+            // Ensure video plays when metadata is loaded
+            if (videoRef.current) {
+              videoRef.current.play().catch((err) => {
+                console.warn('Autoplay failed:', err);
+              });
+            }
+          }}
         >
           <source
-            src="https://www.ceslane.com/cdn/shop/videos/c/vp/5babf13ddcd84b3d94b0fbffca621736/5babf13ddcd84b3d94b0fbffca621736.HD-1080p-7.2Mbps-61356965.mp4?v=0"
+            src="https://www.everlane.com/cdn/shop/videos/c/vp/5babf13ddcd84b3d94b0fbffca621736/5babf13ddcd84b3d94b0fbffca621736.HD-1080p-7.2Mbps-61356965.mp4?v=0"
             type="video/mp4"
           />
           Your browser does not support the video tag.

@@ -50,8 +50,18 @@ const FeatureCard = ({ title, description, linkHref, media }: FeatureCardProps) 
             loop
             muted
             playsInline
+            crossOrigin="anonymous"
+            preload="auto"
             aria-label={media.alt}
             onError={() => setVideoError(true)}
+            onLoadedMetadata={() => {
+              // Ensure video plays when metadata is loaded
+              if (videoRef.current) {
+                videoRef.current.play().catch((err) => {
+                  console.warn('Autoplay failed:', err);
+                });
+              }
+            }}
           />
         ) : (
           <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
@@ -111,7 +121,7 @@ const VideoFeatureBottomLine = () => {
       linkHref: '/collections/sweater-shop',
       media: {
         type: 'image' as const,
-        src: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg',
+        src: 'https://media.everlane.com/image/upload/c_scale,dpr_1.5,f_auto,q_auto,w_auto/v1/i/5310ace9_ce6e.jpg',
         alt: 'A model wearing a premium sweater.',
       },
     },
@@ -121,7 +131,7 @@ const VideoFeatureBottomLine = () => {
       linkHref: '/women/pants',
       media: {
         type: 'video' as const,
-        src: 'https://www.ceslane.com/cdn/shop/videos/c/vp/3d1a299d726c40c9a897fdd7c9005473/3d1a299d726c40c9a897fdd7c9005473.HD-1080p-7.2Mbps-61356966.mp4?v=0',
+        src: 'https://www.everlane.com/cdn/shop/videos/c/vp/3d1a299d726c40c9a897fdd7c9005473/3d1a299d726c40c9a897fdd7c9005473.HD-1080p-7.2Mbps-61356966.mp4?v=0',
         alt: 'A woman posing in black crop top and high-waisted black pants.',
       },
     },
