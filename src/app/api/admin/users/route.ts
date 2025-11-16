@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const roleFilter = searchParams.get('role');
 
     // Build query
-    let query = db.select({
+    let baseQuery = db.select({
       id: user.id,
       name: user.name,
       email: user.email,
@@ -97,28 +97,58 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(user.role, roleFilter));
     }
 
+    // Apply conditions
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      if (conditions.length === 1) {
+        baseQuery = baseQuery.where(conditions[0]);
+      } else {
+        baseQuery = baseQuery.where(and(...conditions));
+      }
     }
 
-    const results = await query
-      .orderBy(desc(user.createdAt))
-      .limit(limit)
-      .offset(offset);
+    // Execute query with error handling
+    let results;
+    try {
+      results = await baseQuery
+        .orderBy(desc(user.createdAt))
+        .limit(limit)
+        .offset(offset);
+    } catch (queryError) {
+      console.error('Database query error:', queryError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch users', 
+          code: 'QUERY_ERROR',
+          details: process.env.NODE_ENV === 'development' 
+            ? (queryError instanceof Error ? queryError.message : String(queryError))
+            : undefined
+        },
+        { status: 500 }
+      );
+    }
 
-    // Fetch membership info for each user
+    // Fetch membership info for each user with error handling
     const usersWithMembership = await Promise.all(
       results.map(async (u) => {
-        const membership = await db
-          .select()
-          .from(CesworldMembers)
-          .where(eq(CesworldMembers.userId, u.id))
-          .limit(1);
-        
-        return {
-          ...u,
-          membership: membership.length > 0 ? membership[0] : null,
-        };
+        try {
+          const membership = await db
+            .select()
+            .from(CesworldMembers)
+            .where(eq(CesworldMembers.userId, u.id))
+            .limit(1);
+          
+          return {
+            ...u,
+            membership: membership.length > 0 ? membership[0] : null,
+          };
+        } catch (membershipError) {
+          console.error(`Error fetching membership for user ${u.id}:`, membershipError);
+          // Return user without membership info if query fails
+          return {
+            ...u,
+            membership: null,
+          };
+        }
       })
     );
 

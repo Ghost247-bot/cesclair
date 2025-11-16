@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { signWellClient } from '@/lib/signwell';
+import { db } from '@/db';
+import { user } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +23,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    const userRole = (session.user as any)?.role;
+    // Check if user is admin - first check session, then database
+    let userRole = (session.user as any)?.role;
+    
+    // If role is not in session, fetch from database
+    if (!userRole) {
+      try {
+        const dbUser = await db
+          .select({ role: user.role })
+          .from(user)
+          .where(eq(user.id, session.user.id))
+          .limit(1);
+        
+        if (dbUser.length > 0) {
+          userRole = dbUser[0].role;
+        }
+      } catch (dbError) {
+        console.error('Error fetching user role from database:', dbError);
+        return NextResponse.json(
+          {
+            error: 'Failed to verify user role',
+            code: 'ROLE_CHECK_ERROR',
+          },
+          { status: 500 }
+        );
+      }
+    }
+
     if (userRole !== 'admin') {
       return NextResponse.json(
         {
