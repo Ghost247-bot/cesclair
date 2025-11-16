@@ -255,6 +255,7 @@ export default function AdminPage() {
     name: '',
     file: null as File | null,
   });
+  const [signWellConfigured, setSignWellConfigured] = useState<boolean | null>(null);
   
   // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -1260,6 +1261,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
   // Fetch documents from SignWell
   const fetchDocuments = async () => {
+    // Guard: Only fetch if authenticated and admin
+    if (sessionPending || roleLoading || !session?.user || !isAdmin) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Skipping fetchDocuments - session not ready or user not admin");
+      }
+      return;
+    }
+
     try {
       setDocumentsLoading(true);
       
@@ -1277,25 +1286,87 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
       const response = await fetch(`/api/signwell/documents?${params.toString()}`, {
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
         setDocuments(data.documents || []);
+        setSignWellConfigured(true);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        if (process.env.NODE_ENV === 'development') {
-          console.error("Failed to load documents:", response.status, errorData);
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          // If JSON parsing fails, errorData remains empty object
         }
-        toast.error(errorData.error || "Failed to load documents from SignWell");
-        setDocuments([]);
+        
+        // Check for SignWell not configured error - be very thorough
+        // If status is 503 from /api/signwell/documents, it's almost certainly a SignWell configuration issue
+        const errorMessage = errorData.error || '';
+        const errorCode = errorData.code || '';
+        const isSignWellNotConfigured = 
+          errorCode === 'SIGNWELL_NOT_CONFIGURED' || 
+          // If we get a 503 from the SignWell documents endpoint, treat it as configuration issue
+          (response.status === 503) ||
+          (typeof errorMessage === 'string' && 
+           errorMessage.toLowerCase().includes('signwell') && 
+           (errorMessage.toLowerCase().includes('not configured') ||
+            errorMessage.toLowerCase().includes('not set') ||
+            errorMessage.toLowerCase().includes('api is not configured')));
+        
+        if (isSignWellNotConfigured) {
+          setSignWellConfigured(false);
+          setDocuments([]);
+          // Silently handle this case - no console output, no errors, no toasts
+          // This is expected when SignWell is not configured
+          return;
+        } else if (response.status === 401) {
+          // Handle authentication error - session may have expired
+          if (process.env.NODE_ENV === 'development') {
+            console.error("Authentication failed - session may have expired:", response.status, errorData);
+          }
+          // Refresh session and try to redirect
+          router.refresh();
+          // Don't show error toast for auth failures - user will be redirected
+          setDocuments([]);
+        } else {
+          if (signWellConfigured !== false) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error("Failed to load documents:", response.status, errorData);
+            }
+            toast.error(errorData.error || "Failed to load documents from SignWell");
+          }
+          setDocuments([]);
+        }
       }
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to fetch documents:", error);
+      // Check if error is related to SignWell not being configured
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isSignWellNotConfigured = 
+        errorMessage.toLowerCase().includes('signwell') && 
+        (errorMessage.toLowerCase().includes('not configured') || 
+         errorMessage.toLowerCase().includes('not set') ||
+         errorMessage.toLowerCase().includes('api is not configured'));
+      
+      if (isSignWellNotConfigured) {
+        setSignWellConfigured(false);
+        setDocuments([]);
+        // Silently handle this case - no console output needed
+        // This is expected when SignWell is not configured
+        return;
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Failed to fetch documents:", error);
+        }
+        // Only show toast if it's not a configuration issue
+        if (signWellConfigured !== false) {
+          toast.error("Failed to load documents. Please try again.");
+        }
+        setDocuments([]);
       }
-      toast.error("Failed to load documents. Please try again.");
-      setDocuments([]);
     } finally {
       setDocumentsLoading(false);
     }
@@ -1331,7 +1402,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         fetchDocuments();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || "Failed to send document");
+        if (errorData.code === 'SIGNWELL_NOT_CONFIGURED') {
+          setSignWellConfigured(false);
+          toast.error("SignWell API is not configured. Please set the SIGNWELL_API_KEY environment variable.");
+        } else {
+          toast.error(errorData.error || "Failed to send document");
+        }
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -1380,11 +1456,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         toast.success("Document uploaded to SignWell successfully");
         setShowUploadSignWellDocumentModal(false);
         setSignWellDocumentForm({ name: '', file: null });
+        setSignWellConfigured(true);
         // Refresh documents list
         fetchDocuments();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || "Failed to upload document to SignWell");
+        if (errorData.code === 'SIGNWELL_NOT_CONFIGURED') {
+          setSignWellConfigured(false);
+          toast.error("SignWell API is not configured. Please set the SIGNWELL_API_KEY environment variable.");
+        } else {
+          toast.error(errorData.error || "Failed to upload document to SignWell");
+        }
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -3217,6 +3299,18 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {/* Documents Tab */}
             {activeTab === "documents" && (
               <div>
+                {/* SignWell Configuration Alert */}
+                {signWellConfigured === false && (
+                  <div className="mb-4 bg-white border border-border rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">SignWell API is not configured</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        To use SignWell features, please set the SIGNWELL_API_KEY environment variable.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* Header with Search and Filters */}
                 <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
                   <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 w-full">
