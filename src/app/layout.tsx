@@ -109,6 +109,8 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://media.everlane.com" />
         <link rel="preconnect" href="https://www.everlane.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.everlane.com" />
+        <link rel="preconnect" href="https://cdn.builder.io" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.builder.io" />
         <link rel="preconnect" href="https://www.ceslane.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.ceslane.com" />
         <Script

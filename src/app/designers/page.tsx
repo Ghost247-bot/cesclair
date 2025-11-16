@@ -50,20 +50,24 @@ export default function DesignersPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section with Background Image */}
-      <section className="relative py-16 md:py-24 overflow-hidden">
+      <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: `url('/uploads/ChatGPT Image Nov 12, 2025, 11_03_48 AM.png')`
-          }}
+        <Image
+          src="https://cdn.builder.io/api/v1/image/assets%2F444142b2cae54a19aeb8b5ba245feffe%2F1a4d70acbcdc4dbf89c5d9845bd9d8b5"
+          alt="Our Designers"
+          fill
+          className="object-cover"
+          priority
+          unoptimized
         />
         {/* Overlay for better text readability */}
-        <div className="absolute inset-0 bg-white/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40" />
         {/* Content */}
-        <div className="container mx-auto text-center relative z-10">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Our Designers</h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+        <div className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium mb-6 tracking-tight">
+            Our Designers
+          </h1>
+          <p className="text-lg md:text-xl lg:text-2xl text-white/90 max-w-2xl mx-auto">
             Discover talented fashion designers and creators shaping the future of sustainable fashion
           </p>
         </div>

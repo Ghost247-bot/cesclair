@@ -10,15 +10,16 @@ export default function Sustainability() {
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center">
         <Image
-          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/68ee3c4b_56f2-15.jpg")}
+          src="https://cdn.builder.io/api/v1/image/assets%2Fd97ae400f8aa432cb35692a7ae10ef73%2F3d9bce1619e14fcd97e53f04a16c40f8"
           alt="Sustainability"
           fill
           className="object-cover"
+          priority
           unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40" />
-        <div className="relative z-10 text-center text-white px-6">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium mb-6 tracking-tight max-w-4xl mx-auto">
+        <div className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium mb-6 tracking-tight">
             SUSTAINABILITY LOOKS BETTER WITH RECEIPTS. HERE'S OURS.
           </h1>
           <Link
