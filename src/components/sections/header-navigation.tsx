@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ShoppingBag, Menu, X, Minus, Plus } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Minus, Plus, Package } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -356,6 +356,14 @@ const HeaderNavigation = () => {
                 >
                   <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
+                <Link
+                  href="/orders/status"
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 
+                  aria-label="Track order"
+                  title="Track order"
+                >
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Link>
                 <div className="relative flex-shrink-0">
                   <button
                     onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
@@ -695,6 +703,14 @@ const HeaderNavigation = () => {
 
               {/* Additional Links */}
               <div className="pt-6 border-t border-border space-y-4">
+                <Link
+                  href="/orders/status"
+                  className="text-navigation hover:opacity-70 transition-opacity block flex items-center gap-2"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Package className="w-4 h-4" />
+                  TRACK ORDER
+                </Link>
                 <Link
                   href="/sustainability"
                   className="text-navigation hover:opacity-70 transition-opacity block"

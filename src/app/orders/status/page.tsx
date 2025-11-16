@@ -4,7 +4,8 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Package, Search, Loader2, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { Package, Search, Loader2, CheckCircle, Truck, XCircle, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import Footer from '@/components/sections/footer';
 
 interface OrderItem {
@@ -53,6 +54,7 @@ function OrderStatusContent() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const orderNum = searchParams.get('orderNumber');
@@ -137,6 +139,20 @@ function OrderStatusContent() {
     });
   };
 
+  const copyOrderNumber = async () => {
+    if (!order?.orderNumber) return;
+    
+    try {
+      await navigator.clipboard.writeText(order.orderNumber);
+      setCopied(true);
+      toast.success('Order number copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      toast.error('Failed to copy order number');
+    }
+  };
+
   return (
     <>
       <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
@@ -214,9 +230,28 @@ function OrderStatusContent() {
                 {/* Order Header */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 pb-6 border-b border-border">
                   <div className="mb-4 sm:mb-0">
-                    <h2 className="text-xl sm:text-2xl font-medium mb-2">
-                      Order #{order.orderNumber}
-                    </h2>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-xl sm:text-2xl font-medium">
+                        Order #{order.orderNumber}
+                      </h2>
+                      <button
+                        onClick={copyOrderNumber}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-secondary-text hover:text-primary-text hover:bg-gray-100 rounded-md transition-colors border border-transparent hover:border-border"
+                        title="Copy order number"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-4 h-4 text-green-600" />
+                            <span className="text-green-600">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     <p className="text-sm sm:text-base text-secondary-text">
                       Placed on {formatDate(order.createdAt)}
                     </p>

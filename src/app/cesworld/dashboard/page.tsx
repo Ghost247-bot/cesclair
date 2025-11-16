@@ -467,19 +467,33 @@ export default function CesworldDashboard() {
                       key={transaction.id}
                       className="flex items-center justify-between border-b border-border pb-4"
                     >
-                      <div>
-                        <p className="text-body font-medium">{transaction.description}</p>
-                        <p className="text-body-small text-muted-foreground">
-                          {formatDate(transaction.createdAt)}
-                        </p>
+                      <div className="flex-1">
+                        <div className="flex items-start gap-2 mb-1">
+                          <p className="text-body font-medium">{transaction.description}</p>
+                          {transaction.orderId && (
+                            <span className="text-body-small text-muted-foreground">
+                              (Order: {transaction.orderId})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <p className="text-body-small text-muted-foreground">
+                            {formatDate(transaction.createdAt)}
+                          </p>
+                          <span className="text-body-small text-muted-foreground">•</span>
+                          <p className="text-body-small font-medium">
+                            {formatCurrency(transaction.amount)}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-body font-medium">
+                        <p
+                          className={`text-body font-medium ${
+                            transaction.points > 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
                           {transaction.points > 0 ? "+" : ""}
                           {transaction.points} points
-                        </p>
-                        <p className="text-body-small text-muted-foreground">
-                          {formatCurrency(transaction.amount)}
                         </p>
                       </div>
                     </div>
@@ -500,39 +514,56 @@ export default function CesworldDashboard() {
                 {transactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between border-b border-border pb-4"
+                    className="border border-border rounded-lg p-4 hover:bg-secondary transition-colors"
                   >
-                    <div className="flex-1">
-                      <p className="text-body font-medium">{transaction.description}</p>
-                      <div className="flex items-center gap-4 mt-1">
-                        <p className="text-body-small text-muted-foreground">
-                          {formatDate(transaction.createdAt)}
-                        </p>
-                        <span
-                          className={`text-label px-2 py-0.5 ${
-                            transaction.type === "purchase"
-                              ? "bg-secondary"
-                              : transaction.type === "redeem"
-                              ? "bg-accent"
-                              : "bg-accent-foreground/10"
-                          }`}
-                        >
-                          {transaction.type.toUpperCase()}
-                        </span>
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="text-body font-medium mb-1">{transaction.description}</p>
+                            {transaction.orderId && (
+                              <p className="text-body-small text-muted-foreground">
+                                Order ID: {transaction.orderId}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={`text-label px-2 py-1 rounded ${
+                              transaction.type === "purchase"
+                                ? "bg-secondary"
+                                : transaction.type === "redeem"
+                                ? "bg-accent"
+                                : "bg-accent-foreground/10"
+                            }`}
+                          >
+                            {transaction.type.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <p className="text-body-small text-muted-foreground">
+                            {formatDate(transaction.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-body font-medium ${
-                          transaction.points > 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {transaction.points > 0 ? "+" : ""}
-                        {transaction.points} points
-                      </p>
-                      <p className="text-body-small text-muted-foreground">
-                        {formatCurrency(transaction.amount)}
-                      </p>
+                      <div className="flex items-start gap-6 md:gap-8">
+                        <div className="text-right">
+                          <p className="text-body-small text-muted-foreground mb-1">Amount</p>
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(transaction.amount)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-body-small text-muted-foreground mb-1">Points</p>
+                          <p
+                            className={`text-lg font-semibold ${
+                              transaction.points > 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {transaction.points > 0 ? "+" : ""}
+                            {transaction.points}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
