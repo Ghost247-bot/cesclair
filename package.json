@@ -12,7 +12,8 @@
         "db:check": "node scripts/check-database.js",
         "db:generate": "drizzle-kit generate",
         "db:push": "drizzle-kit push",
-        "db:studio": "drizzle-kit studio"
+        "db:studio": "drizzle-kit studio",
+        "db:users": "node scripts/fetch-users.js"
     },
     "dependencies": {
         "@babel/parser": "^7.28.5",

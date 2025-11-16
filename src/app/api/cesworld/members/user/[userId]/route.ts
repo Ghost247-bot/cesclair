@@ -69,7 +69,28 @@ export async function GET(
     }
 
     // Security: Users can only access their own member data, unless they're an admin
-    const userRole = (session.user as any)?.role;
+    // Get role from session if available, otherwise fetch from database
+    let userRole = (session.user as any)?.role;
+    
+    // If role is not in session, fetch from database
+    if (!userRole) {
+      try {
+        const dbUser = await db
+          .select({ role: user.role })
+          .from(user)
+          .where(eq(user.id, session.user.id))
+          .limit(1);
+        
+        if (dbUser.length > 0 && dbUser[0].role) {
+          userRole = dbUser[0].role;
+        }
+      } catch (roleError) {
+        console.error('Error fetching role from database:', roleError);
+        // Don't throw error, just use default role
+        userRole = 'member';
+      }
+    }
+    
     const isAdmin = userRole === 'admin';
     const isOwnData = session.user.id === trimmedUserId;
 
@@ -86,6 +107,18 @@ export async function GET(
     // Query Cesworld_members table by userId
     let members;
     try {
+      // Ensure trimmedUserId is a valid string before querying
+      if (!trimmedUserId || typeof trimmedUserId !== 'string' || trimmedUserId.trim() === '') {
+        return NextResponse.json(
+          {
+            error: 'Invalid userId parameter',
+            code: 'INVALID_USER_ID',
+            details: 'userId must be a valid non-empty string',
+          },
+          { status: 400 }
+        );
+      }
+
       members = await db
         .select({
           id: CesworldMembers.id,
@@ -99,31 +132,93 @@ export async function GET(
           lastTierUpdate: CesworldMembers.lastTierUpdate,
         })
         .from(CesworldMembers)
-        .where(eq(CesworldMembers.userId, trimmedUserId))
+        .where(eq(CesworldMembers.userId, trimmedUserId.trim()))
         .limit(1);
     } catch (dbError: unknown) {
       const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
       const errorStack = dbError instanceof Error ? dbError.stack : undefined;
       const errorCause = dbError instanceof Error && (dbError as any).cause ? (dbError as any).cause : null;
       
-      console.error('Database query error:', {
+      // Try to extract the actual database error from various error properties
+      let cleanErrorMessage = errorMessage;
+      
+      // Check for nested error messages in common error properties
+      const errorObj = dbError as any;
+      if (errorObj?.cause?.message) {
+        cleanErrorMessage = errorObj.cause.message;
+      } else if (errorObj?.originalError?.message) {
+        cleanErrorMessage = errorObj.originalError.message;
+      } else if (errorObj?.error?.message) {
+        cleanErrorMessage = errorObj.error.message;
+      }
+      
+      // Remove query details from error message if present
+      // Drizzle sometimes includes the query in the error message
+      if (cleanErrorMessage.includes('select') && cleanErrorMessage.includes('limit')) {
+        // Try to extract just the error part, not the query
+        const queryMatch = cleanErrorMessage.match(/^(.*?)(?:select.*?limit.*?$|params:.*?$)/s);
+        if (queryMatch && queryMatch[1]) {
+          cleanErrorMessage = queryMatch[1].trim();
+        }
+        // If that didn't work, try to find error patterns
+        const errorPatterns = [
+          /relation\s+["']?(\w+)["']?\s+does\s+not\s+exist/i,
+          /column\s+["']?(\w+)["']?\s+does\s+not\s+exist/i,
+          /syntax\s+error/i,
+          /permission\s+denied/i,
+          /connection/i,
+          /timeout/i,
+        ];
+        for (const pattern of errorPatterns) {
+          const match = cleanErrorMessage.match(pattern);
+          if (match) {
+            cleanErrorMessage = match[0];
+            break;
+          }
+        }
+      }
+      
+      // Remove nested "Failed query:" prefixes
+      if (cleanErrorMessage.includes('Failed query:')) {
+        const parts = cleanErrorMessage.split('Failed query:');
+        cleanErrorMessage = parts[parts.length - 1].trim();
+      }
+      
+      // If we still have the query in the message, try to extract just the error
+      if (cleanErrorMessage.includes('select') && cleanErrorMessage.length > 200) {
+        // Likely contains the full query, try to find the actual error
+        const lines = cleanErrorMessage.split('\n');
+        for (const line of lines) {
+          if (!line.includes('select') && !line.includes('params:') && line.trim().length > 0) {
+            cleanErrorMessage = line.trim();
+            break;
+          }
+        }
+      }
+      
+      console.error('Database query error (fetch member):', {
         error: dbError,
-        message: errorMessage,
+        message: cleanErrorMessage,
+        originalMessage: errorMessage,
         stack: errorStack,
         cause: errorCause,
+        errorCode: errorObj?.code,
+        errorName: errorObj?.name,
+        errorDetails: errorObj?.details,
         userId: trimmedUserId,
         userIdType: typeof trimmedUserId,
         userIdLength: trimmedUserId?.length,
+        fullError: JSON.stringify(dbError, Object.getOwnPropertyNames(dbError)),
       });
       
       // Check if it's a connection error
-      const lowerErrorMessage = errorMessage.toLowerCase();
+      const lowerErrorMessage = cleanErrorMessage.toLowerCase();
       if (lowerErrorMessage.includes('connection') || lowerErrorMessage.includes('timeout') || lowerErrorMessage.includes('econnrefused') || lowerErrorMessage.includes('connect econnrefused')) {
         return NextResponse.json(
           {
             error: 'Database connection error',
             code: 'DATABASE_CONNECTION_ERROR',
-            details: process.env.NODE_ENV === 'development' ? errorMessage : 'Unable to connect to database',
+            details: process.env.NODE_ENV === 'development' ? cleanErrorMessage : 'Unable to connect to database',
           },
           { status: 503 }
         );
@@ -135,18 +230,36 @@ export async function GET(
           {
             error: 'Database schema error',
             code: 'DATABASE_SCHEMA_ERROR',
-            details: process.env.NODE_ENV === 'development' ? errorMessage : 'Database schema issue',
+            details: process.env.NODE_ENV === 'development' ? cleanErrorMessage : 'Database schema issue',
           },
           { status: 500 }
         );
       }
       
+      // If we couldn't extract a meaningful error message, include more details in development
+      let errorDetails = cleanErrorMessage;
+      if (process.env.NODE_ENV === 'development') {
+        // If the error message is just the query, include the full error object
+        if (cleanErrorMessage.includes('select') && cleanErrorMessage.includes('limit') && cleanErrorMessage.length < 300) {
+          errorDetails = {
+            message: cleanErrorMessage,
+            originalError: errorMessage,
+            errorCode: errorObj?.code,
+            errorName: errorObj?.name,
+            hint: 'The error message appears to contain the SQL query. Check server logs for the actual database error.',
+          };
+        } else {
+          errorDetails = cleanErrorMessage || errorMessage;
+        }
+      }
+      
+      // Return detailed error for development, generic for production
       return NextResponse.json(
         {
           error: 'Database error',
           code: 'DATABASE_ERROR',
           details: process.env.NODE_ENV === 'development' 
-            ? errorMessage
+            ? errorDetails
             : 'Failed to query member data',
         },
         { status: 500 }
