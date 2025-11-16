@@ -55,9 +55,13 @@ export default function CesworldDashboard() {
   useEffect(() => {
     if (!isPending && !session?.user) {
       router.push("/cesworld/login");
-    } else if (!isPending && session?.user) {
-      const role = session.user.role || 'member';
-      const userEmail = session.user.email;
+      return;
+    }
+    
+    if (!isPending && session?.user) {
+      try {
+        const role = (session.user as any)?.role || 'member';
+        const userEmail = session.user.email;
       
       // Check if user is in designers table - redirect to designers dashboard
       if (userEmail) {
@@ -74,7 +78,8 @@ export default function CesworldDashboard() {
               router.push("/admin");
             }
           })
-          .catch(() => {
+          .catch((error) => {
+            console.error('Error checking designer status:', error);
             // On error, check role
             if (role === 'admin') {
               router.push("/admin");
@@ -84,10 +89,17 @@ export default function CesworldDashboard() {
           });
       } else {
         // No email, use role check
-      if (role === 'admin') {
-        router.push("/admin");
+        if (role === 'admin') {
+          router.push("/admin");
         } else if (role === 'designer') {
           router.push("/designers/dashboard");
+        }
+      }
+      } catch (error) {
+        console.error('Role check error:', error);
+        // If error accessing session.user, redirect to login
+        if (!session?.user) {
+          router.push("/cesworld/login");
         }
       }
     }
@@ -161,8 +173,38 @@ export default function CesworldDashboard() {
             toast.error("Failed to create member profile. Please try again.");
           }
         } else {
-          const errorData = await memberRes.json().catch(() => null);
+          const errorData = await memberRes.json().catch(() => ({ error: 'Failed to fetch member data' }));
           console.error("Failed to fetch member data:", memberRes.status, memberRes.statusText, errorData);
+          
+          // If 500 error and member doesn't exist, try to create it
+          if (memberRes.status === 500 || memberRes.status === 404) {
+            // Try to create member profile if it doesn't exist
+            if (session?.user?.id) {
+              try {
+                const createRes = await fetch("/api/cesworld/members", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    userId: session.user.id,
+                  }),
+                });
+
+                if (createRes.ok) {
+                  const newMember = await createRes.json();
+                  setMember(newMember);
+                  setTransactions([]);
+                  setRewards([]);
+                  return;
+                }
+              } catch (createError) {
+                console.error("Error creating member profile:", createError);
+              }
+            }
+          }
+          
           toast.error("Failed to load member data. Please try again.");
         }
       } catch (error) {

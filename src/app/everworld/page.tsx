@@ -35,9 +35,18 @@ export default function Cesworld() {
         if (res.ok) {
           const data = await res.json();
           setMember(data);
+        } else {
+          // Handle non-ok responses (404, 500, etc.)
+          const errorData = await res.json().catch(() => ({ error: 'Failed to fetch member data' }));
+          if (process.env.NODE_ENV === 'development') {
+            console.error("Failed to fetch member data:", res.status, res.statusText, errorData);
+          }
+          // Don't set member on error - it will remain null
         }
       } catch (error) {
-        console.error("Error fetching member:", error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Error fetching member:", error);
+        }
       } finally {
         setIsLoadingMember(false);
       }
@@ -80,7 +89,7 @@ export default function Cesworld() {
             // Logged in - Show member info and dashboard link
             <div className="space-y-4">
               <div className="bg-white/90 backdrop-blur-sm p-6 rounded-lg inline-block">
-                <p className="text-body mb-2">Welcome back, {session.user.name?.split(" ")[0]}!</p>
+                <p className="text-body mb-2">Welcome back, {session?.user?.name?.split(" ")[0] || 'Member'}!</p>
                 <div className="flex items-center gap-6 justify-center">
                   <div className="text-center">
                     <p className="text-label text-muted-foreground mb-1">YOUR TIER</p>

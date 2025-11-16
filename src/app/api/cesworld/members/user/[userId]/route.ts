@@ -72,11 +72,26 @@ export async function GET(
     }
 
     // Query Cesworld_members table by userId
-    const members = await db
-      .select()
-      .from(CesworldMembers)
-      .where(eq(CesworldMembers.userId, trimmedUserId))
-      .limit(1);
+    let members;
+    try {
+      members = await db
+        .select()
+        .from(CesworldMembers)
+        .where(eq(CesworldMembers.userId, trimmedUserId))
+        .limit(1);
+    } catch (dbError) {
+      console.error('Database query error:', dbError);
+      return NextResponse.json(
+        {
+          error: 'Database error',
+          code: 'DATABASE_ERROR',
+          details: process.env.NODE_ENV === 'development' 
+            ? (dbError instanceof Error ? dbError.message : String(dbError))
+            : 'Failed to query member data',
+        },
+        { status: 500 }
+      );
+    }
 
     // Check if member exists
     if (!members || members.length === 0) {
