@@ -72,29 +72,42 @@ export class SignWellClient {
       ...options.headers,
     };
 
+    // Set authorization header
     if (this.apiKey.startsWith('access:')) {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     } else {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let error;
-      try {
-        error = JSON.parse(errorText);
-      } catch {
-        error = { message: errorText || response.statusText };
+      if (!response.ok) {
+        const errorText = await response.text();
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { message: errorText || response.statusText };
+        }
+        const errorMessage = error.message || response.statusText || 'Unknown error';
+        console.error(`SignWell API error [${response.status}]:`, errorMessage);
+        throw new Error(`SignWell API error: ${errorMessage} (${response.status})`);
       }
-      throw new Error(`SignWell API error: ${error.message || response.statusText} (${response.status})`);
-    }
 
-    return response.json();
+      return response.json();
+    } catch (error) {
+      // Re-throw if it's already our formatted error
+      if (error instanceof Error && error.message.includes('SignWell API error')) {
+        throw error;
+      }
+      // Handle network errors or other fetch failures
+      console.error('SignWell API request failed:', error);
+      throw new Error(`SignWell API request failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   async createDocument(document: SignWellDocument): Promise<SignWellResponse> {
@@ -219,5 +232,19 @@ export class SignWellClient {
   }
 }
 
-export const signWellClient = SIGNWELL_API_KEY ? new SignWellClient() : null;
+// Safely initialize SignWell client
+let signWellClientInstance: SignWellClient | null = null;
+
+try {
+  if (SIGNWELL_API_KEY) {
+    signWellClientInstance = new SignWellClient();
+  } else {
+    console.warn('SIGNWELL_API_KEY is not set. SignWell features will be disabled.');
+  }
+} catch (error) {
+  console.error('Failed to initialize SignWell client:', error);
+  signWellClientInstance = null;
+}
+
+export const signWellClient = signWellClientInstance;
 

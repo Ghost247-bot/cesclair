@@ -288,12 +288,106 @@ const HeaderNavigation = () => {
     { label: 'DESIGNERS', link: '/designers' }
   ];
 
+  // Don't render until mounted to prevent hydration mismatch
+  // Return null on server to avoid hydration issues, then render after mount
+  if (!isMounted) {
+    return (
+      <header
+        className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border"
+        suppressHydrationWarning
+      >
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex items-center justify-between h-[60px] md:h-[64px] relative">
+            {/* Mobile Menu Button - Left Side */}
+            <div className="lg:hidden flex-shrink-0 w-10 flex items-center justify-start z-10">
+              <button
+                className="p-2 -ml-2 hover:opacity-70 transition-opacity"
+                aria-label="Open menu"
+                disabled
+                suppressHydrationWarning
+              >
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+            </div>
+
+            {/* Desktop Navigation - Left */}
+            <nav className="hidden lg:flex items-center gap-8 flex-1">
+              {navigationItems.map((item) => (
+                <div key={item.label} className="relative" suppressHydrationWarning>
+                  {item.link ? (
+                    <Link
+                      href={item.link}
+                      className="text-navigation hover:opacity-70 transition-opacity relative group"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <button className="text-navigation hover:opacity-70 transition-opacity relative group">
+                      {item.label}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </nav>
+
+            {/* Logo - Centered */}
+            <div className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto max-w-[calc(100%-140px)]">
+              <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
+                CESCLAIR
+              </Link>
+            </div>
+
+            {/* Right Icons */}
+            <div className="flex-shrink-0 z-20 ml-auto">
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-6">
+                <button
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
+                  aria-label="Search"
+                  disabled
+                  suppressHydrationWarning
+                >
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <Link
+                  href="/orders/status"
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
+                  aria-label="Track order"
+                  title="Track order"
+                >
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Link>
+                <div className="relative flex-shrink-0">
+                  <button
+                    className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20"
+                    aria-label="Account"
+                    disabled
+                    suppressHydrationWarning
+                  >
+                    <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+                <button
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
+                  aria-label="Shopping bag"
+                  disabled
+                  suppressHydrationWarning
+                >
+                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <>
       <header
         suppressHydrationWarning
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isMounted && isScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-white border-b border-border'
+          isScrolled ? 'bg-white/95 backdrop-blur-sm shadow-sm' : 'bg-white border-b border-border'
         }`}
       >
         <div className="container mx-auto px-3 sm:px-4 lg:px-6">

@@ -50,7 +50,12 @@ export const authClient = createAuthClient({
           status: ctx.response.status,
           statusText: ctx.response.statusText,
           url: ctx.request?.url,
+          method: ctx.request?.method,
         });
+        // Try to get error details from response body if available
+        if (ctx.error) {
+          console.error('Auth client error details:', ctx.error);
+        }
       }
     }
   }

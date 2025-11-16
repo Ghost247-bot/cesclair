@@ -10,8 +10,20 @@ export const dynamic = 'force-dynamic';
 // GET - List all documents from SignWell
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Check authentication with error handling
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      console.error('Error getting session:', sessionError);
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
     
     if (!session?.user) {
       return NextResponse.json(
@@ -61,8 +73,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (!signWellClient) {
+      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { error: 'SignWell API is not configured' },
+        { 
+          error: 'SignWell API is not configured',
+          code: 'SIGNWELL_NOT_CONFIGURED'
+        },
         { status: 500 }
       );
     }
@@ -73,17 +89,38 @@ export async function GET(request: NextRequest) {
     const perPage = Math.min(parseInt(searchParams.get('per_page') || '50'), 100);
     const status = searchParams.get('status') || undefined;
 
+    console.log(`Fetching SignWell documents: page=${page}, per_page=${perPage}, status=${status || 'all'}`);
+
     // Fetch documents from SignWell
-    const result = await signWellClient.listDocuments({
-      page,
-      per_page: perPage,
-      status,
-    });
+    let result;
+    try {
+      result = await signWellClient.listDocuments({
+        page,
+        per_page: perPage,
+        status,
+      });
+      console.log(`Successfully fetched ${result?.documents?.length || 0} documents from SignWell`);
+    } catch (signWellError) {
+      console.error('SignWell API error:', signWellError);
+      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
+      return NextResponse.json(
+        {
+          error: 'Failed to fetch documents from SignWell',
+          code: 'SIGNWELL_API_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('GET /api/signwell/documents error:', error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('GET /api/signwell/documents error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     
     return NextResponse.json(
       {

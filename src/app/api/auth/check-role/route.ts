@@ -69,13 +69,18 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     // Only log unexpected errors, return 401 for authentication issues
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('GET role check error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     
     // If it's an authentication-related error, return 401
-    if (errorMessage.includes('auth') || errorMessage.includes('session') || errorMessage.includes('unauthorized')) {
+    const lowerErrorMessage = errorMessage.toLowerCase();
+    if (lowerErrorMessage.includes('auth') || lowerErrorMessage.includes('session') || lowerErrorMessage.includes('unauthorized') || lowerErrorMessage.includes('not authenticated')) {
       return NextResponse.json(
         { 
           error: 'Not authenticated',
@@ -85,11 +90,26 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // For database errors, try to return a safe response
+    if (lowerErrorMessage.includes('database') || lowerErrorMessage.includes('connection') || lowerErrorMessage.includes('timeout')) {
+      console.error('Database error in role check:', errorMessage);
+      // Return default role if database is unavailable
+      return NextResponse.json(
+        { 
+          role: 'member',
+          error: 'Database temporarily unavailable, using default role',
+          code: 'DATABASE_ERROR'
+        },
+        { status: 200 } // Return 200 with default role instead of 500
+      );
+    }
+    
     // For other errors, return 500 but with a safe error message
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        code: 'INTERNAL_ERROR'
+        code: 'INTERNAL_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       },
       { status: 500 }
     );

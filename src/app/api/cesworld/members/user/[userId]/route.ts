@@ -43,8 +43,20 @@ export async function GET(
       );
     }
 
-    // Check authentication
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Check authentication with error handling
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      console.error('Error getting session:', sessionError);
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
     
     if (!session?.user) {
       return NextResponse.json(
@@ -75,18 +87,66 @@ export async function GET(
     let members;
     try {
       members = await db
-        .select()
+        .select({
+          id: CesworldMembers.id,
+          userId: CesworldMembers.userId,
+          tier: CesworldMembers.tier,
+          points: CesworldMembers.points,
+          annualSpending: CesworldMembers.annualSpending,
+          birthdayMonth: CesworldMembers.birthdayMonth,
+          birthdayDay: CesworldMembers.birthdayDay,
+          joinedAt: CesworldMembers.joinedAt,
+          lastTierUpdate: CesworldMembers.lastTierUpdate,
+        })
         .from(CesworldMembers)
         .where(eq(CesworldMembers.userId, trimmedUserId))
         .limit(1);
-    } catch (dbError) {
-      console.error('Database query error:', dbError);
+    } catch (dbError: unknown) {
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      const errorStack = dbError instanceof Error ? dbError.stack : undefined;
+      const errorCause = dbError instanceof Error && (dbError as any).cause ? (dbError as any).cause : null;
+      
+      console.error('Database query error:', {
+        error: dbError,
+        message: errorMessage,
+        stack: errorStack,
+        cause: errorCause,
+        userId: trimmedUserId,
+        userIdType: typeof trimmedUserId,
+        userIdLength: trimmedUserId?.length,
+      });
+      
+      // Check if it's a connection error
+      const lowerErrorMessage = errorMessage.toLowerCase();
+      if (lowerErrorMessage.includes('connection') || lowerErrorMessage.includes('timeout') || lowerErrorMessage.includes('econnrefused') || lowerErrorMessage.includes('connect econnrefused')) {
+        return NextResponse.json(
+          {
+            error: 'Database connection error',
+            code: 'DATABASE_CONNECTION_ERROR',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : 'Unable to connect to database',
+          },
+          { status: 503 }
+        );
+      }
+      
+      // Check for table/column errors
+      if (lowerErrorMessage.includes('does not exist') || lowerErrorMessage.includes('column') || lowerErrorMessage.includes('relation')) {
+        return NextResponse.json(
+          {
+            error: 'Database schema error',
+            code: 'DATABASE_SCHEMA_ERROR',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : 'Database schema issue',
+          },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         {
           error: 'Database error',
           code: 'DATABASE_ERROR',
           details: process.env.NODE_ENV === 'development' 
-            ? (dbError instanceof Error ? dbError.message : String(dbError))
+            ? errorMessage
             : 'Failed to query member data',
         },
         { status: 500 }

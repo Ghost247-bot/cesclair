@@ -45,7 +45,7 @@ export default function Cesworld() {
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("Error fetching member:", error);
+        console.error("Error fetching member:", error);
         }
       } finally {
         setIsLoadingMember(false);

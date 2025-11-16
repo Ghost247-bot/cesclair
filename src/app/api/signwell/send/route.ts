@@ -10,8 +10,20 @@ export const dynamic = 'force-dynamic';
 // POST - Send document to users
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Check authentication with error handling
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      console.error('Error getting session:', sessionError);
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
     
     if (!session?.user) {
       return NextResponse.json(
@@ -61,13 +73,31 @@ export async function POST(request: NextRequest) {
     }
 
     if (!signWellClient) {
+      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { error: 'SignWell API is not configured' },
+        { 
+          error: 'SignWell API is not configured',
+          code: 'SIGNWELL_NOT_CONFIGURED'
+        },
         { status: 500 }
       );
     }
 
-    const body = await request.json();
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return NextResponse.json(
+        {
+          error: 'Invalid JSON in request body',
+          code: 'INVALID_JSON',
+        },
+        { status: 400 }
+      );
+    }
+
     const { documentId, userIds, message, subject } = body;
 
     // Validate required fields
@@ -115,12 +145,25 @@ export async function POST(request: NextRequest) {
     try {
       await signWellClient.getDocumentStatus(documentId);
     } catch (error) {
+      console.error('Error getting document status from SignWell:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Check if it's a 404 or other error
+      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        return NextResponse.json(
+          {
+            error: 'Document not found in SignWell',
+            code: 'DOCUMENT_NOT_FOUND',
+          },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
         {
-          error: 'Document not found in SignWell',
-          code: 'DOCUMENT_NOT_FOUND',
+          error: 'Failed to verify document in SignWell',
+          code: 'SIGNWELL_API_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
         },
-        { status: 404 }
+        { status: 500 }
       );
     }
 
@@ -131,8 +174,23 @@ export async function POST(request: NextRequest) {
     }));
 
     // Send document to users
-    // Note: SignWell API structure may vary - adjust based on actual API
-    const result = await signWellClient.sendDocumentToUsers(documentId, recipients);
+    let result;
+    try {
+      console.log(`Sending document ${documentId} to ${recipients.length} recipients`);
+      result = await signWellClient.sendDocumentToUsers(documentId, recipients);
+      console.log(`Successfully sent document: id=${result.id}`);
+    } catch (signWellError) {
+      console.error('SignWell API error during send:', signWellError);
+      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
+      return NextResponse.json(
+        {
+          error: 'Failed to send document via SignWell',
+          code: 'SIGNWELL_API_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -149,7 +207,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('POST /api/signwell/send error:', error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('POST /api/signwell/send error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     
     return NextResponse.json(
       {

@@ -7,13 +7,31 @@ import { eq } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     if (!signWellClient) {
+      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { error: 'SignWell API is not configured' },
+        { 
+          error: 'SignWell API is not configured',
+          code: 'SIGNWELL_NOT_CONFIGURED'
+        },
         { status: 500 }
       );
     }
 
-    const body = await request.json();
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return NextResponse.json(
+        {
+          error: 'Invalid JSON in request body',
+          code: 'INVALID_JSON',
+        },
+        { status: 400 }
+      );
+    }
+
     const { contractId, fileUrl, signerEmail, signerName, contractTitle } = body;
 
     if (!contractId || !fileUrl || !signerEmail || !signerName) {
@@ -36,31 +54,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const document = await signWellClient.createAndSendDocument({
-      name: contractTitle || `Contract ${contractId}`,
-      file_url: fileUrl,
-      recipients: [
+    // Create and send document via SignWell
+    let document;
+    try {
+      console.log(`Creating SignWell document for contract ${contractId}`);
+      document = await signWellClient.createAndSendDocument({
+        name: contractTitle || `Contract ${contractId}`,
+        file_url: fileUrl,
+        recipients: [
+          {
+            email: signerEmail,
+            name: signerName,
+            role: 'signer',
+            order: 1,
+          },
+        ],
+        test_mode: process.env.NODE_ENV !== 'production',
+        embedded_signing: true,
+        message: `Please sign the contract: ${contractTitle || `Contract ${contractId}`}`,
+        subject: `Contract Signing: ${contractTitle || `Contract ${contractId}`}`,
+      });
+      console.log(`Successfully created SignWell document: id=${document.id}`);
+    } catch (signWellError) {
+      console.error('SignWell API error during create:', signWellError);
+      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
+      return NextResponse.json(
         {
-          email: signerEmail,
-          name: signerName,
-          role: 'signer',
-          order: 1,
+          error: 'Failed to create document in SignWell',
+          code: 'SIGNWELL_API_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
         },
-      ],
-      test_mode: process.env.NODE_ENV !== 'production',
-      embedded_signing: true,
-      message: `Please sign the contract: ${contractTitle || `Contract ${contractId}`}`,
-      subject: `Contract Signing: ${contractTitle || `Contract ${contractId}`}`,
-    });
+        { status: 500 }
+      );
+    }
 
-    await db
-      .update(contracts)
-      .set({
-        envelopeId: document.id,
-        envelopeStatus: 'sent',
-        envelopeUrl: document.signing_url || document.document_url,
-      })
-      .where(eq(contracts.id, contractId));
+    // Update contract in database
+    try {
+      await db
+        .update(contracts)
+        .set({
+          envelopeId: document.id,
+          envelopeStatus: 'sent',
+          envelopeUrl: document.signing_url || document.document_url,
+        })
+        .where(eq(contracts.id, contractId));
+    } catch (dbError) {
+      console.error('Error updating contract in database:', dbError);
+      // Document was created in SignWell but database update failed
+      // Return success but log the error
+    }
 
     return NextResponse.json({
       success: true,
@@ -68,10 +110,19 @@ export async function POST(request: NextRequest) {
       signingUrl: document.signing_url,
       documentUrl: document.document_url,
     });
-  } catch (error) {
-    console.error('SignWell create error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('SignWell create error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create document' },
+      { 
+        error: 'Failed to create document',
+        code: 'CREATE_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     );
   }

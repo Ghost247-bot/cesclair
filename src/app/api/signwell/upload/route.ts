@@ -10,8 +10,20 @@ export const dynamic = 'force-dynamic';
 // POST - Upload document to SignWell
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Check authentication with error handling
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      console.error('Error getting session:', sessionError);
+      return NextResponse.json(
+        {
+          error: 'Not authenticated',
+          code: 'UNAUTHORIZED',
+        },
+        { status: 401 }
+      );
+    }
     
     if (!session?.user) {
       return NextResponse.json(
@@ -61,8 +73,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!signWellClient) {
+      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { error: 'SignWell API is not configured' },
+        { 
+          error: 'SignWell API is not configured',
+          code: 'SIGNWELL_NOT_CONFIGURED'
+        },
         { status: 500 }
       );
     }
@@ -152,7 +168,23 @@ export async function POST(request: NextRequest) {
     const base64Data = buffer.toString('base64');
 
     // Upload document to SignWell
-    const result = await signWellClient.uploadDocument(base64Data, name.trim(), recipients);
+    let result;
+    try {
+      console.log(`Uploading document to SignWell: name=${name.trim()}, recipients=${recipients?.length || 0}`);
+      result = await signWellClient.uploadDocument(base64Data, name.trim(), recipients);
+      console.log(`Successfully uploaded document to SignWell: id=${result.id}`);
+    } catch (signWellError) {
+      console.error('SignWell API error during upload:', signWellError);
+      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
+      return NextResponse.json(
+        {
+          error: 'Failed to upload document to SignWell',
+          code: 'SIGNWELL_API_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
@@ -164,7 +196,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('POST /api/signwell/upload error:', error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('POST /api/signwell/upload error:', errorMessage);
+    if (errorStack) {
+      console.error('Error stack:', errorStack);
+    }
     
     return NextResponse.json(
       {

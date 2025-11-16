@@ -6,8 +6,17 @@ import { eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const session = await auth.api.getSession({ headers: request.headers });
+    // Check authentication with error handling
+    let session;
+    try {
+      session = await auth.api.getSession({ headers: request.headers });
+    } catch (sessionError) {
+      console.error('Error getting session:', sessionError);
+      return NextResponse.json(
+        { error: 'Not authenticated', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
     
     if (!session?.user) {
       return NextResponse.json(
@@ -36,22 +45,52 @@ export async function GET(request: NextRequest) {
     const emailMatches = sessionEmail === requestedEmail;
 
     // Fetch designer by email first to check if they exist
-    const designer = await db
-      .select({
-        id: designers.id,
-        name: designers.name,
-        email: designers.email,
-        bio: designers.bio,
-        specialties: designers.specialties,
-        status: designers.status,
-        avatarUrl: designers.avatarUrl,
-        portfolioUrl: designers.portfolioUrl,
-        createdAt: designers.createdAt,
-        updatedAt: designers.updatedAt,
-      })
-      .from(designers)
-      .where(eq(designers.email, requestedEmail))
-      .limit(1);
+    let designer;
+    try {
+      designer = await db
+        .select({
+          id: designers.id,
+          name: designers.name,
+          email: designers.email,
+          bio: designers.bio,
+          specialties: designers.specialties,
+          status: designers.status,
+          avatarUrl: designers.avatarUrl,
+          portfolioUrl: designers.portfolioUrl,
+          createdAt: designers.createdAt,
+          updatedAt: designers.updatedAt,
+        })
+        .from(designers)
+        .where(eq(designers.email, requestedEmail))
+        .limit(1);
+    } catch (dbError: unknown) {
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      console.error('Database query error:', {
+        error: dbError,
+        message: errorMessage,
+        email: requestedEmail,
+      });
+      
+      if (errorMessage.includes('connection') || errorMessage.includes('timeout') || errorMessage.includes('ECONNREFUSED')) {
+        return NextResponse.json(
+          {
+            error: 'Database connection error',
+            code: 'DATABASE_CONNECTION_ERROR',
+            details: process.env.NODE_ENV === 'development' ? errorMessage : 'Unable to connect to database',
+          },
+          { status: 503 }
+        );
+      }
+      
+      return NextResponse.json(
+        {
+          error: 'Database error',
+          code: 'DATABASE_ERROR',
+          details: process.env.NODE_ENV === 'development' ? errorMessage : 'Failed to query designer data',
+        },
+        { status: 500 }
+      );
+    }
 
     if (designer.length === 0) {
       return NextResponse.json(
@@ -102,10 +141,21 @@ export async function GET(request: NextRequest) {
       status: designer[0].status,
       ...designer[0]
     }, { status: 200 });
-  } catch (error) {
-    console.error('GET designer by email error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('GET designer by email error:', {
+      error,
+      message: errorMessage,
+      stack: errorStack,
+    });
+    
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : 'An error occurred',
+      },
       { status: 500 }
     );
   }
@@ -156,10 +206,21 @@ export async function POST(request: NextRequest) {
       status: designer[0].status,
       ...designer[0]
     }, { status: 200 });
-  } catch (error) {
-    console.error('POST designer by email error:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('POST designer by email error:', {
+      error,
+      message: errorMessage,
+      stack: errorStack,
+    });
+    
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { 
+        error: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : 'An error occurred',
+      },
       { status: 500 }
     );
   }

@@ -1,3 +1,4 @@
+
 import HeaderNavigation from '@/components/sections/header-navigation';
 import ProductCard from '@/components/product-card';
 import { products } from '@/lib/products';

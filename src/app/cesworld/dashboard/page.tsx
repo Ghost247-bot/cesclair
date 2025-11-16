@@ -61,7 +61,7 @@ export default function CesworldDashboard() {
     if (!isPending && session?.user) {
       try {
         const role = (session.user as any)?.role || 'member';
-        const userEmail = session.user.email;
+      const userEmail = session.user.email;
       
       // Check if user is in designers table - redirect to designers dashboard
       if (userEmail) {
@@ -89,8 +89,8 @@ export default function CesworldDashboard() {
           });
       } else {
         // No email, use role check
-        if (role === 'admin') {
-          router.push("/admin");
+      if (role === 'admin') {
+        router.push("/admin");
         } else if (role === 'designer') {
           router.push("/designers/dashboard");
         }
