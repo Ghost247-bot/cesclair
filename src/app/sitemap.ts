@@ -30,9 +30,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/cesworld',
     '/cesworld/login',
     '/cesworld/register',
-    '/everworld',
-    '/everworld/login',
-    '/everworld/register',
+    '/Cesworld',
+    '/Cesworld/login',
+    '/Cesworld/register',
   ];
 
   // Collection pages

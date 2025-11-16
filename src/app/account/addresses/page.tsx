@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { MapPin, Loader2, Plus, Edit, Trash2, X } from 'lucide-react';
@@ -435,7 +434,6 @@ export default function AddressesPage() {
         </div>
       )}
 
-      <Footer />
     </>
   );
 }

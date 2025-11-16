@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Users, ArrowRight, Briefcase } from "lucide-react";
-import Footer from "@/components/sections/footer";
 import { normalizeImagePath } from "@/lib/utils";
 
 interface Designer {
@@ -196,7 +195,6 @@ export default function DesignersPage() {
         )}
       </section>
 
-    <Footer />
     </div>
   );
 }

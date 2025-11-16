@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import Footer from "@/components/sections/footer";
 import { normalizeImagePath } from '@/lib/utils';
 
 export default function NoFailOutfitsPage() {
@@ -9,21 +8,21 @@ export default function NoFailOutfitsPage() {
     {
       id: 1,
       title: 'The Weekend Essential',
-      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/415060f1_ee5b-13.jpg',
+      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/415060f1_ee5b-13.jpg',
       description: 'Track jacket and wide-leg pants for effortless style.',
       items: ['The Track Jacket', 'The Wide-Leg Pant', 'The Day Crossbody'],
     },
     {
       id: 2,
       title: 'The Work Edit',
-      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/53a91526_0f42-9.jpg',
+      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg',
       description: 'Polished separates that transition seamlessly from office to dinner.',
       items: ['The Cashmere Crew', 'The Tailored Trouser', 'The Day Boot'],
     },
     {
       id: 3,
       title: 'The Date Night Look',
-      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/5cde1622_bc63-14.jpg',
+      image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/5cde1622_bc63-14.jpg',
       description: 'Elevated basics for those special evenings.',
       items: ['The Cozy Fleece', 'The Modern Jean', 'The Italian Leather Bag'],
     },
@@ -112,7 +111,6 @@ export default function NoFailOutfitsPage() {
         </div>
       </div>
     </main>
-    <Footer />
     </>
   );
 }

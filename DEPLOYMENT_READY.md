@@ -72,7 +72,7 @@ Go to Netlify Dashboard → Your Site → Environment Variables:
 
 2. **Test login:**
    ```
-   https://cesclair.store/everworld/login
+   https://cesclair.store/Cesworld/login
    ```
    Should work without 500 errors
 

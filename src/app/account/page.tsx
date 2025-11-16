@@ -1,7 +1,6 @@
 "use client";
 
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 import { Shield, Package, ArrowRight, Loader2 } from 'lucide-react';
@@ -183,7 +182,6 @@ export default function AccountPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

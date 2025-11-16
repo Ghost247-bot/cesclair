@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import Footer from "@/components/sections/footer";
 import { normalizeImagePath } from "@/lib/utils";
 
 export default function Sustainability() {
@@ -11,7 +10,7 @@ export default function Sustainability() {
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center">
         <Image
-          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/68ee3c4b_56f2-15.jpg")}
+          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/68ee3c4b_56f2-15.jpg")}
           alt="Sustainability"
           fill
           className="object-cover"
@@ -143,7 +142,6 @@ export default function Sustainability() {
         </div>
       </section>
     </main>
-    <Footer />
     </>
   );
 }

@@ -79,10 +79,10 @@ const footerLinkColumnsData = [
 ];
 
 const connectLinks = [
-  { text: 'Instagram', Icon: Instagram, href: 'https://instagram.com/everlane' },
-  { text: 'TikTok', Icon: TikTokIcon, href: 'https://tiktok.com/@everlane' },
-  { text: 'YouTube', Icon: Youtube, href: 'https://youtube.com/everlane' },
-  { text: 'Pinterest', Icon: PinterestIcon, href: 'https://pinterest.com/everlane' },
+  { text: 'Instagram', Icon: Instagram, href: 'https://instagram.com/ceslane' },
+  { text: 'TikTok', Icon: TikTokIcon, href: 'https://tiktok.com/@ceslane' },
+  { text: 'YouTube', Icon: Youtube, href: 'https://youtube.com/ceslane' },
+  { text: 'Pinterest', Icon: PinterestIcon, href: 'https://pinterest.com/ceslane' },
   { text: 'Affiliates', href: '/affiliates' },
   { text: 'Our Stores', href: '/stores' },
 ];

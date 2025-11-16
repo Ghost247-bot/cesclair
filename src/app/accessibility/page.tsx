@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { Eye, Ear, MessageSquare, CheckCircle } from 'lucide-react';
 
 export default function AccessibilityPage() {
@@ -139,7 +138,6 @@ export default function AccessibilityPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

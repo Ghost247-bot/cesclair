@@ -96,7 +96,7 @@ const VideoFeatureBottomLine = () => {
       linkHref: '/women/pants',
       media: {
         type: 'video' as const,
-        src: 'https://www.everlane.com/cdn/shop/videos/c/vp/3d1a299d726c40c9a897fdd7c9005473/3d1a299d726c40c9a897fdd7c9005473.HD-1080p-7.2Mbps-61356966.mp4?v=0',
+        src: 'https://www.ceslane.com/cdn/shop/videos/c/vp/3d1a299d726c40c9a897fdd7c9005473/3d1a299d726c40c9a897fdd7c9005473.HD-1080p-7.2Mbps-61356966.mp4?v=0',
         alt: 'A woman posing in black crop top and high-waisted black pants.',
       },
     },

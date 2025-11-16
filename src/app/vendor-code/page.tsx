@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { Shield } from 'lucide-react';
 
 export default function VendorCodePage() {
@@ -13,7 +12,7 @@ export default function VendorCodePage() {
             <Shield className="w-16 h-16 mx-auto mb-6" />
             <h1 className="text-4xl md:text-5xl font-medium mb-6">VENDOR CODE OF CONDUCT</h1>
             <p className="text-body-large text-muted-foreground max-w-2xl mx-auto">
-              Standards and expectations for all Everlane suppliers and partners
+              Standards and expectations for all ceslane suppliers and partners
             </p>
           </div>
         </section>
@@ -23,7 +22,7 @@ export default function VendorCodePage() {
           <div className="container mx-auto max-w-4xl">
             <h2 className="text-2xl font-medium mb-6">Introduction</h2>
             <p className="text-body text-muted-foreground mb-6">
-              At Everlane, we believe in Radical Transparency and ethical business practices throughout our entire 
+              At ceslane, we believe in Radical Transparency and ethical business practices throughout our entire 
               supply chain. This Vendor Code of Conduct outlines the minimum standards we expect from all suppliers, 
               manufacturers, and business partners who work with us.
             </p>
@@ -86,7 +85,7 @@ export default function VendorCodePage() {
                 <p><strong>Anti-Corruption:</strong> Conduct business with integrity. No bribery, corruption, or unethical business practices.</p>
                 <p><strong>Fair Competition:</strong> Comply with all applicable competition and antitrust laws.</p>
                 <p><strong>Intellectual Property:</strong> Respect intellectual property rights and maintain confidentiality.</p>
-                <p><strong>Transparency:</strong> Maintain accurate records and provide Everlane with access for verification and auditing purposes.</p>
+                <p><strong>Transparency:</strong> Maintain accurate records and provide ceslane with access for verification and auditing purposes.</p>
               </div>
             </div>
 
@@ -94,7 +93,7 @@ export default function VendorCodePage() {
             <div>
               <h2 className="text-2xl font-medium mb-6">6. Subcontracting</h2>
               <div className="space-y-4 text-body text-muted-foreground">
-                <p><strong>Prior Approval:</strong> No subcontracting without prior written approval from Everlane.</p>
+                <p><strong>Prior Approval:</strong> No subcontracting without prior written approval from ceslane.</p>
                 <p><strong>Code Compliance:</strong> Ensure all subcontractors comply with this Code of Conduct.</p>
                 <p><strong>Monitoring:</strong> Monitor subcontractor compliance and provide documentation upon request.</p>
               </div>
@@ -108,7 +107,7 @@ export default function VendorCodePage() {
             <h2 className="text-2xl font-medium mb-6">Monitoring & Compliance</h2>
             <div className="space-y-6">
               <p className="text-body text-muted-foreground">
-                Everlane reserves the right to monitor compliance with this Code through announced and unannounced 
+                ceslane reserves the right to monitor compliance with this Code through announced and unannounced 
                 audits, site visits, and worker interviews. Vendors must provide full access to facilities, 
                 documentation, and personnel.
               </p>
@@ -124,7 +123,7 @@ export default function VendorCodePage() {
                 If you become aware of any violations of this Code of Conduct, please report them immediately:
               </p>
               <p className="text-body">
-                <strong>Email:</strong> compliance@everlane.com<br />
+                <strong>Email:</strong> compliance@ceslane.com<br />
                 <strong>Phone:</strong> 1-888-555-EVER (3837)
               </p>
               <p className="text-body-small text-muted-foreground mt-4">
@@ -141,7 +140,6 @@ export default function VendorCodePage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

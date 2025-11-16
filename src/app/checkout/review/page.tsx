@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { ArrowLeft, Check, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from '@/lib/auth-client';
-import Footer from '@/components/sections/footer';
 
 interface CartItem {
   id: number;
@@ -229,7 +228,6 @@ export default function CheckoutReviewPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -265,7 +263,6 @@ export default function CheckoutReviewPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -448,7 +445,6 @@ export default function CheckoutReviewPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

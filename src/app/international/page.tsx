@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { Globe, ShoppingBag, Truck, CreditCard } from 'lucide-react';
 
 export default function InternationalPage() {
@@ -13,7 +12,7 @@ export default function InternationalPage() {
             <Globe className="w-16 h-16 mx-auto mb-6" />
             <h1 className="text-4xl md:text-5xl font-medium mb-6">INTERNATIONAL SHIPPING</h1>
             <p className="text-body-large text-muted-foreground max-w-2xl mx-auto">
-              We ship Everlane quality and transparency worldwide
+              We ship ceslane quality and transparency worldwide
             </p>
           </div>
         </section>
@@ -148,7 +147,6 @@ export default function InternationalPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

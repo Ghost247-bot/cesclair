@@ -77,8 +77,8 @@ export const products = pgTable('products', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Cesworld membership tables (using everworld_* table names that exist in database)
-export const CesworldMembers = pgTable('everworld_members', {
+// Cesworld membership tables (using Cesworld_* table names that exist in database)
+export const CesworldMembers = pgTable('Cesworld_members', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().references(() => user.id),
   tier: text('tier').notNull().default('member'),
@@ -90,7 +90,7 @@ export const CesworldMembers = pgTable('everworld_members', {
   lastTierUpdate: timestamp('last_tier_update').notNull().defaultNow(),
 });
 
-export const CesworldTransactions = pgTable('everworld_transactions', {
+export const CesworldTransactions = pgTable('Cesworld_transactions', {
   id: serial('id').primaryKey(),
   memberId: integer('member_id').notNull().references(() => CesworldMembers.id),
   type: text('type').notNull(),
@@ -101,7 +101,7 @@ export const CesworldTransactions = pgTable('everworld_transactions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export const CesworldRewards = pgTable('everworld_rewards', {
+export const CesworldRewards = pgTable('Cesworld_rewards', {
   id: serial('id').primaryKey(),
   memberId: integer('member_id').notNull().references(() => CesworldMembers.id),
   rewardType: text('reward_type').notNull(),

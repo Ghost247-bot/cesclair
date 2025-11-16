@@ -147,7 +147,7 @@ async function main() {
     console.log(`👤 Name: ${userResponse.name}`);
     console.log(`🔑 Role: ${userResponse.role}`);
     console.log(`🆔 User ID: ${userResponse.id}`);
-    console.log('\n💡 You can now login at /everworld/login or /cesworld/login');
+    console.log('\n💡 You can now login at /Cesworld/login or /cesworld/login');
 }
 
 main().catch((error) => {

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import React from 'react';
 
 const SustainabilityBanner = () => {
-  const backgroundImageUrl = "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/68ee3c4b_56f2-15.jpg";
+  const backgroundImageUrl = "https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/68ee3c4b_56f2-15.jpg";
 
   return (
     <section

@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Users, Briefcase, Mail, Calendar, Tag, Edit, Trash2, Loader2, Upload, X } from "lucide-react";
-import Footer from "@/components/sections/footer";
 import { useSession } from "@/lib/auth-client";
 import { normalizeImagePath } from "@/lib/utils";
 import {
@@ -414,7 +413,6 @@ export default function DesignerPortfolioPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -438,7 +436,6 @@ export default function DesignerPortfolioPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -1060,7 +1057,6 @@ export default function DesignerPortfolioPage() {
           </section>
         )}
       </main>
-      <Footer />
     </>
   );
 }

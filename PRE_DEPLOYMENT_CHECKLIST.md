@@ -108,7 +108,7 @@ Once all items are checked:
 4. **Post-Deployment Verification:**
    - Visit: `https://cesclair.store/api/test/production-diagnostics`
    - Check all statuses are "ok"
-   - Test login: `https://cesclair.store/everworld/login`
+   - Test login: `https://cesclair.store/Cesworld/login`
 
 ## 🔍 Post-Deployment Checks
 

@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductListClient from '@/components/product-list-client';
 
 export default function MenOuterwearPage() {
@@ -16,7 +15,6 @@ export default function MenOuterwearPage() {
           <ProductListClient category="outerwear" limit={1000} />
         </div>
       </main>
-      <Footer />
     </>
   );
 }

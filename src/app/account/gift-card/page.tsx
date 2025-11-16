@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { Gift, Loader2 } from 'lucide-react';
@@ -94,7 +93,6 @@ export default function GiftCardPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

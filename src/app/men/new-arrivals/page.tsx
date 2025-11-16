@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductListClient from '@/components/product-list-client';
 
 export default function MenNewArrivalsPage() {
@@ -16,7 +15,6 @@ export default function MenNewArrivalsPage() {
           <ProductListClient limit={1000} sortBy="newest" />
         </div>
       </main>
-      <Footer />
     </>
   );
 }

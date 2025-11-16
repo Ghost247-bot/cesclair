@@ -50,7 +50,6 @@ import {
   Percent
 } from "lucide-react";
 import Image from "next/image";
-import Footer from "@/components/sections/footer";
 import { SigningFrame } from "@/components/signwell/SigningFrame";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -3158,7 +3157,6 @@ export default function DesignerDashboardPage() {
         </div>
       </section>
     </main>
-    <Footer />
 
     {/* Contract Details Modal */}
     <AnimatePresence>

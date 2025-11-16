@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Check, Package, Mail, ArrowRight } from 'lucide-react';
-import Footer from '@/components/sections/footer';
 
 function CheckoutSuccessContent() {
   const router = useRouter();
@@ -46,7 +45,6 @@ function CheckoutSuccessContent() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -169,7 +167,6 @@ function CheckoutSuccessContent() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
@@ -185,7 +182,6 @@ export default function CheckoutSuccessPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     }>
       <CheckoutSuccessContent />

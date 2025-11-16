@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function FactoriesPage() {
   return (
@@ -21,7 +20,6 @@ export default function FactoriesPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

@@ -123,7 +123,7 @@ If you see errors, follow the recommendations in the response.
 
 ## ✅ Step 4: Test Login
 
-1. **Visit:** `https://cesclair.store/everworld/login`
+1. **Visit:** `https://cesclair.store/Cesworld/login`
 2. **Try logging in** with a test account
 3. **Check browser console** for any errors
 4. **Check server logs** for detailed error messages

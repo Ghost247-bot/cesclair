@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Download, FileText, TrendingUp, Users, Leaf, Factory, Globe } from "lucide-react";
-import Footer from "@/components/sections/footer";
 
 export default function ImpactReportPage() {
   return (
@@ -351,7 +350,6 @@ export default function ImpactReportPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

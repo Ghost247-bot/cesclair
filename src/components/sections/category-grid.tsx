@@ -11,37 +11,37 @@ const categories = [
   {
     name: 'SHOP SWEATERS',
     href: '/women/sweaters',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/e3425db7_4c00-3.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/e3425db7_4c00-3.jpg',
     alt: 'A dark green knitted cardigan on a hanger against a light background.',
   },
   {
     name: 'SHOP TEES',
     href: '/women/tees-tops',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/1650930e_3c0c-4.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/1650930e_3c0c-4.jpg',
     alt: 'A beige long-sleeved ribbed t-shirt against a light background.',
   },
   {
     name: 'SHOP PANTS',
     href: '/women/pants',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/0f25034f_872d-5.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/0f25034f_872d-5.jpg',
     alt: 'A pair of dark brown wide-leg trousers against a light background.',
   },
   {
     name: 'SHOP DENIM',
     href: '/women/denim',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/1996bc0b_bdd3-6.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/1996bc0b_bdd3-6.jpg',
     alt: 'A pair of classic blue wash denim jeans against a light background.',
   },
   {
     name: 'SHOP COATS & JACKETS',
     href: '/women/outerwear',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/74db686e_9039-7.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/74db686e_9039-7.jpg',
     alt: 'A rust orange puffer jacket laid flat against a light background.',
   },
   {
     name: 'SHOP SHOES',
     href: '/women/shoes',
-    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/f9db9668_e24a-8.jpg',
+    image: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/f9db9668_e24a-8.jpg',
     alt: 'A pair of black leather derby shoes against a light background.',
   },
 ];

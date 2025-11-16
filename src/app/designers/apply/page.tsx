@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
-import Footer from "@/components/sections/footer";
 
 export default function DesignerApplicationPage() {
   const router = useRouter();
@@ -278,7 +277,6 @@ export default function DesignerApplicationPage() {
         </div>
       </section>
     </main>
-    <Footer />
     </>
   );
 }

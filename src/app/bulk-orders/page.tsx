@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { Package, Users, ShoppingCart, Truck } from 'lucide-react';
 
 export default function BulkOrdersPage() {
@@ -229,7 +228,6 @@ export default function BulkOrdersPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

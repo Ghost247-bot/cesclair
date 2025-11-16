@@ -1,7 +1,6 @@
 "use client";
 
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductCard from '@/components/product-card';
 import { getProductsByCategory, getProductsByGender } from '@/lib/products';
 import { useState, useMemo } from 'react';
@@ -126,7 +125,6 @@ export default function SweaterShopPage() {
           )}
         </div>
       </main>
-      <Footer />
     </>
   );
 }

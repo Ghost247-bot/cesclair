@@ -140,8 +140,8 @@ export async function middleware(request: NextRequest) {
           return response;
         }
         
-        // Redirect designers away from cesworld/everworld dashboards
-        if (pathname.startsWith('/cesworld/dashboard') || pathname.startsWith('/everworld/dashboard')) {
+        // Redirect designers away from cesworld/Cesworld dashboards
+        if (pathname.startsWith('/cesworld/dashboard') || pathname.startsWith('/Cesworld/dashboard')) {
           return NextResponse.redirect(new URL("/designers/dashboard", request.url));
         }
         

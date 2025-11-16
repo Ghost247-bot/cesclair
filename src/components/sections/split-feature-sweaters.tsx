@@ -8,7 +8,7 @@ const SplitFeatureSweaters = () => {
       {/* Container for image and its overlay */}
       <div className="relative aspect-[4/5] md:absolute md:inset-0">
         <Image
-          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/53a91526_0f42-9.jpg")}
+          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg")}
           alt="A woman wearing a burgundy sweater over a collared shirt."
           fill
           className="z-0 object-cover"

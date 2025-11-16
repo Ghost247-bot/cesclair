@@ -40,7 +40,7 @@ async function createAdminUser() {
       console.log('\n📝 Login Credentials:');
       console.log(`   Email: ${email}`);
       console.log(`   Password: ${password}`);
-      console.log(`\n🔗 Login at: ${baseURL}/everworld/login`);
+      console.log(`\n🔗 Login at: ${baseURL}/Cesworld/login`);
     } else {
       console.error('\n❌ Error:', data.error || 'Unknown error');
       console.error('Code:', data.code);

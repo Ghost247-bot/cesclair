@@ -125,7 +125,7 @@ This will show:
 
 ### 3. Test Login
 
-1. Visit: `https://cesclair.store/everworld/login`
+1. Visit: `https://cesclair.store/Cesworld/login`
 2. Try logging in with a test account
 3. Check browser console for errors
 4. Verify session is created
@@ -229,7 +229,7 @@ netlify deploy --prod
 ### Essential URLs:
 - **Site:** https://cesclair.store
 - **Diagnostics:** https://cesclair.store/api/test/production-diagnostics
-- **Login:** https://cesclair.store/everworld/login
+- **Login:** https://cesclair.store/Cesworld/login
 - **Netlify Dashboard:** https://app.netlify.com
 
 ---

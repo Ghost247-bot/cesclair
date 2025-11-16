@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function ShippingPage() {
   return (
@@ -26,7 +25,6 @@ export default function ShippingPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

@@ -86,7 +86,7 @@ After deployment:
 1. **Homepage:** `https://your-site.netlify.app`
 2. **Diagnostics:** `https://your-site.netlify.app/api/test/production-diagnostics`
 3. **Database Test:** `https://your-site.netlify.app/api/test/db-connection`
-4. **Login:** `https://your-site.netlify.app/everworld/login`
+4. **Login:** `https://your-site.netlify.app/Cesworld/login`
 
 ### Check Build Logs:
 

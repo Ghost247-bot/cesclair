@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function StoresPage() {
   return (
@@ -31,7 +30,6 @@ export default function StoresPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

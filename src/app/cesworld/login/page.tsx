@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import Footer from "@/components/sections/footer";
 
 export default function CesworldLogin() {
   const router = useRouter();
@@ -327,7 +326,6 @@ export default function CesworldLogin() {
         </div>
       </div>
     </main>
-    <Footer />
     </>
   );
 }

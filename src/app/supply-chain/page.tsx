@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { FileText } from 'lucide-react';
 
 export default function SupplyChainPage() {
@@ -24,7 +23,7 @@ export default function SupplyChainPage() {
             <div className="prose prose-lg max-w-none">
               <h2 className="text-2xl font-medium mb-6">Our Commitment</h2>
               <p className="text-body text-muted-foreground mb-6">
-                Everlane is committed to conducting business ethically and in compliance with all applicable laws. 
+                ceslane is committed to conducting business ethically and in compliance with all applicable laws. 
                 The California Transparency in Supply Chains Act of 2010 (SB 657) requires certain retailers and 
                 manufacturers to disclose their efforts to eradicate slavery and human trafficking from their direct supply chains.
               </p>
@@ -65,7 +64,7 @@ export default function SupplyChainPage() {
 
               <h2 className="text-2xl font-medium mb-6 mt-12">Our Standards</h2>
               <p className="text-body text-muted-foreground mb-6">
-                All Everlane suppliers must adhere to our Code of Conduct, which includes provisions requiring:
+                All ceslane suppliers must adhere to our Code of Conduct, which includes provisions requiring:
               </p>
               <ul className="list-disc pl-6 space-y-2 text-body text-muted-foreground mb-6">
                 <li>Voluntary employment - no forced, bonded, or indentured labor</li>
@@ -80,7 +79,7 @@ export default function SupplyChainPage() {
                 If you have concerns about potential human trafficking or slavery in our supply chain, please contact us at:
               </p>
               <p className="text-body mb-6">
-                <strong>Email:</strong> compliance@everlane.com<br />
+                <strong>Email:</strong> compliance@ceslane.com<br />
                 <strong>Phone:</strong> 1-888-555-EVER (3837)
               </p>
 
@@ -94,7 +93,6 @@ export default function SupplyChainPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

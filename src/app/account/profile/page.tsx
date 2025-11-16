@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -159,7 +158,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

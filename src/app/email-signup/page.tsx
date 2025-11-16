@@ -6,7 +6,6 @@ import { ArrowRight, Loader2, Check, Mail, Gift, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function EmailSignupPage() {
   const [email, setEmail] = useState('');
@@ -279,7 +278,6 @@ export default function EmailSignupPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

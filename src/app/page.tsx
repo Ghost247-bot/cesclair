@@ -13,7 +13,6 @@ const SplitFeatureSweaters = lazy(() => import("@/components/sections/split-feat
 const VideoFeatureBottomLine = lazy(() => import("@/components/sections/video-feature-bottom-line"));
 const ContentGrid = lazy(() => import("@/components/sections/content-grid"));
 const SustainabilityBanner = lazy(() => import("@/components/sections/sustainability-banner"));
-const Footer = lazy(() => import("@/components/sections/footer"));
 
 export default function Home() {
   const router = useRouter();
@@ -127,10 +126,6 @@ export default function Home() {
       
       <Suspense fallback={<SkeletonImage />}>
         <SustainabilityBanner />
-      </Suspense>
-      
-      <Suspense fallback={null}>
-        <Footer />
       </Suspense>
     </main>
   );

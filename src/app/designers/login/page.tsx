@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, LogIn, Loader2 } from "lucide-react";
-import Footer from "@/components/sections/footer";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
@@ -305,7 +304,6 @@ export default function DesignerLoginPage() {
         </div>
       </section>
     </main>
-    <Footer />
     </>
   );
 }

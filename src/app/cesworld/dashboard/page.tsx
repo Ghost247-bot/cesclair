@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Star, Gift, TrendingUp, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import Footer from "@/components/sections/footer";
 
 interface Member {
   id: number;
@@ -677,7 +676,6 @@ export default function CesworldDashboard() {
         </div>
       </div>
     </main>
-    <Footer />
     </>
   );
 }

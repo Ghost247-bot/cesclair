@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { ArrowRight, Users, TrendingUp, Heart, Briefcase } from 'lucide-react';
 
 export default function CareersPage() {
@@ -21,7 +20,7 @@ export default function CareersPage() {
           </div>
         </section>
 
-        {/* Why Everlane */}
+        {/* Why ceslane */}
         <section className="py-16 md:py-24">
           <div className="container mx-auto">
             <h2 className="text-3xl md:text-4xl font-medium text-center mb-16">WHY CESCLAIR?</h2>
@@ -79,7 +78,7 @@ export default function CareersPage() {
           </div>
         </section>
 
-        {/* Life at Everlane */}
+        {/* Life at ceslane */}
         <section className="py-16 md:py-24">
           <div className="container mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-medium mb-8 text-center">LIFE AT CESCLAIR</h2>
@@ -96,7 +95,6 @@ export default function CareersPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

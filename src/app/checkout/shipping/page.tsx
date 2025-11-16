@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Plus } from 'lucide-react';
-import Footer from '@/components/sections/footer';
 
 interface ShippingFormData {
   firstName: string;
@@ -548,7 +547,6 @@ export default function CheckoutShippingPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

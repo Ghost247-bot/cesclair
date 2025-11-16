@@ -1,7 +1,6 @@
 "use client";
 
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductCard from '@/components/product-card';
 import { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
@@ -161,7 +160,6 @@ export default function GiftGuidePage() {
           )}
         </div>
       </main>
-      <Footer />
     </>
   );
 }

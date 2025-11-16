@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import Link from 'next/link';
 
 export default function HelpPage() {
@@ -28,7 +27,6 @@ export default function HelpPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

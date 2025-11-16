@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowRight, Gift, Truck, CreditCard, Star, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
-import Footer from "@/components/sections/footer";
 
 interface Member {
   id: number;
@@ -337,7 +336,6 @@ export default function Cesworld() {
         </div>
       </section>
     </main>
-    <Footer />
     </>
   );
 }

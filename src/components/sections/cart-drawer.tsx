@@ -32,7 +32,7 @@ export default function CartDrawer() {
           <div className="w-full flex flex-col items-center text-center">
             <div className="relative w-[352px] h-[440px]">
               <Image
-                src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-everlane-com/assets/images/Empty_Bag_State_Image-1.jpg")}
+                src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/Empty_Bag_State_Image-1.jpg")}
                 alt="Your cart is empty"
                 fill
                 className="object-contain"

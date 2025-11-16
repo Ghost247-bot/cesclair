@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { ArrowRight, Share2, DollarSign, TrendingUp } from 'lucide-react';
 
 export default function AffiliatesPage() {
@@ -12,7 +11,7 @@ export default function AffiliatesPage() {
           <div className="container mx-auto text-center">
             <h1 className="text-4xl md:text-5xl font-medium mb-6">AFFILIATE PROGRAM</h1>
             <p className="text-body-large text-muted-foreground max-w-2xl mx-auto mb-8">
-              Join our affiliate program and earn commission by sharing Everlane with your audience
+              Join our affiliate program and earn commission by sharing ceslane with your audience
             </p>
             <button className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white hover:bg-primary/90 transition-colors">
               <span className="text-button-primary">APPLY NOW</span>
@@ -56,7 +55,7 @@ export default function AffiliatesPage() {
           <div className="container mx-auto text-center max-w-3xl">
             <h2 className="text-3xl md:text-4xl font-medium mb-6">Ready to Get Started?</h2>
             <p className="text-body-large text-muted-foreground mb-8">
-              Apply to our affiliate program today and start earning with Everlane
+              Apply to our affiliate program today and start earning with ceslane
             </p>
             <button className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white hover:bg-primary/90 transition-colors">
               <span className="text-button-primary">APPLY TO PROGRAM</span>
@@ -65,7 +64,6 @@ export default function AffiliatesPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

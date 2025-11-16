@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronDown, Minus, Plus, Heart, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Footer from "@/components/sections/footer";
 import { useSession } from '@/lib/auth-client';
 import { toast } from 'sonner';
 import { normalizeImagePath } from '@/lib/utils';
@@ -313,7 +312,6 @@ export default function ProductDetailPageClient() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -333,7 +331,6 @@ export default function ProductDetailPageClient() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -721,7 +718,6 @@ export default function ProductDetailPageClient() {
         </div>
       </div>
     </main>
-    <Footer />
     </>
   );
 }

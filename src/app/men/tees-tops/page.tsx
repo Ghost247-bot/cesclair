@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductListClient from '@/components/product-list-client';
 
 export default function MenTeesTopsPage() {
@@ -16,7 +15,6 @@ export default function MenTeesTopsPage() {
           <ProductListClient category="tees-tops" limit={1000} />
         </div>
       </main>
-      <Footer />
     </>
   );
 }

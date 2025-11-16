@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import { Users, Heart, Target, Award } from 'lucide-react';
 
 export default function DEIPage() {
@@ -22,7 +21,7 @@ export default function DEIPage() {
           <div className="container mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-medium mb-8 text-center">OUR COMMITMENT</h2>
             <p className="text-body-large text-muted-foreground mb-6">
-              At Everlane, we believe that diversity, equity, and inclusion are essential to our mission of Radical Transparency. 
+              At ceslane, we believe that diversity, equity, and inclusion are essential to our mission of Radical Transparency. 
               We're committed to creating a workplace where every person can bring their authentic self to work and contribute to our collective success.
             </p>
             <p className="text-body-large text-muted-foreground">
@@ -94,7 +93,6 @@ export default function DEIPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

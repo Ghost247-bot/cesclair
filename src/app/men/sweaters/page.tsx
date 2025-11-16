@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductListWithSorting from '@/components/product-list-with-sorting';
 
 export default function MenSweatersPage() {
@@ -17,7 +16,6 @@ export default function MenSweatersPage() {
           <ProductListWithSorting category="sweaters" limit={1000} />
         </div>
       </main>
-      <Footer />
     </>
   );
 }

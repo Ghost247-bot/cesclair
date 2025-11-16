@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 
 export default function ReturnsPage() {
   return (
@@ -32,7 +31,6 @@ export default function ReturnsPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

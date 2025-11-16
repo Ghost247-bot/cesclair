@@ -4,7 +4,6 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import Footer from "@/components/sections/footer";
 
 function SigningCompleteContent() {
   const searchParams = useSearchParams();
@@ -35,7 +34,6 @@ function SigningCompleteContent() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -74,7 +72,6 @@ function SigningCompleteContent() {
         </div>
       </div>
     </main>
-    <Footer />
     </>
   );
 }
@@ -91,7 +88,6 @@ export default function SigningCompletePage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     }>
       <SigningCompleteContent />

@@ -1,5 +1,4 @@
 import HeaderNavigation from '@/components/sections/header-navigation';
-import Footer from '@/components/sections/footer';
 import ProductCard from '@/components/product-card';
 import { getProductsByCategory } from '@/lib/products';
 
@@ -31,7 +30,6 @@ export default function MenDenimPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

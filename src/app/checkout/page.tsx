@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ShoppingBag, Truck, CreditCard, FileCheck, User } from 'lucide-react';
-import Footer from '@/components/sections/footer';
 import { useSession } from '@/lib/auth-client';
 
 interface CartItem {
@@ -293,7 +292,6 @@ function CheckoutContent() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -317,7 +315,6 @@ function CheckoutContent() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -903,7 +900,6 @@ function CheckoutContent() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
@@ -919,7 +915,6 @@ export default function CheckoutPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     }>
       <CheckoutContent />

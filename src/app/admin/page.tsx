@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense, lazy, useMemo } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import HeaderNavigation from "@/components/sections/header-navigation";
-import Footer from "@/components/sections/footer";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { determineProductCategory } from "@/lib/utils";
 import { SkeletonStats, SkeletonTable } from "@/components/skeleton-loaders";
@@ -2215,7 +2214,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             <p className="text-xs md:text-body text-muted-foreground">Loading admin panel...</p>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -2230,7 +2228,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             <p className="text-xs md:text-body text-muted-foreground">Redirecting...</p>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -2248,7 +2245,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             )}
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -2272,7 +2268,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             </button>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -2287,7 +2282,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             <p className="text-xs md:text-body text-muted-foreground">Loading admin panel...</p>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -3824,7 +3818,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                             </div>
                             <div className="text-muted-foreground mb-2 mt-3">Example Blm-product-search CSV Row:</div>
                             <div className="text-[10px] leading-relaxed break-all">
-                              "https://cdn.shopify.com/.../image1.jpg","https://cdn.shopify.com/.../image2.jpg","https://www.everlane.com/products/mens-cashmere-crew-heathered-mahogany","mens-cashmere-crew-heathered-mahogany","The Cashmere Crew","New","","Cleaner Chemistry, Renewed Materials","$199.28"
+                              "https://cdn.shopify.com/.../image1.jpg","https://cdn.shopify.com/.../image2.jpg","https://www.ceslane.com/products/mens-cashmere-crew-heathered-mahogany","mens-cashmere-crew-heathered-mahogany","The Cashmere Crew","New","","Cleaner Chemistry, Renewed Materials","$199.28"
                             </div>
                             <div className="text-muted-foreground mb-2 mt-4">Fashion CSV Header Format:</div>
                             <div className="text-[10px] leading-relaxed break-all">
@@ -5972,8 +5966,6 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           </div>
         </div>
       )}
-
-      <Footer />
     </>
   );
 }

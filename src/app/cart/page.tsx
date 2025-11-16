@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Minus, Plus, X, ShoppingBag, ArrowRight } from 'lucide-react';
-import Footer from '@/components/sections/footer';
 
 interface CartItem {
   id: number;
@@ -115,7 +114,6 @@ export default function CartPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -152,7 +150,6 @@ export default function CartPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -327,7 +324,6 @@ export default function CartPage() {
           </motion.div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Lock } from 'lucide-react';
-import Footer from '@/components/sections/footer';
 
 interface PaymentFormData {
   cardNumber: string;
@@ -540,7 +539,6 @@ export default function CheckoutPaymentPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
