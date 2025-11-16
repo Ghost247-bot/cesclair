@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Gift, Truck, CreditCard, Star, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
+import { normalizeImagePath } from "@/lib/utils";
 
 interface Member {
   id: number;
@@ -18,6 +19,7 @@ export default function Cesworld() {
   const { data: session, isPending } = useSession();
   const [member, setMember] = useState<Member | null>(null);
   const [isLoadingMember, setIsLoadingMember] = useState(false);
+  const [heroImgError, setHeroImgError] = useState(false);
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -60,16 +62,25 @@ export default function Cesworld() {
     <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden">
-        <Image
-          src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/a7697d88-840c-467f-b726-f555a6a2eb36/generated_images/lifestyle-product-photography-of-premium-52a1c872-20251109091318.jpg"
-          alt="Premium rewards and shopping experience"
-          fill
-          className="object-cover object-center"
-          priority
-          sizes="100vw"
-          quality={85}
-          unoptimized
-        />
+        {!heroImgError ? (
+          <Image
+            src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/project-uploads/a7697d88-840c-467f-b726-f555a6a2eb36/generated_images/lifestyle-product-photography-of-premium-52a1c872-20251109091318.jpg")}
+            alt="Premium rewards and shopping experience"
+            fill
+            className="object-cover object-center"
+            priority
+            sizes="100vw"
+            quality={85}
+            unoptimized
+            onError={() => setHeroImgError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-accent via-accent/80 to-accent-background flex items-center justify-center">
+            <div className="text-center text-white">
+              <p className="text-sm">Image unavailable</p>
+            </div>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-br from-accent/60 to-accent-background/60" />
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           <div className="text-6xl md:text-8xl font-bold mb-6 tracking-tight">CESWORLD</div>

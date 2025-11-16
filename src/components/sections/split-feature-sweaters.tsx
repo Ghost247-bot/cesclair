@@ -1,20 +1,35 @@
+"use client";
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { normalizeImagePath } from '@/lib/utils';
+import { useState } from 'react';
 
 const SplitFeatureSweaters = () => {
+  const [imgError, setImgError] = useState(false);
+  const imageSrc = normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg");
+  
   return (
     <section className="flex flex-col md:block md:relative md:aspect-[4/5]">
       {/* Container for image and its overlay */}
       <div className="relative aspect-[4/5] md:absolute md:inset-0">
-        <Image
-          src={normalizeImagePath("https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg")}
-          alt="A woman wearing a burgundy sweater over a collared shirt."
-          fill
-          className="z-0 object-cover"
-          priority
-          unoptimized
-        />
+        {!imgError ? (
+          <Image
+            src={imageSrc}
+            alt="A woman wearing a burgundy sweater over a collared shirt."
+            fill
+            className="z-0 object-cover"
+            priority
+            unoptimized
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center z-0">
+            <div className="text-center text-gray-500">
+              <p className="text-sm">Image unavailable</p>
+            </div>
+          </div>
+        )}
         {/* Desktop-only overlay */}
         <div className="hidden md:block absolute inset-0 bg-black/15 z-10"></div>
       </div>

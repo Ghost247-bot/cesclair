@@ -1,6 +1,8 @@
+"use client";
+
 import Image from 'next/image';
 import Link from 'next/link';
-import React from 'react';
+import React, { useState } from 'react';
 import { normalizeImagePath } from '@/lib/utils';
 
 const contentData = [
@@ -25,19 +27,37 @@ const contentData = [
 ];
 
 const ContentGrid = () => {
+  const ContentImage = ({ item }: { item: typeof contentData[0] }) => {
+    const [imgError, setImgError] = useState(false);
+    const imageSrc = normalizeImagePath(item.imageSrc);
+    
+    if (imgError) {
+      return (
+        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <span className="text-xs text-gray-400 text-center px-2">{item.imageAlt}</span>
+        </div>
+      );
+    }
+    
+    return (
+      <Image
+        src={imageSrc}
+        alt={item.imageAlt}
+        fill
+        className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+        unoptimized
+        onError={() => setImgError(true)}
+      />
+    );
+  };
+
   return (
     <section>
       <div className="grid grid-cols-1 md:grid-cols-2">
         {contentData.map((item, index) => (
           <Link key={index} href={item.href} className="group flex flex-col">
             <div className="relative w-full aspect-[3/4] overflow-hidden">
-              <Image
-                src={normalizeImagePath(item.imageSrc)}
-                alt={item.imageAlt}
-                fill
-                className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                unoptimized
-              />
+              <ContentImage item={item} />
             </div>
             <div className="bg-background flex-grow flex items-center justify-center p-4 sm:p-6 md:p-12 text-center">
               <div>

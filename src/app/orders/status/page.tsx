@@ -4,9 +4,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { Package, Search, Loader2, CheckCircle, Truck, XCircle, Copy, Check, Printer, Download, Mail, RefreshCw, MessageCircle, ExternalLink, Share2, FileText, Calendar, CreditCard, ArrowLeft } from 'lucide-react';
+import { Package, Search, Loader2, CheckCircle, Truck, XCircle, Copy, Check, Printer, Download, Mail, RefreshCw, MessageCircle, ExternalLink, Share2, FileText, Calendar, CreditCard, ArrowLeft, User, ChevronDown, HelpCircle, Clock, History, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useSession } from '@/lib/auth-client';
 
 interface OrderItem {
   id: number;
@@ -50,13 +51,20 @@ interface Order {
 function OrderStatusContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [orderNumber, setOrderNumber] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [searchType, setSearchType] = useState<'orderNumber' | 'email'>('orderNumber');
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [showRecentOrders, setShowRecentOrders] = useState(false);
+  const [loadingRecentOrders, setLoadingRecentOrders] = useState(false);
+  const [showHelpTips, setShowHelpTips] = useState(false);
 
   useEffect(() => {
     const orderNum = searchParams.get('orderNumber');
@@ -68,9 +76,19 @@ function OrderStatusContent() {
     }
   }, [searchParams]);
 
-  const fetchOrderStatus = async (orderNum: string) => {
-    if (!orderNum.trim()) {
+  useEffect(() => {
+    if (session?.user) {
+      fetchRecentOrders();
+    }
+  }, [session]);
+
+  const fetchOrderStatus = async (orderNum: string, searchEmail?: string) => {
+    if (searchType === 'orderNumber' && !orderNum.trim()) {
       setError('Please enter an order number');
+      return;
+    }
+    if (searchType === 'email' && !searchEmail?.trim()) {
+      setError('Please enter an email address');
       return;
     }
 
@@ -79,13 +97,22 @@ function OrderStatusContent() {
     setOrder(null);
 
     try {
-      const response = await fetch(`/api/orders/status/${orderNum}`);
+      let url = '/api/orders/status/';
+      if (searchType === 'orderNumber') {
+        url += orderNum;
+      } else {
+        url += 'search'; // Use a placeholder path for email search
+        url += `?email=${encodeURIComponent(searchEmail || '')}`;
+      }
+      const response = await fetch(url);
       const data = await response.json();
 
       if (response.ok) {
         setOrder(data);
         // Update URL without reload
-        router.replace(`/orders/status?orderNumber=${orderNum}`, { scroll: false });
+        if (searchType === 'orderNumber') {
+          router.replace(`/orders/status?orderNumber=${orderNum}`, { scroll: false });
+        }
       } else {
         setError(data.error || 'Order not found');
       }
@@ -97,9 +124,37 @@ function OrderStatusContent() {
     }
   };
 
+  const fetchRecentOrders = async () => {
+    if (!session?.user?.id) return;
+    
+    setLoadingRecentOrders(true);
+    try {
+      const response = await fetch('/api/account/orders?limit=5');
+      if (response.ok) {
+        const data = await response.json();
+        setRecentOrders(data.orders || []);
+      }
+    } catch (err) {
+      console.error('Error fetching recent orders:', err);
+    } finally {
+      setLoadingRecentOrders(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchOrderStatus(orderNumber);
+    if (searchType === 'orderNumber') {
+      fetchOrderStatus(orderNumber);
+    } else {
+      fetchOrderStatus('', email);
+    }
+  };
+
+  const handleSelectRecentOrder = (orderNum: string) => {
+    setOrderNumber(orderNum);
+    setSearchType('orderNumber');
+    setShowRecentOrders(false);
+    fetchOrderStatus(orderNum);
   };
 
   const getStatusColor = (status: string) => {
@@ -297,8 +352,61 @@ function OrderStatusContent() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-medium mb-2">Check Order Status</h1>
             <p className="text-sm sm:text-base text-secondary-text mb-6 sm:mb-8">
-              Enter your order number to check the status of your order.
+              Enter your order number or email to check the status of your order.
             </p>
+
+            {/* Recent Orders for Logged-in Users */}
+            {session?.user && recentOrders.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-white border border-border rounded-lg p-4 sm:p-6 mb-6"
+              >
+                <button
+                  onClick={() => setShowRecentOrders(!showRecentOrders)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-secondary-text" />
+                    <span className="text-sm font-medium">Recent Orders</span>
+                    <span className="text-xs text-secondary-text">({recentOrders.length})</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-secondary-text transition-transform ${showRecentOrders ? 'rotate-180' : ''}`} />
+                </button>
+                {showRecentOrders && (
+                  <div className="mt-4 space-y-2 border-t border-border pt-4">
+                    {loadingRecentOrders ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      </div>
+                    ) : (
+                      recentOrders.map((recentOrder) => (
+                        <button
+                          key={recentOrder.id}
+                          onClick={() => handleSelectRecentOrder(recentOrder.orderNumber)}
+                          className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-md transition-colors text-left border border-transparent hover:border-border"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium">{recentOrder.orderNumber}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(recentOrder.status)}`}>
+                                {recentOrder.status.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-secondary-text">
+                              <span>{new Date(recentOrder.createdAt).toLocaleDateString()}</span>
+                              <span>${parseFloat(recentOrder.total).toFixed(2)}</span>
+                            </div>
+                          </div>
+                          <ArrowLeft className="w-4 h-4 text-secondary-text rotate-180" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Search Form */}
             <motion.form
@@ -308,20 +416,70 @@ function OrderStatusContent() {
               onSubmit={handleSubmit}
               className="bg-white border border-border rounded-lg p-4 sm:p-6 mb-6 sm:mb-8"
             >
+              {/* Search Type Tabs */}
+              <div className="flex gap-2 mb-4 border-b border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchType('orderNumber');
+                    setError(null);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    searchType === 'orderNumber'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-secondary-text hover:text-primary-text'
+                  }`}
+                >
+                  Order Number
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchType('email');
+                    setError(null);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    searchType === 'email'
+                      ? 'border-black text-black'
+                      : 'border-transparent text-secondary-text hover:text-primary-text'
+                  }`}
+                >
+                  Email Address
+                </button>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <div className="flex-1">
-                  <label htmlFor="orderNumber" className="block text-sm font-medium mb-2">
-                    Order Number
+                  <label htmlFor={searchType === 'orderNumber' ? 'orderNumber' : 'email'} className="block text-sm font-medium mb-2">
+                    {searchType === 'orderNumber' ? 'Order Number' : 'Email Address'}
                   </label>
-                  <input
-                    type="text"
-                    id="orderNumber"
-                    value={orderNumber}
-                    onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
-                    placeholder="ORD-1234567890-ABC123"
-                    className="w-full px-4 py-3 border border-[#d4d4d4] rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none uppercase"
-                    required
-                  />
+                  {searchType === 'orderNumber' ? (
+                    <input
+                      type="text"
+                      id="orderNumber"
+                      value={orderNumber}
+                      onChange={(e) => setOrderNumber(e.target.value.toUpperCase())}
+                      placeholder="ORD-1234567890-ABC123"
+                      className="w-full px-4 py-3 border border-[#d4d4d4] rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none uppercase"
+                      required
+                    />
+                  ) : (
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your.email@example.com"
+                      className="w-full px-4 py-3 border border-[#d4d4d4] rounded-[2px] focus:ring-1 focus:ring-black focus:border-black outline-none"
+                      required
+                    />
+                  )}
+                  {searchType === 'orderNumber' && (
+                    <p className="text-xs text-secondary-text mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Find your order number in your confirmation email
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-end">
                   <button
@@ -344,6 +502,138 @@ function OrderStatusContent() {
                 </div>
               </div>
             </motion.form>
+
+            {/* Help Tips Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="bg-white border border-border rounded-lg p-4 sm:p-6 mb-6"
+            >
+              <button
+                onClick={() => setShowHelpTips(!showHelpTips)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-secondary-text" />
+                  <span className="text-sm font-medium">Need Help Finding Your Order?</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-secondary-text transition-transform ${showHelpTips ? 'rotate-180' : ''}`} />
+              </button>
+              {showHelpTips && (
+                <div className="mt-4 space-y-3 border-t border-border pt-4">
+                  <div className="flex items-start gap-3">
+                    <Mail className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">Check Your Email</p>
+                      <p className="text-xs text-secondary-text">
+                        Your order confirmation email contains your order number. Look for an email from us with the subject "Order Confirmation".
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <User className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">Logged in?</p>
+                      <p className="text-xs text-secondary-text">
+                        If you have an account, you can view all your orders in{' '}
+                        <Link href="/account/orders" className="text-primary hover:underline">
+                          your account dashboard
+                        </Link>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">Can't Find Your Order?</p>
+                      <p className="text-xs text-secondary-text">
+                        Contact our support team at{' '}
+                        <a href="mailto:support@cesclair.store" className="text-primary hover:underline">
+                          support@cesclair.store
+                        </a>{' '}
+                        or{' '}
+                        <button onClick={handleContactSupport} className="text-primary hover:underline">
+                          click here to send us a message
+                        </button>.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium mb-1">Order Processing Time</p>
+                      <p className="text-xs text-secondary-text">
+                        Most orders are processed within 1-2 business days. You'll receive a shipping confirmation email once your order ships.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Quick Links */}
+            {!order && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"
+              >
+                {session?.user && (
+                  <Link
+                    href="/account/orders"
+                    className="flex items-center gap-3 p-4 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <History className="w-5 h-5 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">View All Orders</p>
+                      <p className="text-xs text-secondary-text">See your complete order history</p>
+                    </div>
+                  </Link>
+                )}
+                <Link
+                  href="/shipping"
+                  className="flex items-center gap-3 p-4 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Truck className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Shipping Info</p>
+                    <p className="text-xs text-secondary-text">Delivery times and policies</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/returns"
+                  className="flex items-center gap-3 p-4 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <RefreshCw className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Return Policy</p>
+                    <p className="text-xs text-secondary-text">How to return or exchange</p>
+                  </div>
+                </Link>
+                <button
+                  onClick={handleContactSupport}
+                  className="flex items-center gap-3 p-4 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors text-left"
+                >
+                  <MessageCircle className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Contact Support</p>
+                    <p className="text-xs text-secondary-text">Get help with your order</p>
+                  </div>
+                </button>
+                <Link
+                  href="/help"
+                  className="flex items-center gap-3 p-4 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Help Center</p>
+                    <p className="text-xs text-secondary-text">FAQs and guides</p>
+                  </div>
+                </Link>
+              </motion.div>
+            )}
 
             {/* Error Message */}
             {error && (

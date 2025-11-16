@@ -16,8 +16,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get limit from query params
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '100');
+
     // Get orders for user by userId OR email (to include guest orders)
-    const userOrders = await db
+    let userOrders = await db
       .select()
       .from(orders)
       .where(
@@ -27,6 +31,11 @@ export async function GET(request: NextRequest) {
         )
       )
       .orderBy(desc(orders.createdAt));
+
+    // Apply limit if specified
+    if (limit > 0) {
+      userOrders = userOrders.slice(0, limit);
+    }
 
     // Get order items for each order
     const ordersWithItems = await Promise.all(

@@ -2,7 +2,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Volume2, VolumeX } from 'lucide-react';
+import { normalizeImagePath } from '@/lib/utils';
 
 type FeatureCardProps = {
   title: string;
@@ -18,6 +20,8 @@ type FeatureCardProps = {
 const FeatureCard = ({ title, description, linkHref, media }: FeatureCardProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [imgError, setImgError] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const toggleMute = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -37,18 +41,36 @@ const FeatureCard = ({ title, description, linkHref, media }: FeatureCardProps) 
   return (
     <div className="relative text-white overflow-hidden aspect-[4/5] md:aspect-square">
       {media.type === 'video' ? (
-        <video
-          ref={videoRef}
+        !videoError ? (
+          <video
+            ref={videoRef}
+            className="absolute w-full h-full object-cover"
+            src={media.src}
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-label={media.alt}
+            onError={() => setVideoError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+            <span className="text-xs text-gray-400 text-center px-2">{media.alt}</span>
+          </div>
+        )
+      ) : !imgError ? (
+        <Image
+          src={normalizeImagePath(media.src)}
+          alt={media.alt}
+          fill
           className="absolute w-full h-full object-cover"
-          src={media.src}
-          autoPlay
-          loop
-          muted
-          playsInline
-          aria-label={media.alt}
+          unoptimized
+          onError={() => setImgError(true)}
         />
       ) : (
-        <div className="w-full h-full bg-secondary" role="img" aria-label={media.alt}></div>
+        <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <span className="text-xs text-gray-400 text-center px-2">{media.alt}</span>
+        </div>
       )}
       
       <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-50% to-transparent" />
@@ -86,7 +108,7 @@ const VideoFeatureBottomLine = () => {
       linkHref: '/collections/sweater-shop',
       media: {
         type: 'image' as const,
-        src: '',
+        src: 'https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/test-clones/a7697d88-840c-467f-b726-f555a6a2eb36-ceslane-com/assets/images/53a91526_0f42-9.jpg',
         alt: 'A model wearing a premium sweater.',
       },
     },
