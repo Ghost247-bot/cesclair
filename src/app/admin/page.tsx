@@ -127,7 +127,7 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders" | "documents">("overview");
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalDesigners: 0,
@@ -229,6 +229,26 @@ export default function AdminPage() {
   const [contractStatusFilter, setContractStatusFilter] = useState<string>("all");
   const [portfolioSearchQuery, setPortfolioSearchQuery] = useState("");
   const [portfolioStatusFilter, setPortfolioStatusFilter] = useState<string>("all");
+  // Documents state
+  const [documents, setDocuments] = useState<Array<{
+    id: string;
+    name: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    document_url?: string;
+    recipients?: Array<{
+      email: string;
+      name: string;
+      status: string;
+    }>;
+  }>>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [selectedUsersForDocument, setSelectedUsersForDocument] = useState<string[]>([]);
+  const [sendingDocument, setSendingDocument] = useState(false);
+  const [documentSearchQuery, setDocumentSearchQuery] = useState("");
+  const [documentStatusFilter, setDocumentStatusFilter] = useState<string>("all");
   
   // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -441,6 +461,8 @@ export default function AdminPage() {
         fetchDesignsForReview();
       } else if (activeTab === "orders") {
         fetchOrders();
+      } else if (activeTab === "documents") {
+        fetchDocuments();
       }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
@@ -617,7 +639,10 @@ export default function AdminPage() {
     if (activeTab === "orders" && !sessionPending && !roleLoading && session?.user && isAdmin) {
       fetchOrders();
     }
-  }, [orderStatusFilter]);
+    if (activeTab === "documents" && !sessionPending && !roleLoading && session?.user && isAdmin) {
+      fetchDocuments();
+    }
+  }, [orderStatusFilter, documentStatusFilter]);
 
   const fetchDesigners = async () => {
     try {
@@ -1225,6 +1250,91 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Fetch documents from SignWell
+  const fetchDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      
+      // Ensure users are loaded for document assignment
+      if (users.length === 0) {
+        await fetchUsers();
+      }
+      
+      const params = new URLSearchParams();
+      if (documentStatusFilter !== "all") {
+        params.append('status', documentStatusFilter);
+      }
+      params.append('page', '1');
+      params.append('per_page', '100');
+
+      const response = await fetch(`/api/signwell/documents?${params.toString()}`, {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data.documents || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Failed to load documents:", response.status, errorData);
+        }
+        toast.error(errorData.error || "Failed to load documents from SignWell");
+        setDocuments([]);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch documents:", error);
+      }
+      toast.error("Failed to load documents. Please try again.");
+      setDocuments([]);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  // Send document to selected users
+  const sendDocumentToUsers = async () => {
+    if (!selectedDocumentId || selectedUsersForDocument.length === 0) {
+      toast.error("Please select a document and at least one user");
+      return;
+    }
+
+    try {
+      setSendingDocument(true);
+      const response = await fetch('/api/signwell/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          documentId: selectedDocumentId,
+          userIds: selectedUsersForDocument,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Document sent to ${data.recipients?.length || selectedUsersForDocument.length} user(s) successfully`);
+        setSelectedDocumentId(null);
+        setSelectedUsersForDocument([]);
+        // Refresh documents to show updated status
+        fetchDocuments();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to send document");
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to send document:", error);
+      }
+      toast.error("Failed to send document. Please try again.");
+    } finally {
+      setSendingDocument(false);
+    }
   };
 
   const fetchProducts = async () => {
@@ -2421,6 +2531,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <Briefcase className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Portfolios </span>({designers.filter(d => d.status === "approved").length})
               </button>
+              <button
+                onClick={() => setActiveTab("documents")}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === "documents"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <FileTextIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Documents </span>({documents.length})
+              </button>
             </div>
           </div>
         </section>
@@ -2989,6 +3110,211 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Documents Tab */}
+            {activeTab === "documents" && (
+              <div>
+                {/* Header with Search and Filters */}
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1 w-full">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-2 md:left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 md:w-5 md:h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search documents..."
+                        value={documentSearchQuery}
+                        onChange={(e) => setDocumentSearchQuery(e.target.value)}
+                        className="w-full pl-7 md:pl-10 pr-2 md:pr-4 py-1.5 md:py-2 text-xs md:text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <div className="flex gap-1.5 md:gap-2">
+                      <select
+                        value={documentStatusFilter}
+                        onChange={(e) => {
+                          setDocumentStatusFilter(e.target.value);
+                          fetchDocuments();
+                        }}
+                        className="px-2 md:px-4 py-1.5 md:py-2 text-xs md:text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="sent">Sent</option>
+                        <option value="viewed">Viewed</option>
+                        <option value="signed">Signed</option>
+                        <option value="declined">Declined</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <button
+                        onClick={fetchDocuments}
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
+                        disabled={documentsLoading}
+                      >
+                        {documentsLoading ? <Loader2 className="w-3.5 h-3.5 md:w-4 md:h-4 animate-spin" /> : "Refresh"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Document Selection and User Assignment */}
+                {documentsLoading ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-sm text-muted-foreground">Loading documents...</p>
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="text-center py-12 bg-white border border-border rounded-lg">
+                    <FileTextIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">No documents found in SignWell.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Documents List */}
+                    <div className="bg-white border border-border rounded-lg p-4 md:p-6">
+                      <h3 className="text-lg md:text-xl font-semibold mb-4">Select Document</h3>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {documents
+                          .filter((doc) => 
+                            !documentSearchQuery || 
+                            doc.name.toLowerCase().includes(documentSearchQuery.toLowerCase())
+                          )
+                          .map((doc) => (
+                            <div
+                              key={doc.id}
+                              onClick={() => {
+                                setSelectedDocumentId(doc.id);
+                                setSelectedUsersForDocument([]);
+                              }}
+                              className={`p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
+                                selectedDocumentId === doc.id
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-sm md:text-base mb-1">{doc.name}</h4>
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <span className={`px-2 py-0.5 rounded-full ${
+                                      doc.status === 'signed' ? 'bg-green-100 text-green-700' :
+                                      doc.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                      doc.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                      doc.status === 'declined' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {doc.status.toUpperCase()}
+                                    </span>
+                                    <span>Created: {new Date(doc.created_at).toLocaleDateString()}</span>
+                                    {doc.recipients && doc.recipients.length > 0 && (
+                                      <span>{doc.recipients.length} recipient(s)</span>
+                                    )}
+                                  </div>
+                                </div>
+                                {doc.document_url && (
+                                  <a
+                                    href={doc.document_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* User Selection */}
+                    {selectedDocumentId && (
+                      <div className="bg-white border border-border rounded-lg p-4 md:p-6">
+                        <h3 className="text-lg md:text-xl font-semibold mb-4">Select Users to Send Document</h3>
+                        <div className="mb-4">
+                          <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+                          {users.length === 0 ? (
+                            <div className="text-center py-8 text-sm text-muted-foreground">
+                              No users available. Please load users first.
+                            </div>
+                          ) : (
+                            users
+                              .filter((u) => {
+                                if (!u.email || u.email.trim() === '') return false;
+                                if (userSearchQuery) {
+                                  const query = userSearchQuery.toLowerCase();
+                                  return (
+                                    u.name?.toLowerCase().includes(query) ||
+                                    u.email.toLowerCase().includes(query)
+                                  );
+                                }
+                                return true;
+                              })
+                              .map((user) => (
+                              <label
+                                key={user.id}
+                                className="flex items-center gap-3 p-2 hover:bg-secondary rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUsersForDocument.includes(user.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedUsersForDocument([...selectedUsersForDocument, user.id]);
+                                    } else {
+                                      setSelectedUsersForDocument(selectedUsersForDocument.filter(id => id !== user.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">{user.name}</div>
+                                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                                  {user.membership && (
+                                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
+                                      {user.membership.tier.toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                              ))
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between pt-4 border-t border-border">
+                          <div className="text-sm text-muted-foreground">
+                            {selectedUsersForDocument.length} user(s) selected
+                          </div>
+                          <button
+                            onClick={sendDocumentToUsers}
+                            disabled={sendingDocument || selectedUsersForDocument.length === 0}
+                            className="px-4 md:px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-medium flex items-center gap-2"
+                          >
+                            {sendingDocument ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-4 h-4" />
+                                Send Document to Selected Users
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

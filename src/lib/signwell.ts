@@ -120,6 +120,83 @@ export class SignWellClient {
     const created = await this.createDocument(document);
     return this.sendDocument(created.id);
   }
+
+  async listDocuments(params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+  }): Promise<{
+    documents: Array<{
+      id: string;
+      name: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+      document_url?: string;
+      recipients?: Array<{
+        email: string;
+        name: string;
+        status: string;
+      }>;
+    }>;
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const endpoint = `/documents${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<{
+      documents: Array<{
+        id: string;
+        name: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
+        document_url?: string;
+        recipients?: Array<{
+          email: string;
+          name: string;
+          status: string;
+        }>;
+      }>;
+      pagination?: {
+        page: number;
+        per_page: number;
+        total: number;
+        total_pages: number;
+      };
+    }>(endpoint);
+  }
+
+  async sendDocumentToUsers(
+    documentId: string,
+    recipients: Array<{ email: string; name: string }>
+  ): Promise<SignWellResponse> {
+    // First get the document to see its current state
+    const doc = await this.getDocumentStatus(documentId);
+    
+    // Create updated document with new recipients
+    // Note: SignWell API may require different approach - this is a placeholder
+    // You may need to use updateDocument or sendDocument with recipient updates
+    return this.request<SignWellResponse>(`/documents/${documentId}/send`, {
+      method: 'POST',
+      body: JSON.stringify({
+        recipients: recipients.map((r, index) => ({
+          email: r.email,
+          name: r.name,
+          role: 'signer',
+          order: index + 1,
+        })),
+      }),
+    });
+  }
 }
 
 export const signWellClient = SIGNWELL_API_KEY ? new SignWellClient() : null;
