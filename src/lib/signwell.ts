@@ -197,6 +197,26 @@ export class SignWellClient {
       }),
     });
   }
+
+  async uploadDocument(
+    fileData: string, // base64 encoded file data
+    name: string,
+    recipients?: Array<{ email: string; name: string }>
+  ): Promise<SignWellResponse> {
+    // Create document with file_data
+    const document: SignWellDocument = {
+      name,
+      file_data: fileData,
+      recipients: recipients?.map((r, index) => ({
+        email: r.email,
+        name: r.name,
+        role: 'signer' as const,
+        order: index + 1,
+      })) || [],
+    };
+
+    return this.createDocument(document);
+  }
 }
 
 export const signWellClient = SIGNWELL_API_KEY ? new SignWellClient() : null;

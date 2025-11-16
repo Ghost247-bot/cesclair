@@ -249,6 +249,12 @@ export default function AdminPage() {
   const [sendingDocument, setSendingDocument] = useState(false);
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [documentStatusFilter, setDocumentStatusFilter] = useState<string>("all");
+  const [showUploadSignWellDocumentModal, setShowUploadSignWellDocumentModal] = useState(false);
+  const [uploadingSignWellDocument, setUploadingSignWellDocument] = useState(false);
+  const [signWellDocumentForm, setSignWellDocumentForm] = useState({
+    name: '',
+    file: null as File | null,
+  });
   
   // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -1334,6 +1340,59 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       toast.error("Failed to send document. Please try again.");
     } finally {
       setSendingDocument(false);
+    }
+  };
+
+  // Handle SignWell document file selection
+  const handleSignWellDocumentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSignWellDocumentForm(prev => ({ ...prev, file }));
+    }
+  };
+
+  // Upload document to SignWell
+  const uploadSignWellDocument = async () => {
+    if (!signWellDocumentForm.name.trim()) {
+      toast.error("Please enter a document name");
+      return;
+    }
+
+    if (!signWellDocumentForm.file) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setUploadingSignWellDocument(true);
+      const formData = new FormData();
+      formData.append('file', signWellDocumentForm.file);
+      formData.append('name', signWellDocumentForm.name.trim());
+
+      const response = await fetch('/api/signwell/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success("Document uploaded to SignWell successfully");
+        setShowUploadSignWellDocumentModal(false);
+        setSignWellDocumentForm({ name: '', file: null });
+        // Refresh documents list
+        fetchDocuments();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || "Failed to upload document to SignWell");
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to upload document:", error);
+      }
+      toast.error("Failed to upload document. Please try again.");
+    } finally {
+      setUploadingSignWellDocument(false);
     }
   };
 
@@ -3148,6 +3207,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         <option value="declined">Declined</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
+                      <button
+                        onClick={() => setShowUploadSignWellDocumentModal(true)}
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                      >
+                        <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        <span className="hidden sm:inline">Upload</span>
+                      </button>
                       <button
                         onClick={fetchDocuments}
                         className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
@@ -6286,6 +6352,137 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Upload Document
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload SignWell Document Modal */}
+      {showUploadSignWellDocumentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-border p-4 md:p-6 flex items-center justify-between">
+              <h3 className="text-xl md:text-2xl font-medium">Upload Document to SignWell</h3>
+              <button
+                onClick={() => {
+                  setShowUploadSignWellDocumentModal(false);
+                  setSignWellDocumentForm({ name: '', file: null });
+                }}
+                className="p-2 hover:bg-secondary rounded transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 md:p-6 space-y-6">
+              {/* Document Name */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Document Name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={signWellDocumentForm.name}
+                  onChange={(e) => setSignWellDocumentForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter document name"
+                  disabled={uploadingSignWellDocument}
+                />
+              </div>
+
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Document File <span className="text-red-600">*</span>
+                </label>
+                {signWellDocumentForm.file ? (
+                  <div className="space-y-2">
+                    <div className="p-4 bg-secondary border border-border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileTextIcon className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">{signWellDocumentForm.file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(signWellDocumentForm.file.size / 1024 / 1024).toFixed(2)} MB • {signWellDocumentForm.file.type}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setSignWellDocumentForm(prev => ({ ...prev, file: null }))}
+                          className="text-red-600 text-sm hover:underline"
+                          disabled={uploadingSignWellDocument}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp,.gif"
+                      onChange={handleSignWellDocumentFileChange}
+                      className="hidden"
+                      id="signwell-document-file-upload"
+                      disabled={uploadingSignWellDocument}
+                    />
+                    <label
+                      htmlFor="signwell-document-file-upload"
+                      className={`cursor-pointer inline-flex flex-col items-center gap-2 ${uploadingSignWellDocument ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {uploadingSignWellDocument ? (
+                        <>
+                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                          <span className="text-sm text-muted-foreground">Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">
+                            Click to upload or drag and drop
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            PDF, Word, Excel, PowerPoint, Text, Images up to 25MB
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 pt-4 border-t border-border">
+                <button
+                  onClick={() => {
+                    setShowUploadSignWellDocumentModal(false);
+                    setSignWellDocumentForm({ name: '', file: null });
+                  }}
+                  className="flex-1 px-6 py-3 border border-border rounded-lg hover:bg-secondary transition-colors"
+                  disabled={uploadingSignWellDocument}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={uploadSignWellDocument}
+                  disabled={!signWellDocumentForm.name.trim() || !signWellDocumentForm.file || uploadingSignWellDocument}
+                  className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {uploadingSignWellDocument ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload to SignWell
+                    </>
+                  )}
                 </button>
               </div>
             </div>
