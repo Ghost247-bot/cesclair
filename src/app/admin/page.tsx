@@ -2837,7 +2837,28 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                     {/* Quick Actions */}
                     <div className="bg-white border border-border rounded-lg p-3 md:p-6 shadow-sm">
-                      <h2 className="text-base md:text-xl font-semibold mb-2 md:mb-4">Quick Actions</h2>
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 mb-2 md:mb-4">
+                        <h2 className="text-base md:text-xl font-semibold">Quick Actions</h2>
+                        <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                          <button
+                            onClick={() => setShowUploadSignWellDocumentModal(true)}
+                            className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                          >
+                            <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <span className="hidden sm:inline">Upload Document</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveTab("documents");
+                              fetchDocuments();
+                            }}
+                            className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                          >
+                            <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <span className="hidden sm:inline">Select from SignWell</span>
+                          </button>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                         <button
                           onClick={() => setActiveTab("users")}
@@ -2907,12 +2928,31 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </select>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowCreateUserModal(true)}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium w-full md:w-auto"
-                  >
-                    + Create User
-                  </button>
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
+                    <button
+                      onClick={() => setShowCreateUserModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium w-full md:w-auto"
+                    >
+                      + Create User
+                    </button>
+                  </div>
                 </div>
 
                 {/* Users List */}
@@ -3739,6 +3779,25 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </select>
                     </div>
                   </div>
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Portfolios List */}
@@ -3932,17 +3991,36 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </select>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowCreateDesignerModal(true);
-                      setUploadedAvatarUrl(null);
-                      setAvatarPreview(null);
-                      setAvatarFile(null);
-                    }}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
-                  >
-                    + Create Designer
-                  </button>
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateDesignerModal(true);
+                        setUploadedAvatarUrl(null);
+                        setAvatarPreview(null);
+                        setAvatarFile(null);
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
+                    >
+                      + Create Designer
+                    </button>
+                  </div>
                 </div>
 
                 {/* Designers List */}
@@ -4113,6 +4191,28 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             {/* Products Tab */}
             {activeTab === "products" && (
               <div>
+                {/* Header with Document Actions */}
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
+                  </div>
+                </div>
                 {/* Toggle between List View and CSV Upload */}
                 <div className="mb-6 flex flex-col gap-4">
                   <div className="flex gap-2 border-b border-border">
@@ -4427,12 +4527,31 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </select>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowCreateContractModal(true)}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
-                  >
-                    + Create Contract
-                  </button>
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
+                    <button
+                      onClick={() => setShowCreateContractModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs md:text-sm font-medium"
+                    >
+                      + Create Contract
+                    </button>
+                  </div>
                 </div>
 
                 {/* Contracts List */}
@@ -4584,6 +4703,25 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         <option value="draft">Draft ({designsForReview.filter((d) => d.status === "draft").length})</option>
                       </select>
                     </div>
+                  </div>
+                  <div className="flex gap-1.5 md:gap-2 flex-wrap">
+                    <button
+                      onClick={() => setShowUploadSignWellDocumentModal(true)}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Upload Document</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("documents");
+                        fetchDocuments();
+                      }}
+                      className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs md:text-sm font-medium flex items-center gap-1.5 md:gap-2"
+                    >
+                      <FileTextIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <span className="hidden sm:inline">Select from SignWell</span>
+                    </button>
                   </div>
                 </div>
 
