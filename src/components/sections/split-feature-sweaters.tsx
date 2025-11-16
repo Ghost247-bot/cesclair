@@ -14,15 +14,20 @@ const SplitFeatureSweaters = () => {
       {/* Container for image and its overlay */}
       <div className="relative aspect-[4/5] md:absolute md:inset-0">
         {!imgError ? (
-          <Image
-            src={imageSrc}
-            alt="A woman wearing a burgundy sweater over a collared shirt."
-            fill
-            className="z-0 object-cover"
-            priority
-            unoptimized
-            onError={() => setImgError(true)}
-          />
+          <>
+            <Image
+              src={imageSrc}
+              alt="A woman wearing a burgundy sweater over a collared shirt."
+              fill
+              className="z-0 object-cover"
+              priority
+              unoptimized
+              onError={(e) => {
+                console.error('Image failed to load:', imageSrc);
+                setImgError(true);
+              }}
+            />
+          </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center z-0">
             <div className="text-center text-gray-500">

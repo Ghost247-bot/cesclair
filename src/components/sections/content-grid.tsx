@@ -46,7 +46,10 @@ const ContentGrid = () => {
         fill
         className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
         unoptimized
-        onError={() => setImgError(true)}
+        onError={(e) => {
+          console.error('Image failed to load:', imageSrc);
+          setImgError(true);
+        }}
       />
     );
   };

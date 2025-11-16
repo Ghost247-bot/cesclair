@@ -121,6 +121,7 @@ const CategoryGrid = () => {
           {categories.map((category, index) => {
             const CategoryImage = ({ category }: { category: typeof categories[0] }) => {
               const [imgError, setImgError] = useState(false);
+              const [imgLoading, setImgLoading] = useState(true);
               const imageSrc = normalizeImagePath(category.image);
               
               if (imgError) {
@@ -132,15 +133,26 @@ const CategoryGrid = () => {
               }
               
               return (
-                <Image
-                  src={imageSrc}
-                  alt={category.alt}
-                  width={480}
-                  height={640}
-                  className="aspect-[3/4] w-full object-cover"
-                  unoptimized
-                  onError={() => setImgError(true)}
-                />
+                <div className="relative aspect-[3/4] w-full bg-gray-200">
+                  {imgLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                  <Image
+                    src={imageSrc}
+                    alt={category.alt}
+                    width={480}
+                    height={640}
+                    className={`aspect-[3/4] w-full object-cover transition-opacity duration-300 ${imgLoading ? 'opacity-0' : 'opacity-100'}`}
+                    unoptimized
+                    onLoad={() => setImgLoading(false)}
+                    onError={() => {
+                      setImgError(true);
+                      setImgLoading(false);
+                    }}
+                  />
+                </div>
               );
             };
             

@@ -65,7 +65,10 @@ const FeatureCard = ({ title, description, linkHref, media }: FeatureCardProps) 
           fill
           className="absolute w-full h-full object-cover"
           unoptimized
-          onError={() => setImgError(true)}
+          onError={(e) => {
+            console.error('Image failed to load:', normalizeImagePath(media.src));
+            setImgError(true);
+          }}
         />
       ) : (
         <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">

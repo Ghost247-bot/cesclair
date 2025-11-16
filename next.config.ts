@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Removed contentSecurityPolicy to allow external images
     // Allow loading images from any source when unoptimized
     domains: [],
   },
