@@ -1358,14 +1358,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         // This is expected when SignWell is not configured
         return;
       } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.error("Failed to fetch documents:", error);
-        }
-        // Only show toast if it's not a configuration issue
-        if (signWellConfigured !== false) {
-          toast.error("Failed to load documents. Please try again.");
-        }
-        setDocuments([]);
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to fetch documents:", error);
+      }
+      // Only show toast if it's not a configuration issue
+      if (signWellConfigured !== false) {
+        toast.error("Failed to load documents. Please try again.");
+      }
+      setDocuments([]);
       }
     } finally {
       setDocumentsLoading(false);

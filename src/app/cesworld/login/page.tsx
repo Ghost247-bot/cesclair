@@ -13,8 +13,8 @@ export default function CesworldLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: "rogerbeaudry@yahoo.com",
-    password: "Gold4me.471@1761",
+    email: "",
+    password: "",
     rememberMe: false,
   });
 
@@ -241,6 +241,7 @@ export default function CesworldLogin() {
                 id="email"
                 type="email"
                 required
+                autoComplete="off"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
