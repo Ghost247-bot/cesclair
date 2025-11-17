@@ -18,6 +18,15 @@ export default function CesworldLogin() {
     rememberMe: false,
   });
 
+  // Ensure form is always clean on mount
+  useEffect(() => {
+    setFormData({
+      email: "",
+      password: "",
+      rememberMe: false,
+    });
+  }, []);
+
   // Redirect if already logged in based on role
   useEffect(() => {
     if (!isPending && session?.user) {
@@ -231,6 +240,9 @@ export default function CesworldLogin() {
                 type="email"
                 required
                 autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -249,7 +261,10 @@ export default function CesworldLogin() {
                 id="password"
                   type={showPassword ? "text" : "password"}
                 required
-                autoComplete="off"
+                autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
