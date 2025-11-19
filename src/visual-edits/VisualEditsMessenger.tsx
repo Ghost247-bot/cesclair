@@ -2157,3 +2157,6 @@ export default function HoverReceiver() {
     </>
   );
 }
+
+// Export alias for compatibility
+export { HoverReceiver as VisualEditsMessenger };

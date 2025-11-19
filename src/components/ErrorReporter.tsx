@@ -104,10 +104,18 @@ export default function ErrorReporter({ error, reset }: ReporterProps) {
               Something went wrong!
             </h1>
             <p className="text-muted-foreground">
-              An unexpected error occurred. Please try again fixing with 
+              An unexpected error occurred. Please try again or contact support if the problem persists.
             </p>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-4">
+            {reset && (
+              <button
+                onClick={reset}
+                className="px-6 py-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-md font-medium"
+              >
+                Try again
+              </button>
+            )}
             {process.env.NODE_ENV === "development" && (
               <details className="mt-4 text-left">
                 <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">

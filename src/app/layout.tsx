@@ -1,15 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./dashboard-responsive.css";
-import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import Footer from "@/components/sections/footer";
 import Script from "next/script";
-import RouteMessengerScript from "@/components/RouteMessengerScript";
 import { Toaster } from "@/components/ui/sonner";
 import { StructuredData } from "@/components/seo/structured-data";
-import AntiCloneProtectionScript from "@/components/AntiCloneProtectionScript";
+import ClientScripts, { ClientScriptsFooter } from "@/components/client-scripts";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cesclair.store';
 
@@ -120,11 +118,10 @@ export default function RootLayout({
           strategy="lazyOnload"
           defer
         />
-        <RouteMessengerScript />
-        <AntiCloneProtectionScript />
+        <ClientScripts />
         {children}
         <Footer />
-        <VisualEditsMessenger />
+        <ClientScriptsFooter />
         <Toaster />
       </body>
     </html>

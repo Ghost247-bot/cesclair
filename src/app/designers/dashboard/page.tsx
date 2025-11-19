@@ -180,6 +180,21 @@ export default function DesignerDashboardPage() {
   const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [documentCategoryFilter, setDocumentCategoryFilter] = useState<string>("all");
   
+  // Image hover popup state
+  const [hoveredImage, setHoveredImage] = useState<{ url: string; title: string } | null>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+
+  // Track window size for popup positioning
+  useEffect(() => {
+    const updateWindowSize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    updateWindowSize();
+    window.addEventListener('resize', updateWindowSize);
+    return () => window.removeEventListener('resize', updateWindowSize);
+  }, []);
+  
   // Debounced search queries
   const debouncedDesignSearchQuery = useDebounce(designSearchQuery, 300);
   const debouncedContractSearchQuery = useDebounce(contractSearchQuery, 300);
@@ -957,6 +972,16 @@ export default function DesignerDashboardPage() {
   const pendingContracts = contracts.filter(c => c.status === "awarded" && c.envelopeStatus !== "completed").length;
   // Total earnings is now fetched from the database via API (only counts completed contracts with completedAt set)
   const totalEarnings = stats?.totalEarnings || 0;
+
+  // Format currency with thousand separators
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
   const pendingDesigns = designs.filter(d => d.status === "submitted").length;
   const approvedDesigns = designs.filter(d => d.status === "approved").length;
   
@@ -1217,7 +1242,7 @@ export default function DesignerDashboardPage() {
                 className="text-center p-3 sm:p-4 md:p-5 lg:p-6 bg-secondary hover:shadow-md transition-shadow"
               >
                 <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 mx-auto mb-1.5 sm:mb-2 md:mb-2.5 lg:mb-3 text-green-600" />
-                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">${totalEarnings.toFixed(2)}</div>
+                <div className="text-xl sm:text-2xl md:text-3xl font-medium mb-0.75 sm:mb-1">{formatCurrency(totalEarnings)}</div>
                 <div className="text-label text-muted-foreground">TOTAL EARNINGS</div>
               </motion.div>
             </div>
@@ -1388,7 +1413,7 @@ export default function DesignerDashboardPage() {
                     </div>
                     <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
                   </div>
-                  <div className="text-xl sm:text-2xl font-bold mb-0.75 sm:mb-1">${totalEarnings.toFixed(2)}</div>
+                  <div className="text-xl sm:text-2xl font-bold mb-0.75 sm:mb-1">{formatCurrency(totalEarnings)}</div>
                   <div className="text-xs sm:text-sm text-muted-foreground">Total Earnings</div>
                   <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.75 sm:mt-1">
                     {contracts.filter(c => c.status === 'completed').length} completed contracts
@@ -1495,35 +1520,67 @@ export default function DesignerDashboardPage() {
                     <PieChart className="w-5 h-5 text-muted-foreground" />
                   </div>
                   {contracts.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <RechartsPieChart>
-                        <Pie
-                          data={[
-                            { name: 'Completed', value: contracts.filter(c => c.status === 'completed').length, color: '#10b981' },
-                            { name: 'Awarded', value: contracts.filter(c => c.status === 'awarded').length, color: '#3b82f6' },
-                            { name: 'Signed', value: contracts.filter(c => c.status === 'signed').length, color: '#8b5cf6' },
-                            { name: 'Pending', value: contracts.filter(c => c.status === 'pending').length, color: '#f59e0b' },
-                          ]}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={(entry: any) => `${entry.name}: ${((entry.percent || 0) * 100).toFixed(0)}%`}
-                          outerRadius={70}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {[
-                            { name: 'Completed', value: contracts.filter(c => c.status === 'completed').length, color: '#10b981' },
-                            { name: 'Awarded', value: contracts.filter(c => c.status === 'awarded').length, color: '#3b82f6' },
-                            { name: 'Signed', value: contracts.filter(c => c.status === 'signed').length, color: '#8b5cf6' },
-                            { name: 'Pending', value: contracts.filter(c => c.status === 'pending').length, color: '#f59e0b' },
-                          ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                    <div className="flex flex-col items-center">
+                      <ResponsiveContainer width="100%" height={200}>
+                        <RechartsPieChart>
+                          <Pie
+                            data={[
+                              { name: 'Completed', value: contracts.filter(c => c.status === 'completed').length, color: '#10b981' },
+                              { name: 'Awarded', value: contracts.filter(c => c.status === 'awarded').length, color: '#3b82f6' },
+                              { name: 'Signed', value: contracts.filter(c => c.status === 'signed').length, color: '#8b5cf6' },
+                              { name: 'Pending', value: contracts.filter(c => c.status === 'pending').length, color: '#f59e0b' },
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={false}
+                            outerRadius={70}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {[
+                              { name: 'Completed', value: contracts.filter(c => c.status === 'completed').length, color: '#10b981' },
+                              { name: 'Awarded', value: contracts.filter(c => c.status === 'awarded').length, color: '#3b82f6' },
+                              { name: 'Signed', value: contracts.filter(c => c.status === 'signed').length, color: '#8b5cf6' },
+                              { name: 'Pending', value: contracts.filter(c => c.status === 'pending').length, color: '#f59e0b' },
+                            ].map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: any, name: string) => [
+                              `${value} (${((value / contracts.length) * 100).toFixed(0)}%)`,
+                              name
+                            ]}
+                          />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                      <div className="mt-4 grid grid-cols-2 gap-3 w-full max-w-md">
+                        {[
+                          { name: 'Completed', value: contracts.filter(c => c.status === 'completed').length, color: '#10b981' },
+                          { name: 'Awarded', value: contracts.filter(c => c.status === 'awarded').length, color: '#3b82f6' },
+                          { name: 'Signed', value: contracts.filter(c => c.status === 'signed').length, color: '#8b5cf6' },
+                          { name: 'Pending', value: contracts.filter(c => c.status === 'pending').length, color: '#f59e0b' },
+                        ]
+                          .filter(entry => entry.value > 0)
+                          .map((entry, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full flex-shrink-0" 
+                                style={{ backgroundColor: entry.color }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-primary-text truncate">
+                                  {entry.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {entry.value} ({((entry.value / contracts.length) * 100).toFixed(0)}%)
+                                </div>
+                              </div>
+                            </div>
                           ))}
-                        </Pie>
-                        <Tooltip />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
+                      </div>
+                    </div>
                   ) : (
                     <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
                       No contracts data available
@@ -1550,7 +1607,7 @@ export default function DesignerDashboardPage() {
                       <span className="text-sm font-medium text-blue-900">Average Contract Value</span>
                     </div>
                     <div className="text-2xl font-bold text-blue-900">
-                      ${averageContractValue > 0 ? averageContractValue.toFixed(2) : '0.00'}
+                      {formatCurrency(averageContractValue)}
                     </div>
                     <div className="text-xs text-blue-700 mt-1">
                       Based on completed contracts
@@ -2065,12 +2122,27 @@ export default function DesignerDashboardPage() {
                     >
                       {/* Design Image */}
                       {design.imageUrl && (
-                        <div className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden">
+                        <div 
+                          className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden cursor-pointer group"
+                          onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMousePosition({ x: rect.left + rect.width / 2, y: rect.top });
+                            setHoveredImage({ 
+                              url: normalizeImagePath(design.imageUrl!), 
+                              title: design.title 
+                            });
+                          }}
+                          onMouseLeave={() => setHoveredImage(null)}
+                          onMouseMove={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMousePosition({ x: e.clientX, y: e.clientY });
+                          }}
+                        >
                           <Image
                             src={normalizeImagePath(design.imageUrl)}
                             alt={design.title}
                             fill
-                            className="object-cover"
+                            className="object-contain transition-transform duration-200 group-hover:scale-105"
                             unoptimized
                           />
                         </div>
@@ -2209,7 +2281,7 @@ export default function DesignerDashboardPage() {
                                 src={normalizeImagePath(designForm.imageUrl)}
                                 alt="Design preview"
                                 fill
-                                className="object-cover"
+                                className="object-contain"
                                 unoptimized
                               />
                             </div>
@@ -3394,6 +3466,42 @@ export default function DesignerDashboardPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Image Hover Popup */}
+        <AnimatePresence>
+          {hoveredImage && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+              className="fixed z-50 pointer-events-none"
+              style={{
+                left: windowSize.width > 0 
+                  ? `${Math.min(mousePosition.x + 20, windowSize.width - 360)}px`
+                  : `${mousePosition.x + 20}px`,
+                top: windowSize.height > 0
+                  ? `${Math.max(mousePosition.y - 340, 20)}px`
+                  : `${mousePosition.y - 340}px`,
+              }}
+            >
+              <div className="bg-white border-2 border-primary shadow-2xl rounded-lg p-2 max-w-md">
+                <div className="relative w-80 h-80 bg-secondary rounded overflow-hidden">
+                  <Image
+                    src={hoveredImage.url}
+                    alt={hoveredImage.title}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                </div>
+                <p className="text-sm font-medium mt-2 text-center text-primary-text">
+                  {hoveredImage.title}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </>
   );
