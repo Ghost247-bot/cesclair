@@ -2117,13 +2117,13 @@ export default function DesignerDashboardPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: index * 0.1 }}
-                      whileHover={{ scale: 1.02, y: -5 }}
-                      className="bg-white border border-border p-4 hover:shadow-lg transition-shadow"
+                      whileHover={{ scale: 1.05, y: -8 }}
+                      className="bg-white border border-border p-4 hover:shadow-xl transition-all duration-300"
                     >
                       {/* Design Image */}
                       {design.imageUrl && (
                         <div 
-                          className="relative w-full h-48 mb-4 bg-secondary rounded overflow-hidden cursor-pointer group"
+                          className="relative w-full min-h-[400px] mb-4 bg-secondary rounded overflow-hidden cursor-pointer group"
                           onMouseEnter={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setMousePosition({ x: rect.left + rect.width / 2, y: rect.top });
@@ -2142,7 +2142,7 @@ export default function DesignerDashboardPage() {
                             src={normalizeImagePath(design.imageUrl)}
                             alt={design.title}
                             fill
-                            className="object-contain transition-transform duration-200 group-hover:scale-105"
+                            className="object-contain transition-transform duration-500 ease-out group-hover:scale-110"
                             unoptimized
                           />
                         </div>

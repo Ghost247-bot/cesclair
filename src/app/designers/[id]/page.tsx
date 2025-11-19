@@ -993,20 +993,20 @@ export default function DesignerPortfolioPage() {
                 {designs.map((design) => (
                   <div
                     key={design.id}
-                    className="bg-white border border-border overflow-hidden transition-all hover:shadow-lg hover:border-primary group"
+                    className="bg-white border border-border overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary group hover:-translate-y-2 hover:scale-105"
                   >
                     {design.imageUrl ? (
-                      <div className="relative w-full h-64 bg-secondary">
+                      <div className="relative w-full min-h-[400px] bg-secondary overflow-hidden">
                         <Image
                           src={normalizeImagePath(design.imageUrl)}
                           alt={design.title}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="object-contain group-hover:scale-110 transition-transform duration-500 ease-out"
                           unoptimized
                         />
                       </div>
                     ) : (
-                      <div className="w-full h-64 bg-gradient-to-br from-secondary to-accent-background flex items-center justify-center">
+                      <div className="w-full min-h-[400px] bg-gradient-to-br from-secondary to-accent-background flex items-center justify-center">
                         <Briefcase className="w-16 h-16 text-muted-foreground" />
                       </div>
                     )}
