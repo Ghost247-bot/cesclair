@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { ArrowLeft, Users, Briefcase, Mail, Calendar, Tag, Edit, Trash2, Loader2, Upload, X } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { normalizeImagePath } from "@/lib/utils";
@@ -968,35 +969,87 @@ export default function DesignerPortfolioPage() {
         </section>
 
         {/* Designs Section */}
-        <section className="py-16 md:py-24 relative z-0">
+        <motion.section 
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+          className="py-16 md:py-24 relative z-0"
+        >
           <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="flex items-center justify-between mb-8"
+            >
               <h2 className="text-2xl md:text-3xl font-medium">
                 Portfolio Works
               </h2>
               {designs.length > 0 && (
-                <span className="text-body text-muted-foreground">
+                <motion.span 
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="text-body text-muted-foreground"
+                >
                   {designs.length} {designs.length === 1 ? "design" : "designs"}
-                </span>
+                </motion.span>
               )}
-            </div>
+            </motion.div>
 
             {designs.length === 0 ? (
-              <div className="text-center py-12 bg-secondary/30 rounded-lg">
-                <Briefcase className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-body-large text-muted-foreground">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                className="text-center py-12 bg-secondary/30 rounded-lg"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2, type: "spring" }}
+                >
+                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                </motion.div>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="text-body-large text-muted-foreground"
+                >
                   No published designs yet.
-                </p>
-              </div>
+                </motion.p>
+              </motion.div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                {designs.map((design) => (
-                  <div
+                {designs.map((design, index) => (
+                  <motion.div
                     key={design.id}
-                    className="bg-white border border-border overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary group hover:-translate-y-2 hover:scale-105"
+                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: index * 0.1,
+                      type: "spring",
+                      stiffness: 100
+                    }}
+                    whileHover={{ 
+                      y: -8, 
+                      scale: 1.05,
+                      transition: { duration: 0.3 }
+                    }}
+                    className="bg-white border border-border overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary group"
                   >
                     {design.imageUrl ? (
-                      <div className="relative w-full min-h-[400px] bg-secondary overflow-hidden">
+                      <motion.div 
+                        className="relative w-full min-h-[400px] bg-secondary overflow-hidden"
+                        whileHover={{ scale: 1.02 }}
+                        transition={{ duration: 0.3 }}
+                      >
                         <Image
                           src={normalizeImagePath(design.imageUrl)}
                           alt={design.title}
@@ -1004,35 +1057,53 @@ export default function DesignerPortfolioPage() {
                           className="object-contain group-hover:scale-110 transition-transform duration-500 ease-out"
                           unoptimized
                         />
-                      </div>
+                      </motion.div>
                     ) : (
                       <div className="w-full min-h-[400px] bg-gradient-to-br from-secondary to-accent-background flex items-center justify-center">
                         <Briefcase className="w-16 h-16 text-muted-foreground" />
                       </div>
                     )}
 
-                    <div className="p-6">
-                      <h3 className="text-xl font-medium mb-2">{design.title}</h3>
+                    <motion.div 
+                      className="p-6"
+                      initial={{ opacity: 0 }}
+                      whileInView={{ opacity: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
+                    >
+                      <motion.h3 
+                        className="text-xl font-medium mb-2"
+                        whileHover={{ x: 5 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {design.title}
+                      </motion.h3>
                       {design.description && (
                         <p className="text-body text-muted-foreground mb-4 line-clamp-3">
                           {design.description}
                         </p>
                       )}
                       {design.category && (
-                        <div className="flex items-center gap-2">
+                        <motion.div 
+                          className="flex items-center gap-2"
+                          initial={{ opacity: 0, x: -10 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.4, delay: index * 0.1 + 0.4 }}
+                        >
                           <Tag className="w-3 h-3 text-muted-foreground" />
                           <span className="text-caption text-muted-foreground">
                             {design.category}
                           </span>
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
-                  </div>
+                    </motion.div>
+                  </motion.div>
                 ))}
               </div>
             )}
           </div>
-        </section>
+        </motion.section>
 
         {/* External Portfolio Link (if exists) */}
         {designer.portfolioUrl && (
