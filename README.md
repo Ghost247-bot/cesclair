@@ -42,27 +42,34 @@ Optional environment variables:
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme).
 
-#### Steps:
+#### Quick Start
 
-1. **Push your code to GitHub**
+See **[VERCEL_QUICK_START.md](./VERCEL_QUICK_START.md)** for a 5-minute deployment guide.
+
+#### Detailed Guides
+
+- **[VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md)** - Complete deployment guide with troubleshooting
+- **[VERCEL_ENV_CHECKLIST.md](./VERCEL_ENV_CHECKLIST.md)** - Environment variables checklist
+
+#### Quick Steps:
+
+1. **Push your code to GitHub** (already done ✅)
    ```bash
-   git add .
-   git commit -m "Prepare for deployment"
    git push origin main
    ```
 
 2. **Import your project to Vercel**
    - Go to [Vercel](https://vercel.com/new)
-   - Import your GitHub repository
+   - Import your GitHub repository: `Ghost247-bot/cesclair`
    - Vercel will automatically detect Next.js
 
 3. **Configure Environment Variables**
    In your Vercel project settings, add the following environment variables:
    - `DATABASE_URL` - Your Neon PostgreSQL connection string
-   - `BETTER_AUTH_SECRET` - Generate a secure secret (use: `openssl rand -base64 32`)
-   - `NEXT_PUBLIC_SITE_URL` - Your Vercel deployment URL (e.g., `https://your-app.vercel.app`)
+   - `BETTER_AUTH_SECRET` - Generate a secure secret (run: `npm run generate-secret`)
+   - `NEXT_PUBLIC_SITE_URL` - Your Vercel deployment URL (update after first deploy)
+   - `DOCUSIGN_*` - (if using DocuSign integration)
    - `SIGNWELL_API_KEY` - (if using SignWell integration)
-   - `SIGNWELL_API_BASE` - (if using SignWell integration, optional)
 
 4. **Deploy**
    - Click "Deploy"
