@@ -974,7 +974,7 @@ export default function DesignerPortfolioPage() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="py-16 md:py-24 relative z-0"
+          className="py-6 md:py-8 relative z-0"
         >
           <div className="container mx-auto px-4">
             <motion.div 
@@ -982,9 +982,9 @@ export default function DesignerPortfolioPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="flex items-center justify-between mb-8"
+              className="flex items-center justify-between mb-3"
             >
-              <h2 className="text-2xl md:text-3xl font-medium">
+              <h2 className="text-lg md:text-xl font-medium">
                 Portfolio Works
               </h2>
               {designs.length > 0 && (
@@ -1005,14 +1005,14 @@ export default function DesignerPortfolioPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="text-center py-12 bg-secondary/30 rounded-lg"
+                className="text-center py-4 bg-secondary/30 rounded-lg"
               >
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.2, type: "spring" }}
                 >
-                  <Briefcase className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <Briefcase className="w-6 h-6 mx-auto mb-1 text-muted-foreground" />
                 </motion.div>
                 <motion.p 
                   initial={{ opacity: 0 }}
@@ -1024,7 +1024,7 @@ export default function DesignerPortfolioPage() {
                 </motion.p>
               </motion.div>
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                 {designs.map((design, index) => (
                   <motion.div
                     key={design.id}
@@ -1046,7 +1046,7 @@ export default function DesignerPortfolioPage() {
                   >
                     {design.imageUrl ? (
                       <motion.div 
-                        className="relative w-full min-h-[400px] bg-secondary overflow-hidden"
+                        className="relative w-full min-h-[140px] bg-secondary overflow-hidden"
                         whileHover={{ scale: 1.02 }}
                         transition={{ duration: 0.3 }}
                       >
@@ -1059,27 +1059,27 @@ export default function DesignerPortfolioPage() {
                         />
                       </motion.div>
                     ) : (
-                      <div className="w-full min-h-[400px] bg-gradient-to-br from-secondary to-accent-background flex items-center justify-center">
-                        <Briefcase className="w-16 h-16 text-muted-foreground" />
+                      <div className="w-full min-h-[140px] bg-gradient-to-br from-secondary to-accent-background flex items-center justify-center">
+                        <Briefcase className="w-6 h-6 text-muted-foreground" />
                       </div>
                     )}
 
                     <motion.div 
-                      className="p-6"
+                      className="p-2"
                       initial={{ opacity: 0 }}
                       whileInView={{ opacity: 1 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
                     >
                       <motion.h3 
-                        className="text-xl font-medium mb-2"
+                        className="text-base font-medium mb-1"
                         whileHover={{ x: 5 }}
                         transition={{ duration: 0.2 }}
                       >
                         {design.title}
                       </motion.h3>
                       {design.description && (
-                        <p className="text-body text-muted-foreground mb-4 line-clamp-3">
+                        <p className="text-body text-muted-foreground mb-1 line-clamp-3">
                           {design.description}
                         </p>
                       )}
