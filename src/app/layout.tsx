@@ -66,15 +66,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: `${siteUrl}/favicon.svg`, type: 'image/svg+xml' },
-      { url: `${siteUrl}/adhcn101.svg`, type: 'image/svg+xml' },
-      { url: `${siteUrl}/favicon.ico`, sizes: 'any' },
-      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '32x32' },
-      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '192x192' },
-      { url: `${siteUrl}/icon.png`, type: 'image/png', sizes: '512x512' },
+      { url: `${siteUrl}/favicon.svg`, type: "image/svg+xml" },
     ],
     apple: [
-      { url: `${siteUrl}/apple-icon.png`, sizes: '180x180', type: 'image/png' },
+      { url: `${siteUrl}/favicon.svg`, type: "image/svg+xml" },
     ],
     shortcut: `${siteUrl}/favicon.svg`,
   },
