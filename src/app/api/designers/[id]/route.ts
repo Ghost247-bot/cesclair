@@ -158,6 +158,9 @@ export async function PUT(
       specialties,
       avatarUrl,
       bannerUrl,
+      bannerTitle,
+      bannerDescription,
+      bannerActive,
       status,
     } = body;
 
@@ -166,7 +169,16 @@ export async function PUT(
     };
 
     // Portfolio-related fields can only be updated by admins
-    const portfolioFields = ['bio', 'portfolioUrl', 'specialties', 'avatarUrl', 'bannerUrl'];
+    const portfolioFields = [
+      'bio',
+      'portfolioUrl',
+      'specialties',
+      'avatarUrl',
+      'bannerUrl',
+      'bannerTitle',
+      'bannerDescription',
+      'bannerActive',
+    ];
     const requestedPortfolioFields = Object.keys(body).filter(key => 
       portfolioFields.includes(key) && body[key] !== undefined
     );
@@ -260,6 +272,18 @@ export async function PUT(
 
     if (bannerUrl !== undefined && isAdmin) {
       updates.bannerUrl = bannerUrl;
+    }
+
+    if (bannerTitle !== undefined && isAdmin) {
+      updates.bannerTitle = bannerTitle;
+    }
+
+    if (bannerDescription !== undefined && isAdmin) {
+      updates.bannerDescription = bannerDescription;
+    }
+
+    if (bannerActive !== undefined && isAdmin) {
+      updates.bannerActive = bannerActive;
     }
 
     // Only admins can update status

@@ -125,6 +125,30 @@ export const designers = pgTable('designers', {
   status: text('status').notNull().default('pending'),
   avatarUrl: text('avatar_url'),
   bannerUrl: text('banner_url'),
+  // Admin-managed banner content for the designer dashboard hero
+  bannerTitle: text('banner_title'),
+  bannerDescription: text('banner_description'),
+  bannerActive: boolean('banner_active').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Banners table - banners created by admins for each designer
+export const designerBanners = pgTable('designer_banners', {
+  id: serial('id').primaryKey(),
+  designerId: integer('designer_id')
+    .notNull()
+    .references(() => designers.id, { onDelete: 'cascade' }),
+  // Optional link to the admin user who created/last updated this banner
+  createdBy: text('created_by').references(() => user.id),
+  title: text('title'),
+  subtitle: text('subtitle'),
+  body: text('body'),
+  imageUrl: text('image_url'),
+  ctaLabel: text('cta_label'),
+  ctaUrl: text('cta_url'),
+  active: boolean('active').notNull().default(true),
+  displayOrder: integer('display_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

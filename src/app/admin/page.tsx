@@ -51,6 +51,9 @@ interface Designer {
   status: string;
   avatarUrl?: string;
   bannerUrl?: string;
+  bannerTitle?: string | null;
+  bannerDescription?: string | null;
+  bannerActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -305,6 +308,9 @@ export default function AdminPage() {
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadedContractFileUrl, setUploadedContractFileUrl] = useState<string | null>(null);
   const [selectedDesignerForBanner, setSelectedDesignerForBanner] = useState<Designer | null>(null);
+  const [bannerTitleInput, setBannerTitleInput] = useState<string>('');
+  const [bannerDescriptionInput, setBannerDescriptionInput] = useState<string>('');
+  const [bannerActiveInput, setBannerActiveInput] = useState<boolean>(false);
 
   const designersWithBanner = designers.filter((designer) => !!designer.bannerUrl).length;
   const designersMissingBanner = Math.max(designers.length - designersWithBanner, 0);
@@ -927,7 +933,9 @@ export default function AdminPage() {
       return;
     }
 
-    if (!uploadedBannerUrl) {
+    const finalBannerUrl = uploadedBannerUrl || selectedDesignerForBanner.bannerUrl || null;
+
+    if (!finalBannerUrl) {
       toast.error('Please upload a banner image first');
       return;
     }
@@ -942,7 +950,10 @@ export default function AdminPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          bannerUrl: uploadedBannerUrl,
+          bannerUrl: finalBannerUrl,
+          bannerTitle: bannerTitleInput || null,
+          bannerDescription: bannerDescriptionInput || null,
+          bannerActive: bannerActiveInput,
         }),
       });
 
@@ -954,12 +965,24 @@ export default function AdminPage() {
       // Update the designer in the list
       setDesigners(prev => prev.map(d =>
         d.id === selectedDesignerForBanner.id
-          ? { ...d, bannerUrl: uploadedBannerUrl }
+          ? {
+            ...d,
+            bannerUrl: finalBannerUrl || undefined,
+            bannerTitle: bannerTitleInput || null,
+            bannerDescription: bannerDescriptionInput || null,
+            bannerActive: bannerActiveInput,
+          }
           : d
       ));
 
       // Update selected designer
-      setSelectedDesignerForBanner(prev => prev ? { ...prev, bannerUrl: uploadedBannerUrl } : null);
+      setSelectedDesignerForBanner(prev => prev ? {
+        ...prev,
+        bannerUrl: finalBannerUrl || undefined,
+        bannerTitle: bannerTitleInput || null,
+        bannerDescription: bannerDescriptionInput || null,
+        bannerActive: bannerActiveInput,
+      } : null);
 
       toast.success(`Banner assigned to ${selectedDesignerForBanner.name} successfully`);
 
@@ -1006,6 +1029,9 @@ export default function AdminPage() {
         credentials: 'include',
         body: JSON.stringify({
           bannerUrl: null,
+          bannerTitle: null,
+          bannerDescription: null,
+          bannerActive: false,
         }),
       });
 
@@ -1017,12 +1043,24 @@ export default function AdminPage() {
       // Update the designer in the list
       setDesigners(prev => prev.map(d =>
         d.id === selectedDesignerForBanner.id
-          ? { ...d, bannerUrl: null }
+          ? {
+            ...d,
+            bannerUrl: undefined,
+            bannerTitle: null,
+            bannerDescription: null,
+            bannerActive: false,
+          }
           : d
       ));
 
       // Update selected designer
-      setSelectedDesignerForBanner(prev => prev ? { ...prev, bannerUrl: null } : null);
+      setSelectedDesignerForBanner(prev => prev ? {
+        ...prev,
+        bannerUrl: undefined,
+        bannerTitle: null,
+        bannerDescription: null,
+        bannerActive: false,
+      } : null);
 
       toast.success(`Banner removed from ${selectedDesignerForBanner.name} successfully`);
 
@@ -3701,11 +3739,20 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         <select
                           value={selectedDesignerForBanner?.id || ''}
                           onChange={(e) => {
-                            const designer = designers.find(d => d.id === parseInt(e.target.value));
-                            setSelectedDesignerForBanner(designer || null);
-                            setBannerPreview(null);
-                            setBannerFile(null);
-                            setUploadedBannerUrl(null);
+          const designer = designers.find(d => d.id === parseInt(e.target.value));
+          setSelectedDesignerForBanner(designer || null);
+          setBannerPreview(null);
+          setBannerFile(null);
+          setUploadedBannerUrl(null);
+          if (designer) {
+            setBannerTitleInput(designer.bannerTitle || '');
+            setBannerDescriptionInput(designer.bannerDescription || '');
+            setBannerActiveInput(!!designer.bannerActive);
+          } else {
+            setBannerTitleInput('');
+            setBannerDescriptionInput('');
+            setBannerActiveInput(false);
+          }
                           }}
                           className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         >
@@ -3754,6 +3801,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 {selectedDesignerForBanner.bannerUrl ? 'Set' : 'Not Set'}
                               </span>
                             </div>
+                            <div className="flex justify-between text-sm mt-1">
+                              <span className="text-muted-foreground">Banner Status:</span>
+                              <span className={`font-medium ${selectedDesignerForBanner.bannerActive ? 'text-green-600' : 'text-gray-500'}`}>
+                                {selectedDesignerForBanner.bannerActive ? 'Visible' : 'Hidden'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -3783,6 +3836,47 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 </div>
                               )}
                             </div>
+                          </div>
+
+                          {/* Banner Content */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-1">
+                                Banner Label (small text)
+                              </label>
+                              <input
+                                type="text"
+                                value={bannerTitleInput}
+                                onChange={(e) => setBannerTitleInput(e.target.value)}
+                                placeholder="e.g., Managed by Cesclair Admins"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-1">
+                                Banner Headline
+                              </label>
+                              <input
+                                type="text"
+                                value={bannerDescriptionInput}
+                                onChange={(e) => setBannerDescriptionInput(e.target.value)}
+                                placeholder="e.g., Your portfolio spotlight is live"
+                                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              id="banner-active-toggle"
+                              type="checkbox"
+                              checked={bannerActiveInput}
+                              onChange={(e) => setBannerActiveInput(e.target.checked)}
+                              className="h-4 w-4 border-border rounded"
+                            />
+                            <label htmlFor="banner-active-toggle" className="text-sm">
+                              Show banner on designer dashboard
+                            </label>
                           </div>
 
                           {/* Upload Controls */}

@@ -112,6 +112,9 @@ export async function GET(request: NextRequest) {
               status: designers.status,
               avatarUrl: designers.avatarUrl,
               bannerUrl: designers.bannerUrl,
+              bannerTitle: designers.bannerTitle,
+              bannerDescription: designers.bannerDescription,
+              bannerActive: designers.bannerActive,
               createdAt: designers.createdAt,
               updatedAt: designers.updatedAt,
             })
@@ -279,6 +282,9 @@ export async function GET(request: NextRequest) {
             status,
             avatar_url as "avatarUrl",
             NULL as "bannerUrl",
+            NULL as "bannerTitle",
+            NULL as "bannerDescription",
+            false as "bannerActive",
             created_at as "createdAt",
             updated_at as "updatedAt"
           FROM designers
@@ -310,6 +316,9 @@ export async function GET(request: NextRequest) {
       status: designers.status,
       avatarUrl: designers.avatarUrl,
       bannerUrl: designers.bannerUrl,
+      bannerTitle: designers.bannerTitle,
+      bannerDescription: designers.bannerDescription,
+      bannerActive: designers.bannerActive,
       createdAt: designers.createdAt,
       updatedAt: designers.updatedAt,
     }).from(designers);
@@ -382,7 +391,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, password, bio, portfolioUrl, specialties, avatarUrl, bannerUrl, status } = body;
+    const { name, email, password, bio, portfolioUrl, specialties, avatarUrl, bannerUrl, status, bannerTitle, bannerDescription, bannerActive } = body;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -500,6 +509,9 @@ export async function POST(request: NextRequest) {
           status: designerStatus, // Should be 'approved' by default
           avatarUrl: avatarUrl?.trim() || null,
           bannerUrl: bannerUrl?.trim() || null,
+          bannerTitle: bannerTitle?.trim() || null,
+          bannerDescription: bannerDescription?.trim() || null,
+          bannerActive: bannerActive ?? false,
           createdAt: now,
           updatedAt: now,
         })
@@ -513,6 +525,9 @@ export async function POST(request: NextRequest) {
           status: designers.status,
           avatarUrl: designers.avatarUrl,
           bannerUrl: designers.bannerUrl,
+          bannerTitle: designers.bannerTitle,
+          bannerDescription: designers.bannerDescription,
+          bannerActive: designers.bannerActive,
           createdAt: designers.createdAt,
           updatedAt: designers.updatedAt,
         });

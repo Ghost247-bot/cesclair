@@ -72,6 +72,9 @@ interface Designer {
   status: string;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  bannerTitle?: string | null;
+  bannerDescription?: string | null;
+  bannerActive?: boolean;
 }
 
 interface Stats {
@@ -1176,7 +1179,7 @@ export default function DesignerDashboardPage() {
               </button>
             </div>
             <div className="mt-4 w-full">
-              {designer.bannerUrl && (
+              {designer.bannerUrl && designer.bannerActive && (
                 <div className="relative w-full h-40 sm:h-48 md:h-56 lg:h-64 rounded-lg overflow-hidden border border-border bg-gray-100">
                   <Image
                     src={normalizeImagePath(designer.bannerUrl)}
@@ -1187,8 +1190,12 @@ export default function DesignerDashboardPage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent">
                     <div className="h-full flex flex-col justify-end p-4 sm:p-5 md:p-6 text-white">
-                      <p className="text-xs sm:text-sm uppercase tracking-wide opacity-80">Managed by Cesclair Admins</p>
-                      <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mt-1">Your portfolio spotlight is live</h2>
+                      <p className="text-xs sm:text-sm uppercase tracking-wide opacity-80">
+                        {designer.bannerTitle || 'Managed by Cesclair Admins'}
+                      </p>
+                      <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mt-1">
+                        {designer.bannerDescription || 'Your portfolio spotlight is live'}
+                      </h2>
                       <p className="text-xs sm:text-sm mt-1 text-white/90">
                         Need updates? Reach out to the admin team to refresh this hero banner.
                       </p>

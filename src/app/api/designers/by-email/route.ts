@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
           status: designers.status,
           avatarUrl: designers.avatarUrl,
           portfolioUrl: designers.portfolioUrl,
+          bannerUrl: designers.bannerUrl,
+          bannerTitle: designers.bannerTitle,
+          bannerDescription: designers.bannerDescription,
+          bannerActive: designers.bannerActive,
           createdAt: designers.createdAt,
           updatedAt: designers.updatedAt,
         })
@@ -186,6 +190,10 @@ export async function POST(request: NextRequest) {
         status: designers.status,
         avatarUrl: designers.avatarUrl,
         portfolioUrl: designers.portfolioUrl,
+        bannerUrl: designers.bannerUrl,
+        bannerTitle: designers.bannerTitle,
+        bannerDescription: designers.bannerDescription,
+        bannerActive: designers.bannerActive,
         createdAt: designers.createdAt,
         updatedAt: designers.updatedAt,
       })
