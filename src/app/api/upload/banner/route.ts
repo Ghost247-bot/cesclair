@@ -106,21 +106,25 @@ export async function POST(request: NextRequest) {
       }
 
       if (designerToUpdate.length > 0) {
-        // Check authorization: user must be admin OR the designer themselves
+        // Only admins are allowed to update designer banners
         const userRole = (session.user as any)?.role;
         const isAdmin = userRole === 'admin';
-        const isOwnProfile = designerToUpdate[0].email === session.user.email;
 
-        if (isAdmin || isOwnProfile) {
-          // Update bannerUrl in database
-          await db
-            .update(designers)
-            .set({
-              bannerUrl: fileUrl,
-              updatedAt: new Date(),
-            })
-            .where(eq(designers.id, designerToUpdate[0].id));
+        if (!isAdmin) {
+          return NextResponse.json(
+            { error: 'Only admins can update designer banners', code: 'FORBIDDEN' },
+            { status: 403 }
+          );
         }
+
+        // Update bannerUrl in database
+        await db
+          .update(designers)
+          .set({
+            bannerUrl: fileUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(designers.id, designerToUpdate[0].id));
       }
     } catch (dbError) {
       // Log error but don't fail the upload - file is already saved

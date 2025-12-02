@@ -5,14 +5,14 @@ import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import { useDebounce } from "@/lib/hooks/useDebounce";
-import { determineProductCategory } from "@/lib/utils";
+import { determineProductCategory, normalizeImagePath } from "@/lib/utils";
 import { SkeletonStats, SkeletonTable } from "@/components/skeleton-loaders";
-import { 
-  Shield, 
-  Users, 
-  Upload, 
-  Check, 
-  X, 
+import {
+  Shield,
+  Users,
+  Upload,
+  Check,
+  X,
   Trash2,
   Package,
   Loader2,
@@ -36,7 +36,8 @@ import {
   Activity,
   ShoppingBag,
   Truck,
-  XCircle
+  XCircle,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -127,7 +128,7 @@ interface AuditLog {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders" | "documents">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders" | "documents" | "banners">("overview");
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalDesigners: 0,
@@ -256,14 +257,14 @@ export default function AdminPage() {
     file: null as File | null,
   });
   const [signWellConfigured, setSignWellConfigured] = useState<boolean | null>(null);
-  
+
   // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedUserSearchQuery = useDebounce(userSearchQuery, 300);
   const debouncedProductSearchQuery = useDebounce(productSearchQuery, 300);
   const debouncedContractSearchQuery = useDebounce(contractSearchQuery, 300);
   const debouncedPortfolioSearchQuery = useDebounce(portfolioSearchQuery, 300);
-  
+
   // Modal states
   const [showCreateDesignerModal, setShowCreateDesignerModal] = useState(false);
   const [showEditDesignerModal, setShowEditDesignerModal] = useState(false);
@@ -303,12 +304,19 @@ export default function AdminPage() {
   const [uploadingContractFile, setUploadingContractFile] = useState(false);
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadedContractFileUrl, setUploadedContractFileUrl] = useState<string | null>(null);
+  const [selectedDesignerForBanner, setSelectedDesignerForBanner] = useState<Designer | null>(null);
+
+  const designersWithBanner = designers.filter((designer) => !!designer.bannerUrl).length;
+  const designersMissingBanner = Math.max(designers.length - designersWithBanner, 0);
+  const bannerCoveragePercent = designers.length > 0
+    ? Math.round((designersWithBanner / designers.length) * 100)
+    : 0;
 
   const isAuthenticated = !sessionPending && session?.user;
   // Get role from session, may need to fetch from database if not in session
   const [userRole, setUserRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
-  
+
   // Fetch user role if not in session
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -316,7 +324,7 @@ export default function AdminPage() {
         setRoleLoading(false);
         return;
       }
-      
+
       // First check if role is in session
       const sessionRole = (session.user as any)?.role;
       if (sessionRole) {
@@ -324,7 +332,7 @@ export default function AdminPage() {
         setRoleLoading(false);
         return;
       }
-      
+
       // If not in session, fetch from database
       try {
         if (process.env.NODE_ENV === 'development') {
@@ -364,10 +372,10 @@ export default function AdminPage() {
         setRoleLoading(false);
       }
     };
-    
+
     fetchUserRole();
   }, [session]);
-  
+
   const isAdmin = userRole === "admin";
   const shouldShowContent = isAuthenticated && isAdmin && !roleLoading;
 
@@ -479,7 +487,7 @@ export default function AdminPage() {
     const fetchDesigns = async () => {
       if (showCreateContractModal || showEditContractModal) {
         try {
-          const url = selectedDesignerId 
+          const url = selectedDesignerId
             ? `/api/designs?designerId=${selectedDesignerId}&limit=500`
             : `/api/designs?limit=500`;
           const response = await fetch(url);
@@ -489,8 +497,8 @@ export default function AdminPage() {
           }
         } catch (error) {
           if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to fetch designs:", error);
-      }
+            console.error("Failed to fetch designs:", error);
+          }
         }
       }
     };
@@ -669,7 +677,7 @@ export default function AdminPage() {
         if (process.env.NODE_ENV === 'development') {
           console.error("Failed to fetch designers:", errorData);
         }
-          toast.error(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -716,24 +724,24 @@ export default function AdminPage() {
         credentials: 'include',
         next: { revalidate: 60 }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
         const errorMessage = errorData?.error || `Failed to load designs: ${response.status} ${response.statusText}`;
         if (process.env.NODE_ENV === 'development') {
           if (process.env.NODE_ENV === 'development') {
-          console.error("Failed to fetch designs:", errorData);
-        }
+            console.error("Failed to fetch designs:", errorData);
+          }
         }
         toast.error(errorMessage);
         setDesignsForReview([]);
         setFilteredDesignsForReview([]);
         return;
       }
-      
+
       const data = await response.json();
       const designsList = Array.isArray(data) ? data : [];
-      
+
       // Ensure all designs have the required structure with designer information
       const formattedDesigns = designsList.map((design: any) => ({
         id: design.id,
@@ -755,14 +763,14 @@ export default function AdminPage() {
           avatarUrl: null,
         },
       }));
-      
+
       setDesignsForReview(formattedDesigns);
       setFilteredDesignsForReview(formattedDesigns);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to fetch designs:", error);
-      }
+          console.error("Failed to fetch designs:", error);
+        }
       }
       toast.error("Failed to load designs. Please check your connection.");
       setDesignsForReview([]);
@@ -852,7 +860,7 @@ export default function AdminPage() {
       }
 
       const data = await response.json();
-      
+
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
@@ -893,7 +901,7 @@ export default function AdminPage() {
       }
 
       const data = await response.json();
-      
+
       // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setBannerPreview(previewUrl);
@@ -908,6 +916,123 @@ export default function AdminPage() {
       }
       toast.error(error instanceof Error ? error.message : 'Failed to upload banner');
       throw error;
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const assignBannerToDesigner = async () => {
+    if (!selectedDesignerForBanner) {
+      toast.error('Please select a designer first');
+      return;
+    }
+
+    if (!uploadedBannerUrl) {
+      toast.error('Please upload a banner image first');
+      return;
+    }
+
+    try {
+      setUploadingBanner(true);
+
+      const response = await fetch(`/api/designers/${selectedDesignerForBanner.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          bannerUrl: uploadedBannerUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to assign banner' }));
+        throw new Error(errorData.error || 'Failed to assign banner');
+      }
+
+      // Update the designer in the list
+      setDesigners(prev => prev.map(d =>
+        d.id === selectedDesignerForBanner.id
+          ? { ...d, bannerUrl: uploadedBannerUrl }
+          : d
+      ));
+
+      // Update selected designer
+      setSelectedDesignerForBanner(prev => prev ? { ...prev, bannerUrl: uploadedBannerUrl } : null);
+
+      toast.success(`Banner assigned to ${selectedDesignerForBanner.name} successfully`);
+
+      // Reset upload states
+      setBannerPreview(null);
+      setBannerFile(null);
+      setUploadedBannerUrl(null);
+
+      // Refresh designers list
+      await fetchDesigners();
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Assign banner error:', error);
+      }
+      toast.error(error instanceof Error ? error.message : 'Failed to assign banner');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const removeBannerFromDesigner = async () => {
+    if (!selectedDesignerForBanner) {
+      toast.error('Please select a designer first');
+      return;
+    }
+
+    if (!selectedDesignerForBanner.bannerUrl) {
+      toast.error('This designer does not have a banner');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to remove the banner from ${selectedDesignerForBanner.name}?`)) {
+      return;
+    }
+
+    try {
+      setUploadingBanner(true);
+
+      const response = await fetch(`/api/designers/${selectedDesignerForBanner.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          bannerUrl: null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to remove banner' }));
+        throw new Error(errorData.error || 'Failed to remove banner');
+      }
+
+      // Update the designer in the list
+      setDesigners(prev => prev.map(d =>
+        d.id === selectedDesignerForBanner.id
+          ? { ...d, bannerUrl: null }
+          : d
+      ));
+
+      // Update selected designer
+      setSelectedDesignerForBanner(prev => prev ? { ...prev, bannerUrl: null } : null);
+
+      toast.success(`Banner removed from ${selectedDesignerForBanner.name} successfully`);
+
+      // Refresh designers list
+      await fetchDesigners();
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Remove banner error:', error);
+      }
+      toast.error(error instanceof Error ? error.message : 'Failed to remove banner');
     } finally {
       setUploadingBanner(false);
     }
@@ -930,8 +1055,8 @@ export default function AdminPage() {
       }
 
       const data = await response.json();
-      setAdminDocumentForm(prev => ({ 
-        ...prev, 
+      setAdminDocumentForm(prev => ({
+        ...prev,
         fileUrl: data.url,
         fileName: data.fileName,
         fileSize: data.size,
@@ -1146,7 +1271,7 @@ export default function AdminPage() {
           "Content-Type": "application/json",
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           ...(points !== undefined && { points }),
           ...(annualSpending !== undefined && { annualSpending }),
         }),
@@ -1187,7 +1312,7 @@ export default function AdminPage() {
     try {
       setUploadingTransactions(true);
       const text = await file.text();
-      
+
       const response = await fetch(`/api/admin/users/${userId}/transactions/bulk`, {
         method: "POST",
         headers: {
@@ -1209,7 +1334,7 @@ export default function AdminPage() {
           }
           return u;
         }));
-        
+
         if (data.errors && data.errors.length > 0) {
           toast.warning(`Uploaded ${data.transactionsCreated} transactions with ${data.errors.length} errors`);
           if (process.env.NODE_ENV === 'development') {
@@ -1218,10 +1343,10 @@ export default function AdminPage() {
         } else {
           toast.success(`Successfully uploaded ${data.transactionsCreated} transactions`);
         }
-        
+
         setShowTransactionsUploadModal(false);
         setTransactionsUploadUserId(null);
-        
+
         // Refresh audit logs to show the new entry
         if (activeTab === "audit") {
           fetchAuditLogs();
@@ -1247,7 +1372,7 @@ purchase,89.99,90,Purchase - Order #ORD-10045,ORD-10045,2024-02-15T11:20:00.000Z
 redeem,10.00,-100,Redeemed 100 points for $10 off,,
 bonus,0.00,50,Birthday bonus points,,
 refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`;
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1271,12 +1396,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
     try {
       setDocumentsLoading(true);
-      
+
       // Ensure users are loaded for document assignment
       if (users.length === 0) {
         await fetchUsers();
       }
-      
+
       const params = new URLSearchParams();
       if (documentStatusFilter !== "all") {
         params.append('status', documentStatusFilter);
@@ -1302,21 +1427,21 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         } catch {
           // If JSON parsing fails, errorData remains empty object
         }
-        
+
         // Check for SignWell not configured error - be very thorough
         // If status is 503 from /api/signwell/documents, it's almost certainly a SignWell configuration issue
         const errorMessage = errorData.error || '';
         const errorCode = errorData.code || '';
-        const isSignWellNotConfigured = 
-          errorCode === 'SIGNWELL_NOT_CONFIGURED' || 
+        const isSignWellNotConfigured =
+          errorCode === 'SIGNWELL_NOT_CONFIGURED' ||
           // If we get a 503 from the SignWell documents endpoint, treat it as configuration issue
           (response.status === 503) ||
-          (typeof errorMessage === 'string' && 
-           errorMessage.toLowerCase().includes('signwell') && 
-           (errorMessage.toLowerCase().includes('not configured') ||
-            errorMessage.toLowerCase().includes('not set') ||
-            errorMessage.toLowerCase().includes('api is not configured')));
-        
+          (typeof errorMessage === 'string' &&
+            errorMessage.toLowerCase().includes('signwell') &&
+            (errorMessage.toLowerCase().includes('not configured') ||
+              errorMessage.toLowerCase().includes('not set') ||
+              errorMessage.toLowerCase().includes('api is not configured')));
+
         if (isSignWellNotConfigured) {
           setSignWellConfigured(false);
           setDocuments([]);
@@ -1345,12 +1470,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     } catch (error) {
       // Check if error is related to SignWell not being configured
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const isSignWellNotConfigured = 
-        errorMessage.toLowerCase().includes('signwell') && 
-        (errorMessage.toLowerCase().includes('not configured') || 
-         errorMessage.toLowerCase().includes('not set') ||
-         errorMessage.toLowerCase().includes('api is not configured'));
-      
+      const isSignWellNotConfigured =
+        errorMessage.toLowerCase().includes('signwell') &&
+        (errorMessage.toLowerCase().includes('not configured') ||
+          errorMessage.toLowerCase().includes('not set') ||
+          errorMessage.toLowerCase().includes('api is not configured'));
+
       if (isSignWellNotConfigured) {
         setSignWellConfigured(false);
         setDocuments([]);
@@ -1358,14 +1483,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         // This is expected when SignWell is not configured
         return;
       } else {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Failed to fetch documents:", error);
-      }
-      // Only show toast if it's not a configuration issue
-      if (signWellConfigured !== false) {
-        toast.error("Failed to load documents. Please try again.");
-      }
-      setDocuments([]);
+        if (process.env.NODE_ENV === 'development') {
+          console.error("Failed to fetch documents:", error);
+        }
+        // Only show toast if it's not a configuration issue
+        if (signWellConfigured !== false) {
+          toast.error("Failed to load documents. Please try again.");
+        }
+        setDocuments([]);
       }
     } finally {
       setDocumentsLoading(false);
@@ -1606,7 +1731,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         const updatedOrders = orders.map((o) => (o.id === orderId ? updated.order : o));
         setOrders(updatedOrders);
         setFilteredOrders(updatedOrders);
-        
+
         const statusMessages: Record<string, string> = {
           processing: "Order confirmed",
           shipped: "Order shipped",
@@ -2014,11 +2139,11 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
       const nextChar = line[i + 1];
-      
+
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
           // Escaped quote
@@ -2036,7 +2161,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         current += char;
       }
     }
-    
+
     // Add last field
     result.push(current.trim());
     return result;
@@ -2067,7 +2192,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       'Product-tile__swatch (4) URL',
       'Swatch__icon--color Description'
     ];
-    
+
     // Example row with required fields (first 6 columns are used for product data)
     const exampleRow = [
       'https://media.example.com/image/w_600/product.json',
@@ -2091,12 +2216,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       '',
       ''
     ];
-    
+
     const csvContent = [
       headers.join(','),
       exampleRow.map(val => val ? `"${val}"` : '').join(',')
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -2150,7 +2275,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         if (!line) continue;
 
         const values = parseCSVLine(line);
-        
+
         let product: any = {};
 
         if (isBlmFormat) {
@@ -2166,7 +2291,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           // 7: Blm-product-search-sustainability (sustainability tags)
           // 8: Price (current price with $) - REQUIRED
           // 9: (Optional) Original price when on sale
-          
+
           const imageUrl = values[0]?.replace(/^"|"$/g, '').trim() || '';
           const secondImageUrl = values[1]?.replace(/^"|"$/g, '').trim() || '';
           const productUrl = values[2]?.replace(/^"|"$/g, '').trim() || '';
@@ -2176,17 +2301,17 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           const sustainability = values[7]?.replace(/^"|"$/g, '').trim() || '';
           const priceStr = values[8]?.replace(/^"|"$/g, '').trim() || '';
           const originalPriceStr = values[9]?.replace(/^"|"$/g, '').trim() || '';
-          
+
           // Clean price - remove $ and commas
           let price = priceStr.replace(/[$,]/g, '').trim();
-          
+
           // Validate price is a valid number
           const priceNum = parseFloat(price);
           if (isNaN(priceNum) || priceNum < 0) {
             // Skip this product if price is invalid
             continue;
           }
-          
+
           // Extract SKU from slug or URL
           let sku: string | undefined;
           if (skuSlug) {
@@ -2200,7 +2325,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               sku = lastPart.replace('.html', '');
             }
           }
-          
+
           // Extract category from URL if possible (optional)
           let category: string | undefined;
           if (productUrl) {
@@ -2218,7 +2343,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               }
             }
           }
-          
+
           // Build description from sustainability tags and badge
           let description: string | undefined;
           const descriptionParts: string[] = [];
@@ -2231,15 +2356,15 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           if (descriptionParts.length > 0) {
             description = descriptionParts.join('. ');
           }
-          
+
           // Use first image URL, fallback to second if first is empty
           const finalImageUrl = imageUrl || secondImageUrl;
-          
+
           // Determine category from title and description if not already set
           if (!category && (name || description)) {
             category = determineProductCategory(name, description);
           }
-          
+
           if (name && name.trim() && price && price.trim()) {
             product = {
               name: name.trim(),
@@ -2261,27 +2386,27 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
           // 4: Price (numeric only) - REQUIRED
           // 5: Tile-image Description (product description)
           // 6-19: Additional swatch/color data (optional, not used for product creation)
-          
+
           const imageUrl = values[0]?.replace(/^"|"$/g, '') || '';
           const productUrl = values[1]?.replace(/^"|"$/g, '') || '';
           const name = values[2]?.replace(/^"|"$/g, '') || '';
           const priceWithDollar = values[3]?.replace(/^"|"$/g, '').trim() || '';
           const priceWithoutDollar = values[4]?.replace(/^"|"$/g, '').trim() || '';
           const description = values[5]?.replace(/^"|"$/g, '') || '';
-          
+
           // Extract price (prefer the one without $, or remove $ from the one with $)
           let price = priceWithoutDollar || priceWithDollar.replace('$', '').trim();
-          
+
           // Clean up price - remove commas and $ signs
           price = price.replace(/[$,]/g, '').trim();
-          
+
           // Validate price is a valid number
           const priceNum = parseFloat(price);
           if (isNaN(priceNum) || priceNum < 0) {
             // Skip this product if price is invalid
             continue;
           }
-          
+
           // Extract category from URL if possible (optional)
           let category: string | undefined;
           if (productUrl) {
@@ -2293,7 +2418,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               category = undefined;
             }
           }
-          
+
           // Generate SKU from product URL or name if available
           let sku: string | undefined;
           if (productUrl) {
@@ -2303,12 +2428,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               sku = skuMatch[1];
             }
           }
-          
+
           // Determine category from title and description if not already set
           if (!category && (name || description)) {
             category = determineProductCategory(name, description);
           }
-          
+
           if (name && name.trim() && price && price.trim()) {
             product = {
               name: name.trim(),
@@ -2355,7 +2480,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               }
             }
           });
-          
+
           // Determine category from title and description if not already set
           // Use title if available, otherwise use name
           const titleForCategory = titleValue || product.name;
@@ -2400,7 +2525,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       if (response.ok || response.status === 207) {
         // 207 is Multi-Status (partial success)
         const failedMsg = data.failed > 0 ? `${data.failed} failed.` : "";
-        const errorDetails = data.errors && data.errors.length > 0 
+        const errorDetails = data.errors && data.errors.length > 0
           ? `\nErrors: ${data.errors.map((e: any) => e.error).join(', ')}`
           : "";
         setUploadResult(`Successfully uploaded ${data.created} products. ${failedMsg}${errorDetails}`);
@@ -2416,7 +2541,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         setShowProductListView(true);
       } else {
         const errorMsg = data.error || data.message || "Unknown error";
-        const errorDetails = data.errors && data.errors.length > 0 
+        const errorDetails = data.errors && data.errors.length > 0
           ? `\nErrors: ${data.errors.map((e: any) => e.error).join(', ')}`
           : "";
         setUploadResult(`Upload failed: ${errorMsg}${errorDetails}`);
@@ -2440,12 +2565,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
   // Redirect if not authenticated or not admin
   useEffect(() => {
     if (sessionPending || roleLoading) return; // Wait for session and role to load
-    
+
     if (!session?.user) {
       router.push("/cesworld/login");
       return;
     }
-    
+
     // Only redirect if we've confirmed the role is not admin
     if (userRole && userRole !== "admin") {
       console.log('User is not admin, role:', userRole, 'Redirecting to homepage');
@@ -2499,7 +2624,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       </>
     );
   }
-  
+
   if (!roleLoading && userRole === null && session?.user) {
     return (
       <>
@@ -2522,7 +2647,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       </>
     );
   }
-  
+
   if (!isAdmin) {
     return (
       <>
@@ -2569,77 +2694,80 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             <div className="flex gap-0.5 sm:gap-0.75 md:gap-1 overflow-x-auto">
               <button
                 onClick={() => setActiveTab("overview")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "overview"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <BarChart3 className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 Overview
               </button>
               <button
                 onClick={() => setActiveTab("users")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "users"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "users"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <UserCog className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Users </span>({users.length})
               </button>
               <button
                 onClick={() => setActiveTab("designers")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "designers"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "designers"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Designers </span>({designers.length})
               </button>
               <button
-                onClick={() => setActiveTab("products")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "products"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                onClick={() => setActiveTab("banners")}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "banners"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
+              >
+                <ImageIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Banners </span>({designersWithBanner})
+              </button>
+              <button
+                onClick={() => setActiveTab("products")}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "products"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <Package className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Products </span>({products.length})
               </button>
               <button
                 onClick={() => setActiveTab("contracts")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "contracts"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "contracts"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Contracts </span>({contracts.length})
               </button>
               <button
                 onClick={() => setActiveTab("orders")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "orders"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "orders"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <ShoppingBag className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Orders </span>({orders.length})
               </button>
               <button
                 onClick={() => setActiveTab("designs")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "designs"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "designs"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <Upload className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Designs </span>
@@ -2651,11 +2779,10 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               </button>
               <button
                 onClick={() => setActiveTab("audit")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "audit"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "audit"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <FileTextIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Audit Logs</span>
@@ -2663,22 +2790,20 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               </button>
               <button
                 onClick={() => setActiveTab("portfolios")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "portfolios"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "portfolios"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <Briefcase className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Portfolios </span>({designers.filter(d => d.status === "approved").length})
               </button>
               <button
                 onClick={() => setActiveTab("documents")}
-                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === "documents"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "documents"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
               >
                 <FileTextIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Documents </span>({documents.length})
@@ -2773,6 +2898,50 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         </div>
                       </div>
                     </div>
+
+                  {/* Banner Management Snapshot */}
+                  <div className="bg-white border border-border rounded-lg p-2.5 sm:p-3 md:p-4 lg:p-5 mb-3 sm:mb-4 md:mb-6 lg:mb-8 shadow-sm">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg">
+                            <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                          </div>
+                          <h2 className="text-sm sm:text-base md:text-lg font-semibold">Designer Banners</h2>
+                        </div>
+                        <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                          {designersWithBanner} of {designers.length} designers currently have an admin-managed hero banner.
+                        </p>
+                        <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] sm:text-xs">
+                          <span className="text-green-600 font-medium">Live banners: {designersWithBanner}</span>
+                          <span className="text-muted-foreground">Waiting on banner: {designersMissingBanner}</span>
+                        </div>
+                        <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${bannerCoveragePercent}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                          {bannerCoveragePercent}% coverage across the designer roster
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row lg:flex-col gap-2 w-full lg:w-auto">
+                        <button
+                          onClick={() => setActiveTab("banners")}
+                          className="flex-1 px-4 sm:px-5 py-2 sm:py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm font-medium"
+                        >
+                          Manage Banners
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("designers")}
+                          className="flex-1 px-4 sm:px-5 py-2 sm:py-2.5 border border-border rounded-lg hover:bg-secondary transition-colors text-xs sm:text-sm font-medium"
+                        >
+                          Review Designers
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
                     {/* Quick Stats and Recent Activity */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5 mb-3 sm:mb-4 md:mb-6 lg:mb-8">
@@ -3066,13 +3235,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1">
                                   <h3 className="text-sm md:text-xl font-medium truncate">{user.name}</h3>
                                   <span
-                                    className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${
-                                      user.role === "admin"
-                                        ? "bg-purple-100 text-purple-700"
-                                        : user.role === "designer"
+                                    className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${user.role === "admin"
+                                      ? "bg-purple-100 text-purple-700"
+                                      : user.role === "designer"
                                         ? "bg-blue-100 text-blue-700"
                                         : "bg-gray-100 text-gray-700"
-                                    }`}
+                                      }`}
                                   >
                                     {user.role.toUpperCase()}
                                   </span>
@@ -3088,13 +3256,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                   )}
                                   {user.membership && (
                                     <span
-                                      className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${
-                                        user.membership.tier === "premier"
-                                          ? "bg-purple-100 text-purple-700"
-                                          : user.membership.tier === "plus"
+                                      className={`text-[10px] md:text-xs px-1.5 md:px-2.5 py-0.5 md:py-1 rounded-full font-medium ${user.membership.tier === "premier"
+                                        ? "bg-purple-100 text-purple-700"
+                                        : user.membership.tier === "plus"
                                           ? "bg-blue-100 text-blue-700"
                                           : "bg-gray-100 text-gray-700"
-                                      }`}
+                                        }`}
                                     >
                                       {user.membership.tier.toUpperCase()}
                                     </span>
@@ -3159,7 +3326,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                             </button>
                                           </div>
                                         ) : (
-                                          <span 
+                                          <span
                                             className="cursor-pointer hover:text-primary underline text-[10px] md:text-xs"
                                             onClick={() => setEditingPointsUserId(user.id)}
                                           >
@@ -3208,7 +3375,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                             </button>
                                           </div>
                                         ) : (
-                                          <span 
+                                          <span
                                             className="cursor-pointer hover:text-primary underline"
                                             onClick={() => setEditingSpendingUserId(user.id)}
                                           >
@@ -3377,8 +3544,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       <h3 className="text-lg md:text-xl font-semibold mb-4">Select Document</h3>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
                         {documents
-                          .filter((doc) => 
-                            !documentSearchQuery || 
+                          .filter((doc) =>
+                            !documentSearchQuery ||
                             doc.name.toLowerCase().includes(documentSearchQuery.toLowerCase())
                           )
                           .map((doc) => (
@@ -3388,23 +3555,21 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 setSelectedDocumentId(doc.id);
                                 setSelectedUsersForDocument([]);
                               }}
-                              className={`p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${
-                                selectedDocumentId === doc.id
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
+                              className={`p-3 md:p-4 border rounded-lg cursor-pointer transition-colors ${selectedDocumentId === doc.id
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50'
+                                }`}
                             >
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
                                   <h4 className="font-medium text-sm md:text-base mb-1">{doc.name}</h4>
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                    <span className={`px-2 py-0.5 rounded-full ${
-                                      doc.status === 'signed' ? 'bg-green-100 text-green-700' :
+                                    <span className={`px-2 py-0.5 rounded-full ${doc.status === 'signed' ? 'bg-green-100 text-green-700' :
                                       doc.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                      doc.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                                      doc.status === 'declined' ? 'bg-red-100 text-red-700' :
-                                      'bg-gray-100 text-gray-700'
-                                    }`}>
+                                        doc.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                          doc.status === 'declined' ? 'bg-red-100 text-red-700' :
+                                            'bg-gray-100 text-gray-700'
+                                      }`}>
                                       {doc.status.toUpperCase()}
                                     </span>
                                     <span>Created: {new Date(doc.created_at).toLocaleDateString()}</span>
@@ -3462,32 +3627,32 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 return true;
                               })
                               .map((user) => (
-                              <label
-                                key={user.id}
-                                className="flex items-center gap-3 p-2 hover:bg-secondary rounded cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedUsersForDocument.includes(user.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedUsersForDocument([...selectedUsersForDocument, user.id]);
-                                    } else {
-                                      setSelectedUsersForDocument(selectedUsersForDocument.filter(id => id !== user.id));
-                                    }
-                                  }}
-                                  className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
-                                />
-                                <div className="flex-1">
-                                  <div className="font-medium text-sm">{user.name}</div>
-                                  <div className="text-xs text-muted-foreground">{user.email}</div>
-                                  {user.membership && (
-                                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
-                                      {user.membership.tier.toUpperCase()}
-                                    </span>
-                                  )}
-                                </div>
-                              </label>
+                                <label
+                                  key={user.id}
+                                  className="flex items-center gap-3 p-2 hover:bg-secondary rounded cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedUsersForDocument.includes(user.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedUsersForDocument([...selectedUsersForDocument, user.id]);
+                                      } else {
+                                        setSelectedUsersForDocument(selectedUsersForDocument.filter(id => id !== user.id));
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{user.name}</div>
+                                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                                    {user.membership && (
+                                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
+                                        {user.membership.tier.toUpperCase()}
+                                      </span>
+                                    )}
+                                  </div>
+                                </label>
                               ))
                           )}
                         </div>
@@ -3517,6 +3682,184 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Banners Tab */}
+            {activeTab === "banners" && (
+              <div className="space-y-6">
+                <div className="bg-white border border-border rounded-lg p-6">
+                  <h3 className="text-xl font-semibold mb-6">Banner Management</h3>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left Column: Designer Selection */}
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Select Designer
+                        </label>
+                        <select
+                          value={selectedDesignerForBanner?.id || ''}
+                          onChange={(e) => {
+                            const designer = designers.find(d => d.id === parseInt(e.target.value));
+                            setSelectedDesignerForBanner(designer || null);
+                            setBannerPreview(null);
+                            setBannerFile(null);
+                            setUploadedBannerUrl(null);
+                          }}
+                          className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="">-- Select a designer --</option>
+                          {designers.map(designer => (
+                            <option key={designer.id} value={designer.id}>
+                              {designer.name} {designer.bannerUrl ? '(Has Banner)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {selectedDesignerForBanner && (
+                        <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden relative">
+                              {selectedDesignerForBanner.avatarUrl ? (
+                                <Image
+                                  src={normalizeImagePath(selectedDesignerForBanner.avatarUrl)}
+                                  alt={selectedDesignerForBanner.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <UserCog className="w-6 h-6 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-gray-400" />
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{selectedDesignerForBanner.name}</h4>
+                              <p className="text-xs text-muted-foreground">{selectedDesignerForBanner.email}</p>
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-border/50">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Status:</span>
+                              <span className={`font-medium ${selectedDesignerForBanner.status === 'approved' ? 'text-green-600' :
+                                  selectedDesignerForBanner.status === 'pending' ? 'text-orange-600' : 'text-red-600'
+                                }`}>
+                                {selectedDesignerForBanner.status.charAt(0).toUpperCase() + selectedDesignerForBanner.status.slice(1)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm mt-1">
+                              <span className="text-muted-foreground">Current Banner:</span>
+                              <span className={`font-medium ${selectedDesignerForBanner.bannerUrl ? 'text-green-600' : 'text-gray-500'}`}>
+                                {selectedDesignerForBanner.bannerUrl ? 'Set' : 'Not Set'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Banner Preview & Upload */}
+                    <div className="lg:col-span-2 space-y-6">
+                      {selectedDesignerForBanner ? (
+                        <>
+                          {/* Current/Preview Banner */}
+                          <div>
+                            <label className="block text-sm font-medium mb-2">
+                              {bannerPreview ? 'New Banner Preview' : 'Current Banner'}
+                            </label>
+                            <div className="relative w-full aspect-[3/1] bg-gray-100 rounded-lg overflow-hidden border border-border flex items-center justify-center">
+                              {bannerPreview || selectedDesignerForBanner.bannerUrl ? (
+                                <Image
+                                  src={normalizeImagePath(bannerPreview || selectedDesignerForBanner.bannerUrl || '')}
+                                  alt="Banner"
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="text-center text-muted-foreground">
+                                  <Image className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                  <p>No banner image set</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Upload Controls */}
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">
+                                Upload New Banner
+                              </label>
+                              <div className="flex items-center gap-4">
+                                <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${uploadingBanner
+                                    ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                                    : 'border-primary bg-primary/5 hover:bg-primary/10'
+                                  }`}>
+                                  {uploadingBanner ? (
+                                    <>
+                                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                      <span className="text-sm font-medium">Uploading...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-5 h-5 text-primary" />
+                                      <span className="text-sm font-medium">Click to upload banner image</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleBannerUpload(file);
+                                      e.target.value = '';
+                                    }}
+                                    disabled={uploadingBanner}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Recommended size: 1200 x 400 pixels (3:1 aspect ratio). Max size: 10MB.
+                              </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-4 border-t border-border">
+                              <button
+                                onClick={assignBannerToDesigner}
+                                disabled={!uploadedBannerUrl || uploadingBanner}
+                                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              >
+                                {uploadingBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                Assign Banner
+                              </button>
+
+                              {selectedDesignerForBanner.bannerUrl && (
+                                <button
+                                  onClick={removeBannerFromDesigner}
+                                  disabled={uploadingBanner}
+                                  className="px-6 py-2 border border-red-200 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Remove Current Banner
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 p-12">
+                          <div className="text-center text-muted-foreground">
+                            <UserCog className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <p className="font-medium">Select a designer to manage their banner</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -3903,7 +4246,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 ) : (() => {
                   // Filter portfolios
                   let filtered = designers;
-                  
+
                   // Filter by status (only show approved by default, or based on filter)
                   if (portfolioStatusFilter === "approved") {
                     filtered = filtered.filter((d) => d.status === "approved");
@@ -3912,7 +4255,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   } else if (portfolioStatusFilter === "rejected") {
                     filtered = filtered.filter((d) => d.status === "rejected");
                   }
-                  
+
                   // Filter by search query
                   if (portfolioSearchQuery) {
                     const query = portfolioSearchQuery.toLowerCase();
@@ -3924,7 +4267,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         (d.bio && d.bio.toLowerCase().includes(query))
                     );
                   }
-                  
+
                   return filtered.length === 0 ? (
                     <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14 bg-white border border-border rounded-lg">
                       <Briefcase className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
@@ -3986,13 +4329,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <div className="flex items-center gap-2 mb-1">
                                   <h3 className="text-sm md:text-lg font-medium">{designer.name}</h3>
                                   <span
-                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                      designer.status === "approved"
-                                        ? "bg-green-100 text-green-700"
-                                        : designer.status === "rejected"
+                                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${designer.status === "approved"
+                                      ? "bg-green-100 text-green-700"
+                                      : designer.status === "rejected"
                                         ? "bg-red-100 text-red-700"
                                         : "bg-yellow-100 text-yellow-700"
-                                    }`}
+                                      }`}
                                   >
                                     {designer.status.toUpperCase()}
                                   </span>
@@ -4164,13 +4506,12 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <div className="flex items-center gap-3 mb-1">
                                   <h3 className="text-xl font-medium">{designer.name}</h3>
                                   <span
-                                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                                      designer.status === "approved"
-                                        ? "bg-green-100 text-green-700"
-                                        : designer.status === "rejected"
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${designer.status === "approved"
+                                      ? "bg-green-100 text-green-700"
+                                      : designer.status === "rejected"
                                         ? "bg-red-100 text-red-700"
                                         : "bg-yellow-100 text-yellow-700"
-                                    }`}
+                                      }`}
                                   >
                                     {designer.status.toUpperCase()}
                                   </span>
@@ -4312,21 +4653,19 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   <div className="flex gap-2 border-b border-border">
                     <button
                       onClick={() => setShowProductListView(true)}
-                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                        showProductListView
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${showProductListView
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Product List
                     </button>
                     <button
                       onClick={() => setShowProductListView(false)}
-                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                        !showProductListView
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${!showProductListView
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Bulk Upload (CSV)
                     </button>
@@ -4355,7 +4694,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                         <div className="text-sm text-muted-foreground space-y-4">
                           <div>
                             <p className="font-medium text-foreground mb-2">Supported Formats:</p>
-                            
+
                             {/* Blm-product-search Format */}
                             <div className="pl-3 border-l-2 border-primary mb-4">
                               <p className="font-medium text-foreground mb-1">Blm-product-search Format</p>
@@ -4457,11 +4796,10 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
 
                       {uploadResult && (
                         <div
-                          className={`mt-6 p-4 rounded-lg ${
-                            uploadResult.includes("Successfully")
-                              ? "bg-green-50 border border-green-200 text-green-800"
-                              : "bg-red-50 border border-red-200 text-red-800"
-                          }`}
+                          className={`mt-6 p-4 rounded-lg ${uploadResult.includes("Successfully")
+                            ? "bg-green-50 border border-green-200 text-green-800"
+                            : "bg-red-50 border border-red-200 text-red-800"
+                            }`}
                         >
                           {uploadResult}
                         </div>
@@ -4497,95 +4835,95 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </div>
                     </div>
 
-                {/* Products List */}
-                {loading ? (
-                  <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14">
-                    <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
-                    <p className="text-xs md:text-body text-muted-foreground">Loading products...</p>
-                  </div>
-                ) : filteredProducts.length === 0 ? (
-                  <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14 bg-white border border-border rounded-lg">
-                    <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
-                    <p className="text-xs md:text-body text-muted-foreground">
-                      {productSearchQuery ? "No products match your search." : "No products found."}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 md:space-y-4">
-                    {filteredProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className="bg-white border border-border rounded-lg p-2.5 sm:p-3 md:p-4 lg:p-5 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
-                          <div className="flex-1 flex gap-2 md:gap-4">
-                            {product.imageUrl && (
-                              <img
-                                src={product.imageUrl}
-                                alt={product.name}
-                                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 object-cover rounded-lg flex-shrink-0"
-                              />
-                            )}
-                            <div className="flex-1">
-                              <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1 md:mb-2">
-                                <h3 className="text-sm md:text-xl font-medium truncate">{product.name}</h3>
-                                {product.sku && (
-                                  <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-secondary rounded text-muted-foreground">
-                                    SKU: {product.sku}
-                                  </span>
-                                )}
-                              </div>
-                              {product.description && (
-                                <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 line-clamp-2">
-                                  {product.description}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
-                                <span className="font-medium">${product.price}</span>
-                                {product.category && (
-                                  <span className="text-muted-foreground">Category: {product.category}</span>
-                                )}
-                                <span className="text-muted-foreground">Stock: {product.stock || 0}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-2 md:min-w-[150px]">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedProducts.includes(product.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedProducts([...selectedProducts, product.id]);
-                                  } else {
-                                    setSelectedProducts(selectedProducts.filter(id => id !== product.id));
-                                  }
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className="text-sm text-muted-foreground">Select</span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setEditingProduct(product);
-                                setShowEditProductModal(true);
-                              }}
-                              className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => deleteProduct(product.id)}
-                              className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
+                    {/* Products List */}
+                    {loading ? (
+                      <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14">
+                        <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin mx-auto mb-2 md:mb-4 text-primary" />
+                        <p className="text-xs md:text-body text-muted-foreground">Loading products...</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="text-center py-6 sm:py-8 md:py-10 lg:py-12 xl:py-14 bg-white border border-border rounded-lg">
+                        <Package className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 md:mb-4 text-muted-foreground" />
+                        <p className="text-xs md:text-body text-muted-foreground">
+                          {productSearchQuery ? "No products match your search." : "No products found."}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 md:space-y-4">
+                        {filteredProducts.map((product) => (
+                          <div
+                            key={product.id}
+                            className="bg-white border border-border rounded-lg p-2.5 sm:p-3 md:p-4 lg:p-5 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
+                              <div className="flex-1 flex gap-2 md:gap-4">
+                                {product.imageUrl && (
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 object-cover rounded-lg flex-shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-1 md:mb-2">
+                                    <h3 className="text-sm md:text-xl font-medium truncate">{product.name}</h3>
+                                    {product.sku && (
+                                      <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-secondary rounded text-muted-foreground">
+                                        SKU: {product.sku}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {product.description && (
+                                    <p className="text-xs md:text-sm text-muted-foreground mb-1 md:mb-2 line-clamp-2">
+                                      {product.description}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
+                                    <span className="font-medium">${product.price}</span>
+                                    {product.category && (
+                                      <span className="text-muted-foreground">Category: {product.category}</span>
+                                    )}
+                                    <span className="text-muted-foreground">Stock: {product.stock || 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2 md:min-w-[150px]">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedProducts.includes(product.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedProducts([...selectedProducts, product.id]);
+                                      } else {
+                                        setSelectedProducts(selectedProducts.filter(id => id !== product.id));
+                                      }
+                                    }}
+                                    className="w-4 h-4"
+                                  />
+                                  <span className="text-sm text-muted-foreground">Select</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingProduct(product);
+                                    setShowEditProductModal(true);
+                                  }}
+                                  className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteProduct(product.id)}
+                                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors rounded-lg text-sm font-medium"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -4686,15 +5024,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                             <div className="flex items-center gap-3 mb-2">
                               <h3 className="text-xl font-medium">{contract.title}</h3>
                               <span
-                                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                                  contract.status === "completed"
-                                    ? "bg-green-100 text-green-700"
-                                    : contract.status === "awarded"
+                                className={`text-xs px-2.5 py-1 rounded-full font-medium ${contract.status === "completed"
+                                  ? "bg-green-100 text-green-700"
+                                  : contract.status === "awarded"
                                     ? "bg-blue-100 text-blue-700"
                                     : contract.status === "cancelled"
-                                    ? "bg-red-100 text-red-700"
-                                    : "bg-yellow-100 text-yellow-700"
-                                }`}
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-yellow-100 text-yellow-700"
+                                  }`}
                               >
                                 {contract.status.toUpperCase()}
                               </span>
@@ -4865,15 +5202,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <div className="flex items-center gap-3 mb-1 flex-wrap">
                                   <h3 className="text-lg md:text-xl font-medium">{design.title}</h3>
                                   <span
-                                    className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${
-                                      design.status === "approved"
-                                        ? "bg-green-100 text-green-700"
-                                        : design.status === "rejected"
+                                    className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${design.status === "approved"
+                                      ? "bg-green-100 text-green-700"
+                                      : design.status === "rejected"
                                         ? "bg-red-100 text-red-700"
                                         : design.status === "submitted"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-gray-100 text-gray-700"
-                                    }`}
+                                          ? "bg-blue-100 text-blue-700"
+                                          : "bg-gray-100 text-gray-700"
+                                      }`}
                                   >
                                     {design.status.toUpperCase()}
                                   </span>
@@ -5163,15 +5499,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </button>
                     </div>
                   )}
-                  
+
                   {/* File Upload */}
                   <label
                     htmlFor="avatar-upload-create"
-                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                      uploadingAvatar
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary hover:bg-secondary'
-                    }`}
+                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${uploadingAvatar
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary hover:bg-secondary'
+                      }`}
                   >
                     <input
                       type="file"
@@ -5236,15 +5571,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </button>
                     </div>
                   )}
-                  
+
                   {/* File Upload */}
                   <label
                     htmlFor="banner-upload-create"
-                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                      uploadingBanner
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary hover:bg-secondary'
-                    }`}
+                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${uploadingBanner
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary hover:bg-secondary'
+                      }`}
                   >
                     <input
                       type="file"
@@ -5443,7 +5777,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       )}
                     </div>
                   )}
-                  
+
                   {/* New Upload Preview */}
                   {avatarPreview && (
                     <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-19 md:h-19 lg:w-24 lg:h-24 rounded-lg overflow-hidden border border-border">
@@ -5469,15 +5803,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </button>
                     </div>
                   )}
-                  
+
                   {/* File Upload */}
                   <label
                     htmlFor="avatar-upload-edit"
-                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                      uploadingAvatar
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary hover:bg-secondary'
-                    }`}
+                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${uploadingAvatar
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary hover:bg-secondary'
+                      }`}
                   >
                     <input
                       type="file"
@@ -5542,7 +5875,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </div>
                     </div>
                   )}
-                  
+
                   {/* New Upload Preview */}
                   {bannerPreview && (
                     <div className="relative w-full h-32 rounded-lg overflow-hidden border border-border">
@@ -5567,15 +5900,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       </button>
                     </div>
                   )}
-                  
+
                   {/* File Upload */}
                   <label
                     htmlFor="banner-upload-edit"
-                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${
-                      uploadingBanner
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary hover:bg-secondary'
-                    }`}
+                    className={`flex flex-col items-center justify-center w-full h-24 sm:h-28 md:h-32 border-2 border-dashed rounded-lg cursor-pointer ${uploadingBanner
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary hover:bg-secondary'
+                      }`}
                   >
                     <input
                       type="file"
@@ -5877,42 +6209,42 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 const formData = new FormData(e.target as HTMLFormElement);
                 const designerIdValue = formData.get("designerId") as string;
                 const designIdValue = formData.get("designId") as string;
-                
+
                 // Ensure designerId is always sent (required field)
-                const designerId = designerIdValue && designerIdValue !== "" 
-                  ? parseInt(designerIdValue) 
+                const designerId = designerIdValue && designerIdValue !== ""
+                  ? parseInt(designerIdValue)
                   : editingContract.designerId;
-                
+
                 if (!designerId) {
                   toast.error("Designer is required");
                   return;
                 }
-                
+
                 const titleValue = (formData.get("title") as string)?.trim();
                 if (!titleValue) {
                   toast.error("Title is required");
                   return;
                 }
-                
+
                 const updates: Partial<Contract> = {
                   title: titleValue,
                   status: formData.get("status") as string,
                   designerId: designerId,
                 };
-                
+
                 const description = (formData.get("description") as string)?.trim() || "";
                 const amount = (formData.get("amount") as string)?.trim() || "";
-                
+
                 const updatePayload: any = { ...updates };
                 updatePayload.description = description || null;
                 updatePayload.amount = amount || null;
-                
+
                 if (designIdValue && designIdValue !== "") {
                   updatePayload.designId = parseInt(designIdValue);
                 } else if (editingContract.designId) {
                   updatePayload.designId = null;
                 }
-                
+
                 await updateContract(editingContract.id, updatePayload);
               }}
               className="space-y-4"
@@ -6057,15 +6389,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <div className="mt-1">
                       <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium inline-block ${
-                          viewingContract.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : viewingContract.status === "awarded"
+                        className={`text-xs px-2.5 py-1 rounded-full font-medium inline-block ${viewingContract.status === "completed"
+                          ? "bg-green-100 text-green-700"
+                          : viewingContract.status === "awarded"
                             ? "bg-blue-100 text-blue-700"
                             : viewingContract.status === "cancelled"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
+                              ? "bg-red-100 text-red-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
                       >
                         {viewingContract.status.toUpperCase()}
                       </span>
@@ -6192,78 +6523,78 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       {viewingContract.contractFileUrl && (() => {
                         const contractFileUrl = viewingContract.contractFileUrl;
                         const fileIdMatch = contractFileUrl?.match(/\/api\/files\/(\d+)/);
-                        const downloadUrl = fileIdMatch 
+                        const downloadUrl = fileIdMatch
                           ? `${contractFileUrl}?download=true`
                           : contractFileUrl;
-                        
+
                         return (
-                        <div className="border border-border rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileTextIcon className="w-8 h-8 text-red-600" />
-                            <div>
-                              <p className="font-medium">Contract PDF</p>
-                              <p className="text-sm text-muted-foreground">Contract document</p>
+                          <div className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileTextIcon className="w-8 h-8 text-red-600" />
+                              <div>
+                                <p className="font-medium">Contract PDF</p>
+                                <p className="text-sm text-muted-foreground">Contract document</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <a
+                            <div className="flex gap-2">
+                              <a
                                 href={contractFileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View
-                            </a>
-                            <a
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
                                 href={downloadUrl}
                                 download="contract.pdf"
-                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </a>
+                                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
+                            </div>
                           </div>
-                        </div>
                         );
                       })()}
                       {contractDocuments.map((doc) => {
                         // Extract file ID from fileUrl (format: /api/files/{id})
                         const fileIdMatch = doc.fileUrl?.match(/\/api\/files\/(\d+)/);
-                        const downloadUrl = fileIdMatch 
+                        const downloadUrl = fileIdMatch
                           ? `${doc.fileUrl}?download=true`
                           : doc.fileUrl;
                         const fileName = doc.fileName || doc.title || 'document';
-                        
+
                         return (
-                        <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FileTextIcon className="w-8 h-8 text-blue-600" />
-                            <div>
-                              <p className="font-medium">{doc.title}</p>
-                              <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                          <div key={doc.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <FileTextIcon className="w-8 h-8 text-blue-600" />
+                              <div>
+                                <p className="font-medium">{doc.title}</p>
+                                <p className="text-sm text-muted-foreground">{doc.description || doc.fileName}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                              View
-                            </a>
-                            <a
+                            <div className="flex gap-2">
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 border border-border hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View
+                              </a>
+                              <a
                                 href={downloadUrl}
                                 download={fileName}
-                              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </a>
+                                className="px-4 py-2 bg-primary text-white hover:bg-primary/90 transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </a>
+                            </div>
                           </div>
-                        </div>
                         );
                       })}
                       {!viewingContract.contractFileUrl && contractDocuments.length === 0 && (
@@ -6288,7 +6619,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     if (contractToEdit) {
                       setEditingContract(contractToEdit);
                       setSelectedDesignerId(contractToEdit.designerId);
-                    setShowEditContractModal(true);
+                      setShowEditContractModal(true);
                     }
                   }}
                   className="flex-1 px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center justify-center gap-2"
@@ -6507,13 +6838,13 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                           </div>
                         </div>
                         <button
-                          onClick={() => setAdminDocumentForm(prev => ({ 
-                            ...prev, 
-                            fileUrl: '', 
-                            fileName: '', 
-                            fileSize: 0, 
+                          onClick={() => setAdminDocumentForm(prev => ({
+                            ...prev,
+                            fileUrl: '',
+                            fileName: '',
+                            fileSize: 0,
                             fileType: '',
-                            file: null 
+                            file: null
                           }))}
                           className="text-red-600 text-sm hover:underline"
                         >

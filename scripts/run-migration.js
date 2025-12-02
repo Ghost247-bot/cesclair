@@ -1,43 +1,36 @@
 const { Pool } = require('@neondatabase/serverless');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config();
 
 async function runMigration() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('DATABASE_URL not set');
+    process.exit(1);
+  }
+
+  const pool = new Pool({ connectionString });
+
   try {
-    // Read the migration SQL file
-    const migrationPath = path.join(__dirname, '..', 'drizzle', '0003_add_audit_logs.sql');
-    const sql = fs.readFileSync(migrationPath, 'utf8');
-    
-    console.log('Running migration: 0003_add_audit_logs.sql');
-    console.log('SQL:', sql);
-    
-    // Split by statement breakpoint and execute each statement
-    const statements = sql.split('--> statement-breakpoint').filter(s => s.trim());
-    
-    for (const statement of statements) {
-      const cleanStatement = statement.trim();
-      if (cleanStatement) {
-        console.log('\nExecuting statement...');
-        await pool.query(cleanStatement);
-        console.log('✓ Statement executed successfully');
-      }
-    }
-    
-    console.log('\n✅ Migration completed successfully!');
-  } catch (error) {
-    console.error('❌ Migration failed:', error.message);
-    if (error.code === '42P07') {
-      console.log('Note: Table might already exist. This is okay.');
+    console.log('Checking if banner_url column exists...');
+    const checkResult = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'designers' AND column_name = 'banner_url'
+    `);
+
+    if (checkResult.rows.length === 0) {
+      console.log('Adding banner_url column to designers table...');
+      await pool.query('ALTER TABLE "designers" ADD COLUMN "banner_url" text');
+      console.log('✅ Successfully added banner_url column');
     } else {
-      throw error;
+      console.log('ℹ️ banner_url column already exists');
     }
+  } catch (error) {
+    console.error('Error running migration:', error);
+    process.exit(1);
   } finally {
     await pool.end();
   }
 }
 
 runMigration();
-
