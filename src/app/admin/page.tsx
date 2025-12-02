@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from "react";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { determineProductCategory, normalizeImagePath } from "@/lib/utils";
@@ -1447,12 +1448,20 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
       params.append('page', '1');
       params.append('per_page', '100');
 
-      const response = await fetch(`/api/signwell/documents?${params.toString()}`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      let response;
+      try {
+        response = await fetch(`/api/signwell/documents?${params.toString()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (fetchError) {
+        // Silently handle network errors for SignWell - it's expected if not configured
+        setSignWellConfigured(false);
+        setDocuments([]);
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -3828,10 +3837,14 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                   alt="Banner"
                                   fill
                                   className="object-cover"
+                                  onError={(e) => {
+                                    console.error('Banner image failed to load');
+                                    e.currentTarget.style.display = 'none';
+                                  }}
                                 />
                               ) : (
                                 <div className="text-center text-muted-foreground">
-                                  <Image className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                                  <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />
                                   <p>No banner image set</p>
                                 </div>
                               )}

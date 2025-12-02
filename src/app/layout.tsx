@@ -115,6 +115,26 @@ export default function RootLayout({
           strategy="lazyOnload"
           defer
         />
+        <Script
+          id="image-constructor-fix"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Fix for Image constructor error - ensure Image() calls use 'new'
+              (function() {
+                const OriginalImage = window.Image;
+                window.Image = function() {
+                  if (!(this instanceof Image)) {
+                    return new OriginalImage();
+                  }
+                  return OriginalImage.apply(this, arguments);
+                };
+                window.Image.prototype = OriginalImage.prototype;
+                window.Image.prototype.constructor = Image;
+              })();
+            `,
+          }}
+        />
         <ClientScripts />
         {children}
         <Footer />
