@@ -35,7 +35,6 @@ export const authClient = createAuthClient({
       // Only store bearer token if explicitly provided in response headers
       const authToken = ctx.response.headers.get("set-auth-token");
       if (authToken) {
-        // Store the full token if provided
         localStorage.setItem("bearer_token", authToken);
       }
     },
@@ -44,22 +43,33 @@ export const authClient = createAuthClient({
       if (ctx.response?.status === 401 || ctx.response?.status === 403) {
         localStorage.removeItem("bearer_token");
       }
-      // Log errors for debugging (especially 500 errors)
-      if (ctx.response?.status === 500) {
+      if (process.env.NODE_ENV === 'development' && ctx.response?.status === 500) {
         console.error('Auth client error (500):', {
-          status: ctx.response.status,
-          statusText: ctx.response.statusText,
           url: ctx.request?.url,
           method: ctx.request?.method,
         });
-        // Try to get error details from response body if available
-        if (ctx.error) {
-          console.error('Auth client error details:', ctx.error);
-        }
       }
     }
   }
 });
+
+/**
+ * Robust sign-out that always clears local state even if the server call fails.
+ * Returns true if server sign-out succeeded, false otherwise (local state still cleared).
+ */
+export async function robustSignOut(): Promise<boolean> {
+  let serverSuccess = false;
+  try {
+    await authClient.signOut();
+    serverSuccess = true;
+  } catch {
+    // Server call failed (e.g., already logged out, network error, non-JSON response).
+    // We still clear local state below.
+  }
+  // Always clear local tokens
+  try { localStorage.removeItem("bearer_token"); } catch {}
+  return serverSuccess;
+}
 
 interface SessionData {
   data: ExtendedSession | null;

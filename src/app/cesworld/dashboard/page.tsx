@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient, useSession, robustSignOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Star, Gift, TrendingUp, LogOut } from "lucide-react";
@@ -224,12 +224,7 @@ export default function CesworldDashboard() {
   }, [session, isPending]);
 
   const handleSignOut = async () => {
-    try {
-      await authClient.signOut();
-    } catch {
-      // Ignore sign-out errors - user may already be logged out
-    }
-    localStorage.removeItem("bearer_token");
+    await robustSignOut();
     refetch();
     router.push("/cesworld");
   };

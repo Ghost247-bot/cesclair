@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession, authClient } from "@/lib/auth-client";
+import { useSession, authClient, robustSignOut } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { User, LogOut, Shield } from "lucide-react";
@@ -16,12 +16,7 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    try {
-      await authClient.signOut();
-    } catch {
-      // Ignore sign-out errors - user may already be logged out
-    }
-    localStorage.removeItem("bearer_token");
+    await robustSignOut();
     refetch();
     router.push("/");
     onClose();

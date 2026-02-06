@@ -129,6 +129,18 @@ interface AuditLog {
   createdAt: string;
 }
 
+interface CautionBanner {
+  id: number;
+  message: string;
+  type: string;
+  targetRole: string;
+  targetUserId: string | null;
+  active: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
@@ -262,7 +274,19 @@ export default function AdminPage() {
   });
   const [signWellConfigured, setSignWellConfigured] = useState<boolean | null>(null);
 
-  // Debounced search queries
+    // Caution banners state
+    const [cautionBanners, setCautionBanners] = useState<CautionBanner[]>([]);
+    const [cautionBannersLoading, setCautionBannersLoading] = useState(false);
+    const [showCreateCautionBannerModal, setShowCreateCautionBannerModal] = useState(false);
+    const [editingCautionBanner, setEditingCautionBanner] = useState<CautionBanner | null>(null);
+    const [cautionBannerForm, setCautionBannerForm] = useState({
+      message: '',
+      type: 'warning',
+      targetRole: 'all',
+      targetUserId: '',
+    });
+
+    // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedUserSearchQuery = useDebounce(userSearchQuery, 300);
   const debouncedProductSearchQuery = useDebounce(productSearchQuery, 300);
@@ -484,8 +508,11 @@ export default function AdminPage() {
       } else if (activeTab === "orders") {
         fetchOrders();
       } else if (activeTab === "documents") {
-        fetchDocuments();
-      }
+          fetchDocuments();
+        } else if (activeTab === "banners") {
+          fetchDesigners();
+          fetchCautionBanners();
+        }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
 
@@ -1421,9 +1448,129 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+    };
 
-  // Fetch documents from SignWell
+    // Caution Banners CRUD
+    const fetchCautionBanners = async () => {
+      try {
+        setCautionBannersLoading(true);
+        const response = await fetch('/api/caution-banners', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setCautionBanners(data || []);
+        } else {
+          toast.error('Failed to load caution banners');
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === 'development') console.error('Failed to fetch caution banners:', error);
+        toast.error('Failed to load caution banners');
+      } finally {
+        setCautionBannersLoading(false);
+      }
+    };
+
+    const createCautionBanner = async () => {
+      if (!cautionBannerForm.message.trim()) {
+        toast.error('Message is required');
+        return;
+      }
+      try {
+        const response = await fetch('/api/caution-banners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            message: cautionBannerForm.message.trim(),
+            type: cautionBannerForm.type,
+            targetRole: cautionBannerForm.targetUserId ? 'specific' : cautionBannerForm.targetRole,
+            targetUserId: cautionBannerForm.targetUserId || null,
+          }),
+        });
+        if (response.ok) {
+          toast.success('Caution banner created');
+          setShowCreateCautionBannerModal(false);
+          setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+          fetchCautionBanners();
+        } else {
+          const error = await response.json();
+          toast.error(error.error || 'Failed to create banner');
+        }
+      } catch (error) {
+        toast.error('Failed to create banner');
+      }
+    };
+
+    const updateCautionBanner = async () => {
+      if (!editingCautionBanner) return;
+      if (!cautionBannerForm.message.trim()) {
+        toast.error('Message is required');
+        return;
+      }
+      try {
+        const response = await fetch(`/api/caution-banners/${editingCautionBanner.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            message: cautionBannerForm.message.trim(),
+            type: cautionBannerForm.type,
+            targetRole: cautionBannerForm.targetUserId ? 'specific' : cautionBannerForm.targetRole,
+            targetUserId: cautionBannerForm.targetUserId || null,
+            active: editingCautionBanner.active,
+          }),
+        });
+        if (response.ok) {
+          toast.success('Caution banner updated');
+          setEditingCautionBanner(null);
+          setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+          fetchCautionBanners();
+        } else {
+          const error = await response.json();
+          toast.error(error.error || 'Failed to update banner');
+        }
+      } catch (error) {
+        toast.error('Failed to update banner');
+      }
+    };
+
+    const toggleCautionBannerActive = async (banner: CautionBanner) => {
+      try {
+        const response = await fetch(`/api/caution-banners/${banner.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ active: !banner.active }),
+        });
+        if (response.ok) {
+          toast.success(`Banner ${!banner.active ? 'activated' : 'deactivated'}`);
+          fetchCautionBanners();
+        } else {
+          toast.error('Failed to toggle banner');
+        }
+      } catch (error) {
+        toast.error('Failed to toggle banner');
+      }
+    };
+
+    const deleteCautionBanner = async (id: number) => {
+      if (!window.confirm('Are you sure you want to delete this caution banner?')) return;
+      try {
+        const response = await fetch(`/api/caution-banners/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          toast.success('Caution banner deleted');
+          fetchCautionBanners();
+        } else {
+          toast.error('Failed to delete banner');
+        }
+      } catch (error) {
+        toast.error('Failed to delete banner');
+      }
+    };
+
+    // Fetch documents from SignWell
   const fetchDocuments = async () => {
     // Guard: Only fetch if authenticated and admin
     if (sessionPending || roleLoading || !session?.user || !isAdmin) {
@@ -3966,6 +4113,108 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* Caution Banners Section */}
+                <div className="mt-8 pt-8 border-t border-border">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg md:text-xl font-medium">Caution Banners</h2>
+                      <p className="text-xs md:text-sm text-muted-foreground mt-1">
+                        Create warning or info banners shown to users and designers across the site
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+                        setEditingCautionBanner(null);
+                        setShowCreateCautionBannerModal(true);
+                      }}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      New Caution Banner
+                    </button>
+                  </div>
+
+                  {cautionBannersLoading ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                      <p className="text-sm text-muted-foreground">Loading caution banners...</p>
+                    </div>
+                  ) : cautionBanners.length === 0 ? (
+                    <div className="text-center py-8 bg-white border border-border rounded-lg">
+                      <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+                      <p className="text-sm text-muted-foreground">No caution banners created yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {cautionBanners.map((banner) => {
+                        const typeColors: Record<string, string> = {
+                          warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+                          info: 'bg-blue-50 border-blue-200 text-blue-800',
+                          danger: 'bg-red-50 border-red-200 text-red-800',
+                          success: 'bg-green-50 border-green-200 text-green-800',
+                        };
+                        const colors = typeColors[banner.type] || typeColors.warning;
+                        return (
+                          <div key={banner.id} className={`border rounded-lg p-4 ${colors} ${!banner.active ? 'opacity-50' : ''}`}>
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${banner.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                    {banner.active ? 'Active' : 'Inactive'}
+                                  </span>
+                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/50">
+                                    {banner.type}
+                                  </span>
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-white/50">
+                                    Target: {banner.targetUserId ? `User ${banner.targetUserId.substring(0, 8)}...` : banner.targetRole}
+                                  </span>
+                                </div>
+                                <p className="text-sm font-medium">{banner.message}</p>
+                                <p className="text-xs mt-1 opacity-70">
+                                  Created {new Date(banner.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => toggleCautionBannerActive(banner)}
+                                  className="p-1.5 rounded hover:bg-white/50 transition-colors"
+                                  title={banner.active ? 'Deactivate' : 'Activate'}
+                                >
+                                  {banner.active ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingCautionBanner(banner);
+                                    setCautionBannerForm({
+                                      message: banner.message,
+                                      type: banner.type,
+                                      targetRole: banner.targetRole === 'specific' ? 'all' : banner.targetRole,
+                                      targetUserId: banner.targetUserId || '',
+                                    });
+                                    setShowCreateCautionBannerModal(true);
+                                  }}
+                                  className="p-1.5 rounded hover:bg-white/50 transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => deleteCautionBanner(banner.id)}
+                                  className="p-1.5 rounded hover:bg-white/50 transition-colors text-red-600"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -7158,8 +7407,119 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
             </div>
           </div>
         </div>
-      )}
-    </>
-  );
-}
+        )}
+
+        {/* Create/Edit Caution Banner Modal */}
+        {showCreateCautionBannerModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-lg w-full">
+              <div className="border-b border-border p-4 md:p-6 flex items-center justify-between">
+                <h3 className="text-lg md:text-xl font-medium">
+                  {editingCautionBanner ? 'Edit Caution Banner' : 'Create Caution Banner'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCreateCautionBannerModal(false);
+                    setEditingCautionBanner(null);
+                    setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+                  }}
+                  className="p-2 hover:bg-secondary rounded transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 md:p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Message <span className="text-red-600">*</span></label>
+                  <textarea
+                    value={cautionBannerForm.message}
+                    onChange={(e) => setCautionBannerForm(prev => ({ ...prev, message: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    placeholder="Enter banner message..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Type</label>
+                    <select
+                      value={cautionBannerForm.type}
+                      onChange={(e) => setCautionBannerForm(prev => ({ ...prev, type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    >
+                      <option value="warning">Warning</option>
+                      <option value="info">Info</option>
+                      <option value="danger">Danger</option>
+                      <option value="success">Success</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Target Audience</label>
+                    <select
+                      value={cautionBannerForm.targetRole}
+                      onChange={(e) => setCautionBannerForm(prev => ({ ...prev, targetRole: e.target.value, targetUserId: '' }))}
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    >
+                      <option value="all">Everyone</option>
+                      <option value="member">Members Only</option>
+                      <option value="designer">Designers Only</option>
+                      <option value="specific">Specific User</option>
+                    </select>
+                  </div>
+                </div>
+                {cautionBannerForm.targetRole === 'specific' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Target User ID</label>
+                    <input
+                      type="text"
+                      value={cautionBannerForm.targetUserId}
+                      onChange={(e) => setCautionBannerForm(prev => ({ ...prev, targetUserId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                      placeholder="Enter user ID"
+                    />
+                  </div>
+                )}
+                {/* Preview */}
+                {cautionBannerForm.message.trim() && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Preview</label>
+                    <div className={`border rounded-lg p-3 text-sm ${
+                      cautionBannerForm.type === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+                      cautionBannerForm.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                      cautionBannerForm.type === 'danger' ? 'bg-red-50 border-red-200 text-red-800' :
+                      'bg-green-50 border-green-200 text-green-800'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{cautionBannerForm.message.trim()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <button
+                    onClick={() => {
+                      setShowCreateCautionBannerModal(false);
+                      setEditingCautionBanner(null);
+                      setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+                    }}
+                    className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={editingCautionBanner ? updateCautionBanner : createCautionBanner}
+                    disabled={!cautionBannerForm.message.trim()}
+                    className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {editingCautionBanner ? 'Update Banner' : 'Create Banner'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 

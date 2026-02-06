@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { SigningFrame } from "@/components/signwell/SigningFrame";
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient, useSession, robustSignOut } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { normalizeImagePath } from "@/lib/utils";
 import {
@@ -480,12 +480,7 @@ export default function DesignerDashboardPage() {
   };
 
   const handleLogout = async () => {
-    try {
-      await authClient.signOut();
-    } catch {
-      // Ignore sign-out errors - user may already be logged out
-    }
-    localStorage.removeItem("bearer_token");
+    await robustSignOut();
     refetch();
     router.push("/designers");
   };
