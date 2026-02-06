@@ -54,6 +54,7 @@ import { SigningFrame } from "@/components/signwell/SigningFrame";
 import { authClient, useSession, robustSignOut } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { normalizeImagePath } from "@/lib/utils";
+import CautionBanners from "@/components/caution-banner";
 import {
   Dialog,
   DialogContent,
@@ -1197,9 +1198,14 @@ export default function DesignerDashboardPage() {
               )}
             </div>
           </div>
-        </section>
+          </section>
 
-        {/* Stats Overview */}
+          {/* Caution Banners */}
+          <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 mt-4">
+            <CautionBanners />
+          </div>
+
+          {/* Stats Overview */}
         {stats && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}

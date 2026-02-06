@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Star, Gift, TrendingUp, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import CautionBanners from "@/components/caution-banner";
 
 interface Member {
   id: number;
@@ -360,9 +361,14 @@ export default function CesworldDashboard() {
             <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-button-secondary">SIGN OUT</span>
           </button>
-        </div>
+          </div>
 
-        {/* Stats Cards */}
+          {/* Caution Banners */}
+          <div className="mb-6">
+            <CautionBanners />
+          </div>
+
+          {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-9 sm:mb-10 md:mb-12">
           {/* Tier Card */}
           <div className={`${tierInfo.bgColor} p-6 sm:p-7 md:p-8`}>
