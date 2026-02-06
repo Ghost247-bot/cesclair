@@ -8,10 +8,12 @@ import { auth } from '@/lib/auth';
 // GET - Get cart items
 export async function GET(request: NextRequest) {
   try {
-    // Try to get authenticated user first
+    // Try to get authenticated user first, with a short timeout to avoid blocking
     let userId: string | null = null;
     try {
-      const session = await auth.api.getSession({ headers: request.headers });
+      const sessionPromise = auth.api.getSession({ headers: request.headers });
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const session = await Promise.race([sessionPromise, timeoutPromise]);
       userId = session?.user?.id || null;
     } catch (error) {
       // If auth fails, continue as guest
@@ -86,10 +88,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { productId, quantity = 1, size, color } = body;
     
-    // Try to get authenticated user first
+    // Try to get authenticated user first, with a short timeout
     let userId: string | null = null;
     try {
-      const session = await auth.api.getSession({ headers: request.headers });
+      const sessionPromise = auth.api.getSession({ headers: request.headers });
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+      const session = await Promise.race([sessionPromise, timeoutPromise]);
       userId = session?.user?.id || null;
     } catch (error) {
       // If auth fails, continue as guest

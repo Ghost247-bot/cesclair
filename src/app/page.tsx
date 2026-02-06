@@ -1,116 +1,35 @@
-"use client";
-
-import { useEffect, useRef, Suspense, lazy } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
+import { Suspense } from "react";
 import AnnouncementBar from "@/components/sections/announcement-bar";
 import HeroSection from "@/components/sections/hero-section";
 import { SkeletonImage } from "@/components/skeleton-loaders";
+import HomeRedirect from "@/components/home-redirect";
 
-const CategoryGrid = lazy(() => import("@/components/sections/category-grid"));
-const VideoFeatureHome = lazy(() => import("@/components/sections/video-feature-home"));
-const SplitFeatureSweaters = lazy(() => import("@/components/sections/split-feature-sweaters"));
-const VideoFeatureBottomLine = lazy(() => import("@/components/sections/video-feature-bottom-line"));
-const ContentGrid = lazy(() => import("@/components/sections/content-grid"));
-const SustainabilityBanner = lazy(() => import("@/components/sections/sustainability-banner"));
+// Lazy-loaded below-the-fold sections
+import dynamic from "next/dynamic";
+const CategoryGrid = dynamic(() => import("@/components/sections/category-grid"));
+const VideoFeatureHome = dynamic(() => import("@/components/sections/video-feature-home"));
+const SplitFeatureSweaters = dynamic(() => import("@/components/sections/split-feature-sweaters"));
+const VideoFeatureBottomLine = dynamic(() => import("@/components/sections/video-feature-bottom-line"));
+const ContentGrid = dynamic(() => import("@/components/sections/content-grid"));
+const SustainabilityBanner = dynamic(() => import("@/components/sections/sustainability-banner"));
 
 export default function Home() {
-  const router = useRouter();
-  const { data: session, isPending } = useSession();
-  const redirectChecked = useRef(false);
-
-  // Anti-clone protection: Disable right-click, text selection, and dev tools
-  useEffect(() => {
-    // Disable right-click
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // Disable text selection
-    const handleSelectStart = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // Disable common keyboard shortcuts for dev tools
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-        (e.ctrlKey && (e.key === 'U' || e.key === 'S' || e.key === 'P'))
-      ) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    // Disable drag
-    const handleDragStart = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('selectstart', handleSelectStart);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('dragstart', handleDragStart);
-
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('selectstart', handleSelectStart);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('dragstart', handleDragStart);
-    };
-  }, []);
-
-  // Optimized redirect logic - only check role from session, skip API call
-  useEffect(() => {
-    if (redirectChecked.current || isPending) return;
-    
-    if (session?.user) {
-      redirectChecked.current = true;
-      const role = (session.user as any)?.role || 'member';
-      
-      // Only redirect based on role in session - no API call needed
-      // The middleware and page components will handle designer status checks
-      if (role === 'designer') {
-        router.push("/designers/dashboard");
-      } else if (role === 'admin') {
-        router.push("/admin");
-      }
-      // Members and unauthenticated users can stay on home page
-    }
-  }, [session, isPending, router]);
-
-  // Show loading state only briefly while checking session
-  if (isPending) {
-    return (
-      <main className="min-h-screen bg-background pt-[60px] md:pt-[64px] flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-        </div>
-      </main>
-    );
-  }
-
-  // If user is authenticated and not a member, the redirect will happen
-  // For members or unauthenticated users, show the home page
   return (
-    <main className="min-h-screen bg-background pt-[60px] md:pt-[64px] select-none" style={{ userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <main className="min-h-screen bg-background pt-[60px] md:pt-[64px]">
+      {/* Client component handles role-based redirect without blocking render */}
+      <HomeRedirect />
+
       <AnnouncementBar />
-      
       <HeroSection />
-      
+
       <Suspense fallback={<SkeletonImage />}>
         <CategoryGrid />
       </Suspense>
-      
+
       <Suspense fallback={<SkeletonImage />}>
         <VideoFeatureHome />
       </Suspense>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2">
         <Suspense fallback={<SkeletonImage />}>
           <SplitFeatureSweaters />
@@ -119,11 +38,11 @@ export default function Home() {
           <VideoFeatureBottomLine />
         </Suspense>
       </div>
-      
+
       <Suspense fallback={<SkeletonImage />}>
         <ContentGrid />
       </Suspense>
-      
+
       <Suspense fallback={<SkeletonImage />}>
         <SustainabilityBanner />
       </Suspense>

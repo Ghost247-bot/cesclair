@@ -99,43 +99,17 @@ export default function RootLayout({
         <StructuredData />
         <ErrorReporter />
         <HeaderNavigation />
-        <link rel="preconnect" href="https://slelguoygbfzlpylpxfs.supabase.co" />
-        <link rel="dns-prefetch" href="https://slelguoygbfzlpylpxfs.supabase.co" />
-        <link rel="preconnect" href="https://media.everlane.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://media.everlane.com" />
-        <link rel="preconnect" href="https://www.everlane.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://www.everlane.com" />
-        <link rel="preconnect" href="https://cdn.builder.io" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://cdn.builder.io" />
-        <link rel="preconnect" href="https://www.ceslane.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://www.ceslane.com" />
+          <link rel="preconnect" href="https://media.everlane.com" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://media.everlane.com" />
+          <link rel="preconnect" href="https://cdn.builder.io" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://cdn.builder.io" />
         <Script
           id="route-messenger-script"
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"
           strategy="lazyOnload"
           defer
         />
-        <Script
-          id="image-constructor-fix"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Fix for Image constructor error - ensure Image() calls use 'new'
-              (function() {
-                const OriginalImage = window.Image;
-                window.Image = function() {
-                  if (!(this instanceof Image)) {
-                    return new OriginalImage();
-                  }
-                  return OriginalImage.apply(this, arguments);
-                };
-                window.Image.prototype = OriginalImage.prototype;
-                window.Image.prototype.constructor = Image;
-              })();
-            `,
-          }}
-        />
-        <ClientScripts />
+          <ClientScripts />
         {children}
         <Footer />
         <ClientScriptsFooter />

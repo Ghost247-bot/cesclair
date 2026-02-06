@@ -98,11 +98,7 @@ const HeaderNavigation = () => {
     }
   };
 
-  // Fetch cart on mount and when cart opens
-  useEffect(() => {
-    fetchCart();
-  }, []);
-
+  // Only fetch cart when the drawer opens (not on every page load)
   useEffect(() => {
     if (isCartOpen) {
       fetchCart();
@@ -168,7 +164,7 @@ const HeaderNavigation = () => {
     }
     dropdownTimeoutRef.current = setTimeout(() => {
       setActiveDropdown(label);
-    }, 1000);
+    }, 150);
   };
 
   const handleMouseLeave = () => {
@@ -177,7 +173,7 @@ const HeaderNavigation = () => {
     }
     dropdownTimeoutRef.current = setTimeout(() => {
       setActiveDropdown(null);
-    }, 1000);
+    }, 300);
   };
 
   const cancelHideDropdown = () => {

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { designers, user, account } from '@/db/schema';
 import { eq, like, or, and, desc } from 'drizzle-orm';
-import bcrypt from 'bcrypt';
 import bcryptjs from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
@@ -72,30 +71,7 @@ export async function GET(request: NextRequest) {
     // Order by created date (newest first)
     query = query.orderBy(desc(designers.createdAt));
     
-    // Execute query - add retry logic for Neon serverless
-    let results: any[] = [];
-    let retries = 2;
-    let lastError: Error | null = null;
-    
-    while (retries >= 0) {
-      try {
-        results = await query.limit(limit).offset(offset);
-        break; // Success, exit retry loop
-      } catch (queryError) {
-        lastError = queryError instanceof Error ? queryError : new Error(String(queryError));
-        if (retries === 0) {
-          throw lastError; // Re-throw on final attempt
-        }
-        retries--;
-        // Wait a bit before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * (3 - retries)));
-      }
-    }
-    
-    // Ensure results is defined
-    if (!results) {
-      results = [];
-    }
+    const results = await query.limit(limit).offset(offset);
 
     // Transform results to match expected format
     const transformedResults = results.map((row: any) => ({
@@ -268,8 +244,8 @@ export async function POST(request: NextRequest) {
       });
       console.log('Account inserted successfully');
 
-      // Hash password with bcrypt for designers table (legacy compatibility)
-      const designerHashedPassword = await bcrypt.hash(password, 10);
+      // Hash password for designers table
+      const designerHashedPassword = await bcryptjs.hash(password, 10);
       console.log('Password hashed for designers table');
 
       // Create designer profile

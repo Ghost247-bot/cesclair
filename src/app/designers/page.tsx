@@ -1,57 +1,41 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Users, ArrowRight, Briefcase } from "lucide-react";
 import { normalizeImagePath } from "@/lib/utils";
+import { db } from "@/db";
+import { designers } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 
-interface Designer {
-  id: number; // Designer ID from designers table
-  name: string;
-  email: string;
-  bio: string | null;
-  portfolioUrl: string | null;
-  specialties: string | null;
-  avatarUrl: string | null;
-  bannerUrl: string | null;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+async function getApprovedDesigners() {
+  const results = await db
+    .select({
+      id: designers.id,
+      name: designers.name,
+      email: designers.email,
+      bio: designers.bio,
+      portfolioUrl: designers.portfolioUrl,
+      specialties: designers.specialties,
+      status: designers.status,
+      avatarUrl: designers.avatarUrl,
+      bannerUrl: designers.bannerUrl,
+      createdAt: designers.createdAt,
+      updatedAt: designers.updatedAt,
+    })
+    .from(designers)
+    .where(eq(designers.status, "approved"))
+    .orderBy(desc(designers.createdAt))
+    .limit(50);
+
+  return results;
 }
 
-export default function DesignersPage() {
-  const [designers, setDesigners] = useState<Designer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchDesigners() {
-      try {
-        const response = await fetch("/api/designers?limit=50");
-        if (!response.ok) {
-          throw new Error("Failed to fetch designers");
-        }
-        const data = await response.json();
-        setDesigners(data.designers || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchDesigners();
-  }, []);
-
-  // API already returns only approved designers, but keep filter as safety
-  const approvedDesigners = designers.filter((d) => d.status === "approved");
+export default async function DesignersPage() {
+  const approvedDesigners = await getApprovedDesigners();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section with Background Image */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
         <Image
           src="https://cdn.builder.io/api/v1/image/assets%2F444142b2cae54a19aeb8b5ba245feffe%2F1a4d70acbcdc4dbf89c5d9845bd9d8b5"
           alt="Our Designers"
@@ -60,9 +44,7 @@ export default function DesignersPage() {
           priority
           unoptimized
         />
-        {/* Overlay for better text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40" />
-        {/* Content */}
         <div className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium mb-6 tracking-tight">
             Our Designers
@@ -75,17 +57,8 @@ export default function DesignersPage() {
 
       {/* Designers Grid */}
       <section className="container mx-auto py-12 px-4">
-        {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-              <p className="mt-4 text-muted-foreground">Loading designers...</p>
-            </div>
-        ) : error ? (
+        {approvedDesigners.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-destructive">Error: {error}</p>
-          </div>
-        ) : approvedDesigners.length === 0 ? (
-            <div className="text-center py-12">
             <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-2xl font-semibold mb-2">No Designers Yet</h2>
             <p className="text-muted-foreground mb-6">
@@ -94,11 +67,11 @@ export default function DesignersPage() {
             <Link
               href="/designers/apply"
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
+            >
               Become a Designer
               <ArrowRight className="w-4 h-4" />
             </Link>
-            </div>
+          </div>
         ) : (
           <>
             <div className="mb-8">
@@ -119,7 +92,7 @@ export default function DesignersPage() {
                 >
                   {/* Banner Image */}
                   <div className="relative h-48 bg-secondary overflow-hidden">
-                  {designer.bannerUrl ? (
+                    {designer.bannerUrl ? (
                       <Image
                         src={normalizeImagePath(designer.bannerUrl)}
                         alt={`${designer.name} banner`}
@@ -130,14 +103,13 @@ export default function DesignersPage() {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Briefcase className="w-16 h-16 text-muted-foreground" />
-                    </div>
-                  )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Designer Info */}
                   <div className="p-6">
                     <div className="flex items-start gap-4 mb-4">
-                      {/* Avatar */}
                       <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
                         {designer.avatarUrl ? (
                           <Image
@@ -186,19 +158,18 @@ export default function DesignersPage() {
               <h2 className="text-2xl font-semibold mb-2">Are You a Designer?</h2>
               <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
                 Join our community of talented designers and showcase your work to a global audience
-          </p>
-          <Link
-            href="/designers/apply"
+              </p>
+              <Link
+                href="/designers/apply"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
+              >
                 Apply to Become a Designer
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </>
         )}
       </section>
-
     </div>
   );
 }
