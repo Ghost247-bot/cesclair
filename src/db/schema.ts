@@ -301,6 +301,19 @@ export const documents = pgTable('documents', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Caution banners table - admin-managed warning/info banners shown in user/designer headers
+export const cautionBanners = pgTable('caution_banners', {
+  id: serial('id').primaryKey(),
+  message: text('message').notNull(),
+  type: text('type').notNull().default('warning'), // 'warning', 'info', 'danger', 'success'
+  targetRole: text('target_role').notNull().default('all'), // 'all', 'member', 'designer', or specific user ID
+  targetUserId: text('target_user_id').references(() => user.id, { onDelete: 'cascade' }), // null = applies to role group
+  active: boolean('active').notNull().default(true),
+  createdBy: text('created_by').references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // File storage table for serverless environments (stores files as base64)
 export const fileStorage = pgTable('file_storage', {
   id: serial('id').primaryKey(),

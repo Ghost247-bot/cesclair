@@ -482,15 +482,12 @@ export default function DesignerDashboardPage() {
   const handleLogout = async () => {
     try {
       await authClient.signOut();
-      localStorage.removeItem("bearer_token");
-      refetch();
-      router.push("/designers");
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("Logout error:", error);
-      }
-      toast.error("Failed to log out");
+    } catch {
+      // Ignore sign-out errors - user may already be logged out
     }
+    localStorage.removeItem("bearer_token");
+    refetch();
+    router.push("/designers");
   };
 
   const deleteDesign = async (designId: number) => {

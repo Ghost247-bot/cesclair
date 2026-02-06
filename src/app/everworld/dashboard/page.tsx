@@ -156,14 +156,14 @@ export default function CesworldDashboard() {
   }, [session, isPending]);
 
   const handleSignOut = async () => {
-    const { error } = await authClient.signOut();
-    if (error?.code) {
-      toast.error(error.code);
-    } else {
-      localStorage.removeItem("bearer_token");
-      refetch();
-      router.push("/cesworld");
+    try {
+      await authClient.signOut();
+    } catch {
+      // Ignore sign-out errors - user may already be logged out
     }
+    localStorage.removeItem("bearer_token");
+    refetch();
+    router.push("/cesworld");
   };
 
   const getTierInfo = (tier: string) => {

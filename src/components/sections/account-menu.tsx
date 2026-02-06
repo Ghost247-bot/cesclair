@@ -16,15 +16,15 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    const { error } = await authClient.signOut();
-    if (error?.code) {
-      toast.error(error.code);
-    } else {
-      localStorage.removeItem("bearer_token");
-      refetch();
-      router.push("/");
-      onClose();
+    try {
+      await authClient.signOut();
+    } catch {
+      // Ignore sign-out errors - user may already be logged out
     }
+    localStorage.removeItem("bearer_token");
+    refetch();
+    router.push("/");
+    onClose();
   };
 
   if (!isOpen) return null;
