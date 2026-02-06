@@ -1,0 +1,30 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force LF line endings for JSON files (important for Netlify builds)
+*.json text eol=lf
+
+# Force LF for package files
+package.json text eol=lf
+package-lock.json text eol=lf
+
+# Force LF for config files
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Force LF for scripts
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.jsx text eol=lf
+
+# Force LF for CSS
+*.css text eol=lf
+
+# Force LF for HTML
+*.html text eol=lf
+
+# Force LF for Markdown
+*.md text eol=lf
+

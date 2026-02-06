@@ -1,0 +1,82 @@
+"use client";
+
+import Image from 'next/image';
+import Link from 'next/link';
+import React, { useState } from 'react';
+import { normalizeImagePath } from '@/lib/utils';
+
+const contentData = [
+  {
+    title: 'No-Fail Outfits',
+    href: '/content/no-fail-outfits',
+    imageSrc: 'https://media.everlane.com/image/upload/v1762539648/w6ksfhdjo8w3cmy1pwm5.jpg',
+    imageAlt: 'Model wearing a brown track jacket and wide-leg pants in a minimalist setting.',
+  },
+  {
+    title: (
+      <>
+        Behind the
+        <br />
+        Holiday Edit 001
+      </>
+    ),
+    href: '/collections/holiday-edit',
+    imageSrc: 'https://media.everlane.com/image/upload/c_scale,dpr_1.5,f_auto,q_auto,w_auto/v1/i/b9da87d5_7538.jpg',
+    imageAlt: 'Close-up of a person wearing a textured brown fleece jacket.',
+  },
+];
+
+const ContentGrid = () => {
+  const ContentImage = ({ item }: { item: typeof contentData[0] }) => {
+    const [imgError, setImgError] = useState(false);
+    const imageSrc = normalizeImagePath(item.imageSrc);
+    
+    if (imgError) {
+      return (
+        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+          <span className="text-xs text-gray-400 text-center px-2">{item.imageAlt}</span>
+        </div>
+      );
+    }
+    
+    return (
+      <Image
+        src={imageSrc}
+        alt={item.imageAlt}
+        fill
+        className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+        unoptimized
+        onError={(e) => {
+          console.error('Image failed to load:', imageSrc);
+          setImgError(true);
+        }}
+      />
+    );
+  };
+
+  return (
+    <section>
+      <div className="grid grid-cols-1 md:grid-cols-2">
+        {contentData.map((item, index) => (
+          <Link key={index} href={item.href} className="group flex flex-col">
+            <div className="relative w-full aspect-[3/4] overflow-hidden">
+              <ContentImage item={item} />
+            </div>
+            <div className="bg-background flex-grow flex items-center justify-center p-4 sm:p-6 md:p-12 text-center">
+              <div>
+                <h2 className="text-xl sm:text-2xl md:text-[32px] font-medium leading-tight md:leading-[1.3] uppercase text-primary-text">
+                  {item.title}
+                </h2>
+                <span className="mt-3 sm:mt-4 inline-block text-xs sm:text-sm font-normal uppercase leading-none tracking-[0.05em] text-primary-text underline decoration-1 underline-offset-4 transition-colors group-hover:text-link-hover group-hover:no-underline">
+                  Read More
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+export default ContentGrid;

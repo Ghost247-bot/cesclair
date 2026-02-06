@@ -1,0 +1,146 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import "./dashboard-responsive.css";
+import ErrorReporter from "@/components/ErrorReporter";
+import HeaderNavigation from "@/components/sections/header-navigation";
+import Footer from "@/components/sections/footer";
+import Script from "next/script";
+import { Toaster } from "@/components/ui/sonner";
+import { StructuredData } from "@/components/seo/structured-data";
+import ClientScripts, { ClientScriptsFooter } from "@/components/client-scripts";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cesclair.store';
+
+export const metadata: Metadata = {
+  title: {
+    default: "Cesclair - Modern Fashion for Everyone",
+    template: "%s | Cesclair"
+  },
+  description: "Discover modern, sustainable fashion for everyone. Shop high-quality clothing, accessories, and more at Cesclair. Ethical fashion that looks good and feels great.",
+  keywords: ["fashion", "clothing", "sustainable fashion", "ethical fashion", "modern fashion", "womens fashion", "mens fashion", "accessories", "Cesclair"],
+  authors: [{ name: "Cesclair" }],
+  creator: "Cesclair",
+  publisher: "Cesclair",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "Cesclair",
+    title: "Cesclair - Modern Fashion for Everyone",
+    description: "Discover modern, sustainable fashion for everyone. Shop high-quality clothing, accessories, and more at Cesclair.",
+    images: [
+      {
+        url: `${siteUrl}/icon.png`,
+        width: 1200,
+        height: 630,
+        alt: "Cesclair - Modern Fashion",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cesclair - Modern Fashion for Everyone",
+    description: "Discover modern, sustainable fashion for everyone. Shop high-quality clothing, accessories, and more at Cesclair.",
+    images: [`${siteUrl}/icon.png`],
+    creator: "@cesclair",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  icons: {
+    icon: [
+      { url: `${siteUrl}/favicon.svg`, type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: `${siteUrl}/favicon.svg`, type: "image/svg+xml" },
+    ],
+    shortcut: `${siteUrl}/favicon.svg`,
+  },
+  manifest: '/manifest.json',
+  verification: {
+    // Add your verification codes here when available
+    // google: 'your-google-verification-code',
+    // yandex: 'your-yandex-verification-code',
+    // bing: 'your-bing-verification-code',
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className="antialiased">
+        <StructuredData />
+        <ErrorReporter />
+        <HeaderNavigation />
+        <link rel="preconnect" href="https://slelguoygbfzlpylpxfs.supabase.co" />
+        <link rel="dns-prefetch" href="https://slelguoygbfzlpylpxfs.supabase.co" />
+        <link rel="preconnect" href="https://media.everlane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://media.everlane.com" />
+        <link rel="preconnect" href="https://www.everlane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.everlane.com" />
+        <link rel="preconnect" href="https://cdn.builder.io" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.builder.io" />
+        <link rel="preconnect" href="https://www.ceslane.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.ceslane.com" />
+        <Script
+          id="route-messenger-script"
+          src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"
+          strategy="lazyOnload"
+          defer
+        />
+        <Script
+          id="image-constructor-fix"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Fix for Image constructor error - ensure Image() calls use 'new'
+              (function() {
+                const OriginalImage = window.Image;
+                window.Image = function() {
+                  if (!(this instanceof Image)) {
+                    return new OriginalImage();
+                  }
+                  return OriginalImage.apply(this, arguments);
+                };
+                window.Image.prototype = OriginalImage.prototype;
+                window.Image.prototype.constructor = Image;
+              })();
+            `,
+          }}
+        />
+        <ClientScripts />
+        {children}
+        <Footer />
+        <ClientScriptsFooter />
+        <Toaster />
+      </body>
+    </html>
+  );
+}
