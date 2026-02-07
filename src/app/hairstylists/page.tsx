@@ -127,7 +127,7 @@ export default async function HairstylistsPage() {
                           {stylist.name}
                         </h3>
                         {stylist.specialties && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
+                          <p className="text-sm text-muted-foreground line-clamp-2 font-bold">
                             {stylist.specialties}
                           </p>
                         )}
@@ -135,7 +135,7 @@ export default async function HairstylistsPage() {
                     </div>
 
                     {stylist.bio && (
-                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+                      <p className="text-sm text-muted-foreground line-clamp-3 mb-4 italic">
                         {stylist.bio}
                       </p>
                     )}

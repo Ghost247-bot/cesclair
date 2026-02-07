@@ -169,7 +169,8 @@ export const designs = pgTable('designs', {
 // Contracts table
 export const contracts = pgTable('contracts', {
   id: serial('id').primaryKey(),
-  designerId: integer('designer_id').notNull().references(() => designers.id),
+  designerId: integer('designer_id').references(() => designers.id),
+  hairstylistId: integer('hairstylist_id').references(() => hairstylists.id, { onDelete: 'cascade' }),
   designId: integer('design_id').references(() => designs.id),
   title: text('title').notNull(),
   description: text('description'),

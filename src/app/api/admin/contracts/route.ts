@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { contracts, designers, designs, user } from '@/db/schema';
+import { contracts, designers, designs, hairstylists, user } from '@/db/schema';
 import { eq, like, or, and, desc, sql } from 'drizzle-orm';
 
 // Helper function to check admin access
@@ -68,13 +68,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const designerId = searchParams.get('designerId');
+    const hairstylistId = searchParams.get('hairstylistId');
 
-    // Build query with joins to include designer information
+    // Build query with joins to include designer and hairstylist information
     // Try to select contractFileUrl, but handle if column doesn't exist
     let query = db
       .select({
         id: contracts.id,
         designerId: contracts.designerId,
+        hairstylistId: contracts.hairstylistId,
         designId: contracts.designId,
         title: contracts.title,
         description: contracts.description,
@@ -93,9 +95,15 @@ export async function GET(request: NextRequest) {
           name: designers.name,
           email: designers.email,
         },
+        hairstylist: {
+          id: hairstylists.id,
+          name: hairstylists.name,
+          email: hairstylists.email,
+        },
       })
       .from(contracts)
-      .leftJoin(designers, eq(contracts.designerId, designers.id));
+      .leftJoin(designers, eq(contracts.designerId, designers.id))
+      .leftJoin(hairstylists, eq(contracts.hairstylistId, hairstylists.id));
 
     const conditions = [];
 
@@ -116,6 +124,13 @@ export async function GET(request: NextRequest) {
       const designerIdInt = parseInt(designerId);
       if (!isNaN(designerIdInt)) {
         conditions.push(eq(contracts.designerId, designerIdInt));
+      }
+    }
+
+    if (hairstylistId) {
+      const hairstylistIdInt = parseInt(hairstylistId);
+      if (!isNaN(hairstylistIdInt)) {
+        conditions.push(eq(contracts.hairstylistId, hairstylistIdInt));
       }
     }
 
@@ -147,6 +162,7 @@ export async function GET(request: NextRequest) {
           .select({
             id: contracts.id,
             designerId: contracts.designerId,
+            hairstylistId: contracts.hairstylistId,
             designId: contracts.designId,
             title: contracts.title,
             description: contracts.description,
@@ -164,9 +180,15 @@ export async function GET(request: NextRequest) {
               name: designers.name,
               email: designers.email,
             },
+            hairstylist: {
+              id: hairstylists.id,
+              name: hairstylists.name,
+              email: hairstylists.email,
+            },
           })
           .from(contracts)
-          .leftJoin(designers, eq(contracts.designerId, designers.id));
+          .leftJoin(designers, eq(contracts.designerId, designers.id))
+          .leftJoin(hairstylists, eq(contracts.hairstylistId, hairstylists.id));
 
         if (conditions.length > 0) {
           retryQuery = retryQuery.where(and(...conditions));
@@ -197,6 +219,7 @@ export async function GET(request: NextRequest) {
     const formattedResults = results.map((result: any) => ({
       id: result.id,
       designerId: result.designerId,
+      hairstylistId: result.hairstylistId,
       designId: result.designId,
       title: result.title,
       description: result.description,
@@ -211,6 +234,7 @@ export async function GET(request: NextRequest) {
       envelopeUrl: result.envelopeUrl,
       contractFileUrl: result.contractFileUrl || null,
       designer: result.designer || null,
+      hairstylist: result.hairstylist || null,
     }));
 
     return NextResponse.json(formattedResults, { status: 200 });
@@ -235,12 +259,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { designerId, designId, title, description, amount, status, contractFileUrl } = body;
+    const { designerId, hairstylistId, designId, title, description, amount, status, contractFileUrl } = body;
 
-    // Validate required fields
-    if (!designerId) {
+    // Validate required fields - contract must be for either designer OR hairstylist
+    const hasDesigner = designerId !== undefined && designerId !== null && designerId !== '';
+    const hasHairstylist = hairstylistId !== undefined && hairstylistId !== null && hairstylistId !== '';
+
+    if (!hasDesigner && !hasHairstylist) {
       return NextResponse.json(
-        { error: 'designerId is required', code: 'MISSING_DESIGNER_ID' },
+        { error: 'Either designerId or hairstylistId is required', code: 'MISSING_ASSIGNEE' },
+        { status: 400 }
+      );
+    }
+    if (hasDesigner && hasHairstylist) {
+      return NextResponse.json(
+        { error: 'Contract cannot be for both designer and hairstylist. Provide only one.', code: 'INVALID_ASSIGNEE' },
         { status: 400 }
       );
     }
@@ -252,30 +285,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate designerId is a valid integer
-    const designerIdInt = parseInt(String(designerId));
-    if (isNaN(designerIdInt) || designerIdInt <= 0) {
-      return NextResponse.json(
-        { error: 'designerId must be a valid positive integer', code: 'INVALID_DESIGNER_ID' },
-        { status: 400 }
-      );
+    let designerIdInt: number | null = null;
+    let hairstylistIdInt: number | null = null;
+
+    if (hasDesigner) {
+      designerIdInt = parseInt(String(designerId));
+      if (isNaN(designerIdInt) || designerIdInt <= 0) {
+        return NextResponse.json(
+          { error: 'designerId must be a valid positive integer', code: 'INVALID_DESIGNER_ID' },
+          { status: 400 }
+        );
+      }
+      const designer = await db.select().from(designers).where(eq(designers.id, designerIdInt)).limit(1);
+      if (designer.length === 0) {
+        return NextResponse.json({ error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' }, { status: 404 });
+      }
+    } else {
+      hairstylistIdInt = parseInt(String(hairstylistId));
+      if (isNaN(hairstylistIdInt) || hairstylistIdInt <= 0) {
+        return NextResponse.json(
+          { error: 'hairstylistId must be a valid positive integer', code: 'INVALID_HAIRSTYLIST_ID' },
+          { status: 400 }
+        );
+      }
+      const hairstylist = await db.select().from(hairstylists).where(eq(hairstylists.id, hairstylistIdInt)).limit(1);
+      if (hairstylist.length === 0) {
+        return NextResponse.json({ error: 'Hairstylist not found', code: 'HAIRSTYLIST_NOT_FOUND' }, { status: 404 });
+      }
     }
 
-    // Validate designerId exists in designers table
-    const designer = await db
-      .select()
-      .from(designers)
-      .where(eq(designers.id, designerIdInt))
-      .limit(1);
-
-    if (designer.length === 0) {
-      return NextResponse.json(
-        { error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' },
-        { status: 404 }
-      );
-    }
-
-    // Validate designId if provided
+    // Validate designId if provided (only for designer contracts)
     let designIdInt = null;
     if (designId !== undefined && designId !== null && designId !== '') {
       designIdInt = parseInt(String(designId));
@@ -305,15 +344,16 @@ export async function POST(request: NextRequest) {
     const contractStatus = status || 'pending';
     
     const insertData: any = {
-      designerId: designerIdInt,
       title: title.trim(),
       description: description ? description.trim() : null,
       amount: amount || null,
       status: contractStatus,
       createdAt: now,
     };
+    if (designerIdInt !== null) insertData.designerId = designerIdInt;
+    if (hairstylistIdInt !== null) insertData.hairstylistId = hairstylistIdInt;
 
-    // Only include designId if provided
+    // Only include designId if provided (for designer contracts)
     if (designIdInt !== null && designIdInt !== undefined) {
       insertData.designId = designIdInt;
     }
@@ -337,6 +377,7 @@ export async function POST(request: NextRequest) {
     const returningFields = {
       id: contracts.id,
       designerId: contracts.designerId,
+      hairstylistId: contracts.hairstylistId,
       designId: contracts.designId,
       title: contracts.title,
       description: contracts.description,
@@ -401,9 +442,16 @@ export async function POST(request: NextRequest) {
             const values: any[] = [];
             let paramIndex = 1;
             
-            columns.push('designer_id');
-            values.push(insertData.designerId);
-            paramIndex++;
+            if (insertData.designerId !== undefined && insertData.designerId !== null) {
+              columns.push('designer_id');
+              values.push(insertData.designerId);
+              paramIndex++;
+            }
+            if (insertData.hairstylistId !== undefined && insertData.hairstylistId !== null) {
+              columns.push('hairstylist_id');
+              values.push(insertData.hairstylistId);
+              paramIndex++;
+            }
             
             columns.push('title');
             values.push(insertData.title);
@@ -470,7 +518,7 @@ export async function POST(request: NextRequest) {
             const query = sql`
               INSERT INTO contracts (${sql.raw(columnsStr)})
               VALUES (${sql.raw(valuesStr)})
-              RETURNING id, designer_id, design_id, title, description, amount, status, 
+              RETURNING id, designer_id, hairstylist_id, design_id, title, description, amount, status, 
                         awarded_at, completed_at, created_at, envelope_id, envelope_status, 
                         signed_at, envelope_url
             `;
@@ -481,6 +529,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
               id: newContract.id,
               designerId: newContract.designer_id,
+              hairstylistId: newContract.hairstylist_id,
               designId: newContract.design_id,
               title: newContract.title,
               description: newContract.description,

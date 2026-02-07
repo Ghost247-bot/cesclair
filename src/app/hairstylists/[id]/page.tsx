@@ -378,9 +378,9 @@ export default function HairstylistPortfolioPage() {
             <div className="pt-2">
               <h1 className="text-3xl md:text-4xl font-semibold mb-2">{hairstylist.name}</h1>
               {hairstylist.specialties && (
-                <p className="text-muted-foreground mb-2">{hairstylist.specialties}</p>
+                <p className="text-muted-foreground mb-2 font-bold">{hairstylist.specialties}</p>
               )}
-              {hairstylist.bio && <p className="text-muted-foreground max-w-2xl">{hairstylist.bio}</p>}
+              {hairstylist.bio && <p className="text-muted-foreground max-w-2xl italic">{hairstylist.bio}</p>}
             </div>
           </div>
         </div>

@@ -97,7 +97,8 @@ interface User {
 
 interface Contract {
   id: number;
-  designerId: number;
+  designerId?: number;
+  hairstylistId?: number;
   designId?: number;
   title: string;
   description?: string;
@@ -112,6 +113,11 @@ interface Contract {
   envelopeUrl?: string;
   contractFileUrl?: string;
   designer?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  hairstylist?: {
     id: number;
     name: string;
     email: string;
@@ -204,6 +210,8 @@ export default function AdminPage() {
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [designs, setDesigns] = useState<Array<{ id: number; title: string; designerId: number }>>([]);
   const [selectedDesignerId, setSelectedDesignerId] = useState<number | null>(null);
+  const [selectedContractAssigneeType, setSelectedContractAssigneeType] = useState<"designer" | "hairstylist">("designer");
+  const [selectedHairstylistId, setSelectedHairstylistId] = useState<number | null>(null);
   // Designs for review
   const [designsForReview, setDesignsForReview] = useState<Array<{
     id: number;
@@ -564,19 +572,30 @@ export default function AdminPage() {
     fetchDesigns();
   }, [showCreateContractModal, showEditContractModal, selectedDesignerId]);
 
-  // Fetch designers when contract modal opens
+  // Fetch designers and hairstylists when contract modal opens
   useEffect(() => {
-    if ((showCreateContractModal || showEditContractModal) && designers.length === 0) {
-      fetchDesigners();
+    if (showCreateContractModal || showEditContractModal) {
+      if (designers.length === 0) fetchDesigners();
+      if (hairstylists.length === 0) fetchHairstylists();
     }
   }, [showCreateContractModal, showEditContractModal]);
 
-  // Set selected designer when editing contract
+  // Set selected designer/hairstylist when editing contract
   useEffect(() => {
     if (showEditContractModal && editingContract) {
-      setSelectedDesignerId(editingContract.designerId);
+      if (editingContract.hairstylistId) {
+        setSelectedContractAssigneeType("hairstylist");
+        setSelectedHairstylistId(editingContract.hairstylistId);
+        setSelectedDesignerId(null);
+      } else {
+        setSelectedContractAssigneeType("designer");
+        setSelectedDesignerId(editingContract.designerId ?? null);
+        setSelectedHairstylistId(null);
+      }
     } else if (!showEditContractModal && !showCreateContractModal) {
       setSelectedDesignerId(null);
+      setSelectedHairstylistId(null);
+      setSelectedContractAssigneeType("designer");
     }
   }, [showEditContractModal, editingContract, showCreateContractModal]);
 
@@ -649,7 +668,8 @@ export default function AdminPage() {
         (c) =>
           c.title.toLowerCase().includes(query) ||
           c.description?.toLowerCase().includes(query) ||
-          c.designer?.name.toLowerCase().includes(query)
+          c.designer?.name.toLowerCase().includes(query) ||
+          c.hairstylist?.name.toLowerCase().includes(query)
       );
     }
 
@@ -2309,7 +2329,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
   };
 
   const createContract = async (contractData: {
-    designerId: number;
+    designerId?: number;
+    hairstylistId?: number;
     designId?: number;
     title: string;
     description?: string;
@@ -5663,6 +5684,11 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                 <strong>Designer:</strong> {contract.designer.name} ({contract.designer.email})
                               </p>
                             )}
+                            {contract.hairstylist && (
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <strong>Hairstylist:</strong> {contract.hairstylist.name} ({contract.hairstylist.email})
+                              </p>
+                            )}
                             {contract.description && (
                               <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
                                 {contract.description}
@@ -6617,25 +6643,50 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
-                createContract({
-                  designerId: parseInt(formData.get("designerId") as string),
-                  designId: formData.get("designId") ? parseInt(formData.get("designId") as string) : undefined,
+                const assigneeType = formData.get("assigneeType") as "designer" | "hairstylist";
+                const payload: any = {
                   title: formData.get("title") as string,
                   description: formData.get("description") as string || undefined,
                   amount: formData.get("amount") as string || undefined,
                   status: formData.get("status") as string || "pending",
                   contractFileUrl: uploadedContractFileUrl || undefined,
-                });
-                // Reset selected designer after submission
+                };
+                if (assigneeType === "designer") {
+                  payload.designerId = parseInt(formData.get("designerId") as string);
+                  payload.designId = formData.get("designId") ? parseInt(formData.get("designId") as string) : undefined;
+                } else {
+                  payload.hairstylistId = parseInt(formData.get("hairstylistId") as string);
+                }
+                createContract(payload);
                 setSelectedDesignerId(null);
+                setSelectedHairstylistId(null);
               }}
               className="space-y-4"
             >
               <div>
+                <label className="block text-sm font-medium mb-1">Assign to *</label>
+                <select
+                  name="assigneeType"
+                  value={selectedContractAssigneeType}
+                  onChange={(e) => {
+                    const t = e.target.value as "designer" | "hairstylist";
+                    setSelectedContractAssigneeType(t);
+                    setSelectedDesignerId(null);
+                    setSelectedHairstylistId(null);
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                >
+                  <option value="designer">Designer</option>
+                  <option value="hairstylist">Hairstylist</option>
+                </select>
+              </div>
+              {selectedContractAssigneeType === "designer" && (
+              <>
+              <div>
                 <label className="block text-sm font-medium mb-1">Designer *</label>
                 <select
                   name="designerId"
-                  required
+                  required={selectedContractAssigneeType === "designer"}
                   onChange={(e) => {
                     const designerId = parseInt(e.target.value);
                     setSelectedDesignerId(designerId || null);
@@ -6670,6 +6721,29 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   <p className="text-xs text-muted-foreground mt-1">Please select a designer first</p>
                 )}
               </div>
+              </>
+              )}
+              {selectedContractAssigneeType === "hairstylist" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Hairstylist *</label>
+                <select
+                  name="hairstylistId"
+                  required={selectedContractAssigneeType === "hairstylist"}
+                  onChange={(e) => {
+                    const hairstylistId = parseInt(e.target.value);
+                    setSelectedHairstylistId(hairstylistId || null);
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                >
+                  <option value="">Select a hairstylist</option>
+                  {hairstylists.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name} ({h.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">Title *</label>
                 <input
@@ -6735,6 +6809,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   onClick={() => {
                     setShowCreateContractModal(false);
                     setSelectedDesignerId(null);
+                    setSelectedHairstylistId(null);
+                    setSelectedContractAssigneeType("designer");
                     setUploadedContractFileUrl(null);
                     setContractFile(null);
                   }}
@@ -6830,17 +6906,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
                 const designerIdValue = formData.get("designerId") as string;
+                const hairstylistIdValue = formData.get("hairstylistId") as string;
                 const designIdValue = formData.get("designId") as string;
-
-                // Ensure designerId is always sent (required field)
-                const designerId = designerIdValue && designerIdValue !== ""
-                  ? parseInt(designerIdValue)
-                  : editingContract.designerId;
-
-                if (!designerId) {
-                  toast.error("Designer is required");
-                  return;
-                }
 
                 const titleValue = (formData.get("title") as string)?.trim();
                 if (!titleValue) {
@@ -6848,39 +6915,52 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   return;
                 }
 
-                const updates: Partial<Contract> = {
+                const updatePayload: any = {
                   title: titleValue,
                   status: formData.get("status") as string,
-                  designerId: designerId,
+                  description: (formData.get("description") as string)?.trim() || null,
+                  amount: (formData.get("amount") as string)?.trim() || null,
                 };
 
-                const description = (formData.get("description") as string)?.trim() || "";
-                const amount = (formData.get("amount") as string)?.trim() || "";
-
-                const updatePayload: any = { ...updates };
-                updatePayload.description = description || null;
-                updatePayload.amount = amount || null;
-
-                if (designIdValue && designIdValue !== "") {
-                  updatePayload.designId = parseInt(designIdValue);
-                } else if (editingContract.designId) {
-                  updatePayload.designId = null;
+                if (editingContract.hairstylistId) {
+                  updatePayload.hairstylistId = hairstylistIdValue && hairstylistIdValue !== "" ? parseInt(hairstylistIdValue) : editingContract.hairstylistId;
+                } else {
+                  updatePayload.designerId = designerIdValue && designerIdValue !== "" ? parseInt(designerIdValue) : editingContract.designerId;
+                  if (designIdValue && designIdValue !== "") {
+                    updatePayload.designId = parseInt(designIdValue);
+                  } else if (editingContract.designId) {
+                    updatePayload.designId = null;
+                  }
                 }
 
                 await updateContract(editingContract.id, updatePayload);
               }}
               className="space-y-4"
             >
+              {editingContract.hairstylistId ? (
+              <div>
+                <label className="block text-sm font-medium mb-1">Hairstylist</label>
+                <select
+                  name="hairstylistId"
+                  defaultValue={editingContract.hairstylistId}
+                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                >
+                  {hairstylists.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name} ({h.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              ) : (
+              <>
               <div>
                 <label className="block text-sm font-medium mb-1">Designer *</label>
                 <select
                   name="designerId"
                   defaultValue={editingContract.designerId}
                   required
-                  onChange={(e) => {
-                    const designerId = parseInt(e.target.value);
-                    setSelectedDesignerId(designerId || null);
-                  }}
+                  onChange={(e) => setSelectedDesignerId(parseInt(e.target.value) || null)}
                   className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                 >
                   <option value="">Select a designer</option>
@@ -6915,6 +6995,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                   <p className="text-xs text-muted-foreground mt-1">Please select a designer first</p>
                 )}
               </div>
+              </>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">Title *</label>
                 <input
@@ -7033,6 +7115,18 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Designer Email</label>
                         <p className="text-base mt-1">{viewingContract.designer.email}</p>
+                      </div>
+                    </>
+                  )}
+                  {viewingContract.hairstylist && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Hairstylist Name</label>
+                        <p className="text-base mt-1">{viewingContract.hairstylist.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Hairstylist Email</label>
+                        <p className="text-base mt-1">{viewingContract.hairstylist.email}</p>
                       </div>
                     </>
                   )}

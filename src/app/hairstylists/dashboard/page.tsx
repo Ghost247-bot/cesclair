@@ -14,6 +14,8 @@ import {
   ExternalLink,
   Briefcase,
   User,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeImagePath } from "@/lib/utils";
@@ -54,10 +56,23 @@ interface Work {
   updatedAt: string;
 }
 
+interface Contract {
+  id: number;
+  title: string;
+  description: string | null;
+  amount: string | null;
+  status: string;
+  awardedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  contractFileUrl: string | null;
+}
+
 export default function HairstylistDashboardPage() {
   const router = useRouter();
   const [hairstylist, setHairstylist] = useState<Hairstylist | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -77,6 +92,7 @@ export default function HairstylistDashboardPage() {
     status: "published",
   });
   const [savingWork, setSavingWork] = useState(false);
+  const [uploadingWorkImage, setUploadingWorkImage] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -94,13 +110,17 @@ export default function HairstylistDashboardPage() {
         specialties: me.specialties || "",
       });
 
-      const worksRes = await fetch(
-        `/api/hairstylist-works?hairstylistId=${me.id}&limit=100`,
-        { credentials: "include" }
-      );
+      const [worksRes, contractsRes] = await Promise.all([
+        fetch(`/api/hairstylist-works?hairstylistId=${me.id}&limit=100`, { credentials: "include" }),
+        fetch("/api/hairstylists/contracts", { credentials: "include" }),
+      ]);
       if (worksRes.ok) {
         const list = await worksRes.json();
         setWorks(list);
+      }
+      if (contractsRes.ok) {
+        const list = await contractsRes.json();
+        setContracts(list);
       }
       setLoading(false);
     }
@@ -209,6 +229,34 @@ export default function HairstylistDashboardPage() {
     }
   };
 
+  const handleWorkImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingWorkImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/design", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Upload failed");
+      }
+      const data = await res.json();
+      if (data.url) {
+        setWorkForm((f) => ({ ...f, imageUrl: data.url }));
+        toast.success("Image uploaded");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to upload image");
+    } finally {
+      setUploadingWorkImage(false);
+      e.target.value = "";
+    }
+  };
+
   const handleDeleteWork = async (id: number) => {
     if (!confirm("Delete this portfolio piece?")) return;
     try {
@@ -282,10 +330,10 @@ export default function HairstylistDashboardPage() {
                 <h2 className="text-xl font-semibold">{hairstylist.name}</h2>
                 <p className="text-sm text-muted-foreground">{hairstylist.email}</p>
                 {hairstylist.specialties && (
-                  <p className="text-sm mt-2">{hairstylist.specialties}</p>
+                  <p className="text-sm mt-2 font-bold">{hairstylist.specialties}</p>
                 )}
                 {hairstylist.bio && (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{hairstylist.bio}</p>
+                  <p className="text-sm text-muted-foreground mt-2 line-clamp-3 italic">{hairstylist.bio}</p>
                 )}
                 <Button
                   variant="outline"
@@ -315,6 +363,15 @@ export default function HairstylistDashboardPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add work
             </Button>
+          </div>
+
+          <div className="bg-card border border-border rounded-lg p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-5 h-5 text-primary" />
+              <span className="font-medium">Contracts</span>
+            </div>
+            <p className="text-3xl font-semibold">{contracts.length}</p>
+            <p className="text-sm text-muted-foreground">assigned by admin</p>
           </div>
         </div>
 
@@ -375,6 +432,69 @@ export default function HairstylistDashboardPage() {
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold mb-4">My contracts</h2>
+          {contracts.length === 0 ? (
+            <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No contracts yet.</p>
+              <p className="text-sm mt-1">Contracts assigned by admin will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {contracts.map((contract) => (
+                <div
+                  key={contract.id}
+                  className="bg-card border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg font-semibold">{contract.title}</h3>
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            contract.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : contract.status === "awarded"
+                                ? "bg-blue-100 text-blue-700"
+                                : contract.status === "cancelled"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {contract.status.toUpperCase()}
+                        </span>
+                      </div>
+                      {contract.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{contract.description}</p>
+                      )}
+                      {contract.amount && (
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Amount:</strong> ${contract.amount}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Created: {new Date(contract.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {contract.contractFileUrl && (
+                      <a
+                        href={contract.contractFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors text-sm font-medium shrink-0"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View Document
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}
@@ -464,13 +584,46 @@ export default function HairstylistDashboardPage() {
               />
             </div>
             <div>
-              <Label>Image URL</Label>
-              <Input
-                type="url"
-                value={workForm.imageUrl}
-                onChange={(e) => setWorkForm((f) => ({ ...f, imageUrl: e.target.value }))}
-                placeholder="https://..."
-              />
+              <Label>Image</Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  type="url"
+                  value={workForm.imageUrl}
+                  onChange={(e) => setWorkForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                  placeholder="https://... or upload below"
+                  className="flex-1"
+                />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  id="work-image-upload"
+                  onChange={handleWorkImageUpload}
+                  disabled={uploadingWorkImage}
+                />
+                <label
+                  htmlFor="work-image-upload"
+                  className={`inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary transition-colors ${uploadingWorkImage ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                >
+                  {uploadingWorkImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  {uploadingWorkImage ? "Uploading..." : "Upload"}
+                </label>
+              </div>
+              {workForm.imageUrl && (
+                <div className="relative mt-2 w-24 h-24 rounded-lg overflow-hidden bg-secondary border border-border">
+                  <Image
+                    src={normalizeImagePath(workForm.imageUrl)}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              )}
             </div>
             <div>
               <Label>Status</Label>

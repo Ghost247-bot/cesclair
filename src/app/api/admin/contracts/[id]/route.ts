@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { contracts, user, designers } from '@/db/schema';
+import { contracts, user, designers, hairstylists } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
 // Helper function to check admin access
@@ -75,11 +75,12 @@ export async function GET(
       );
     }
 
-    // Fetch contract by ID with designer information
+    // Fetch contract by ID with designer and hairstylist information
     const contract = await db
       .select({
         id: contracts.id,
         designerId: contracts.designerId,
+        hairstylistId: contracts.hairstylistId,
         designId: contracts.designId,
         title: contracts.title,
         description: contracts.description,
@@ -99,9 +100,15 @@ export async function GET(
           bio: designers.bio,
           avatarUrl: designers.avatarUrl,
         },
+        hairstylist: {
+          id: hairstylists.id,
+          name: hairstylists.name,
+          email: hairstylists.email,
+        },
       })
       .from(contracts)
       .leftJoin(designers, eq(contracts.designerId, designers.id))
+      .leftJoin(hairstylists, eq(contracts.hairstylistId, hairstylists.id))
       .where(eq(contracts.id, parseInt(id)))
       .limit(1);
     
@@ -191,7 +198,7 @@ export async function PUT(
       );
     }
     
-    const { title, description, amount, status, designId, designerId, contractFileUrl } = body;
+    const { title, description, amount, status, designId, designerId, hairstylistId, contractFileUrl } = body;
 
     // Prepare update data - use Record to allow sql template
     // Only include fields that exist in the database
@@ -215,7 +222,7 @@ export async function PUT(
     if (description !== undefined) updates.description = description ? String(description).trim() || null : null;
     if (amount !== undefined) updates.amount = amount ? String(amount) : null;
     
-    // Handle designId - can be number, string, or null/empty
+    // Handle designId - can be number, string, or null/empty (only for designer contracts)
     if (designId !== undefined) {
       if (designId === null || designId === '' || designId === 0) {
         updates.designId = null;
@@ -234,39 +241,41 @@ export async function PUT(
     // Handle designerId - can be number or string
     if (designerId !== undefined) {
       if (designerId === null || designerId === '' || designerId === 0) {
-        return NextResponse.json(
-          { error: 'designerId is required and cannot be empty', code: 'INVALID_DESIGNER_ID' },
-          { status: 400 }
-        );
-      }
-      const designerIdNum = typeof designerId === 'number' ? designerId : parseInt(String(designerId));
-      if (isNaN(designerIdNum)) {
-        return NextResponse.json(
-          { error: 'designerId must be a valid integer', code: 'INVALID_DESIGNER_ID' },
-          { status: 400 }
-        );
-      }
-      
-      // Verify designer exists
-      try {
-        const designerExists = await db
-          .select({ id: designers.id })
-          .from(designers)
-          .where(eq(designers.id, designerIdNum))
-          .limit(1);
-        
-        if (designerExists.length === 0) {
+        updates.designerId = null;
+      } else {
+        const designerIdNum = typeof designerId === 'number' ? designerId : parseInt(String(designerId));
+        if (isNaN(designerIdNum)) {
           return NextResponse.json(
-            { error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' },
+            { error: 'designerId must be a valid integer', code: 'INVALID_DESIGNER_ID' },
             { status: 400 }
           );
         }
-      } catch (verifyError) {
-        console.error('Error verifying designer:', verifyError);
-        // Continue with update if verification fails (non-critical)
+        const designerExists = await db.select({ id: designers.id }).from(designers).where(eq(designers.id, designerIdNum)).limit(1);
+        if (designerExists.length === 0) {
+          return NextResponse.json({ error: 'Designer not found', code: 'DESIGNER_NOT_FOUND' }, { status: 400 });
+        }
+        updates.designerId = designerIdNum;
       }
-      
-      updates.designerId = designerIdNum;
+    }
+    
+    // Handle hairstylistId - can be number or string
+    if (hairstylistId !== undefined) {
+      if (hairstylistId === null || hairstylistId === '' || hairstylistId === 0) {
+        updates.hairstylistId = null;
+      } else {
+        const hairstylistIdNum = typeof hairstylistId === 'number' ? hairstylistId : parseInt(String(hairstylistId));
+        if (isNaN(hairstylistIdNum)) {
+          return NextResponse.json(
+            { error: 'hairstylistId must be a valid integer', code: 'INVALID_HAIRSTYLIST_ID' },
+            { status: 400 }
+          );
+        }
+        const hairstylistExists = await db.select({ id: hairstylists.id }).from(hairstylists).where(eq(hairstylists.id, hairstylistIdNum)).limit(1);
+        if (hairstylistExists.length === 0) {
+          return NextResponse.json({ error: 'Hairstylist not found', code: 'HAIRSTYLIST_NOT_FOUND' }, { status: 400 });
+        }
+        updates.hairstylistId = hairstylistIdNum;
+      }
     }
 
     // Handle status updates with timestamp logic
@@ -312,7 +321,7 @@ export async function PUT(
       
       // Ensure we only update fields that exist in the database
       const safeUpdates: Record<string, any> = {};
-      const allowedFields = ['title', 'description', 'amount', 'status', 'designId', 'designerId', 'awardedAt', 'completedAt'];
+      const allowedFields = ['title', 'description', 'amount', 'status', 'designId', 'designerId', 'hairstylistId', 'awardedAt', 'completedAt'];
       
       for (const [key, value] of Object.entries(updates)) {
         if (allowedFields.includes(key)) {
@@ -336,6 +345,7 @@ export async function PUT(
         .returning({
           id: contracts.id,
           designerId: contracts.designerId,
+          hairstylistId: contracts.hairstylistId,
           designId: contracts.designId,
           title: contracts.title,
           description: contracts.description,
