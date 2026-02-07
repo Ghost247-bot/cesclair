@@ -281,7 +281,8 @@ const HeaderNavigation = () => {
     },
     { label: 'SUSTAINABILITY', link: '/sustainability' },
     { label: 'CESWORLD', link: '/cesworld' },
-    { label: 'DESIGNERS', link: '/designers' }
+    { label: 'DESIGNERS', link: '/designers' },
+    { label: 'HAIRSTYLISTS', link: '/hairstylists' }
   ];
 
   // Don't render until mounted to prevent hydration mismatch
@@ -821,6 +822,13 @@ const HeaderNavigation = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   DESIGNERS
+                </Link>
+                <Link
+                  href="/hairstylists"
+                  className="text-navigation hover:opacity-70 transition-opacity block"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  HAIRSTYLISTS
                 </Link>
               </div>
             </div>

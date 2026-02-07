@@ -36,7 +36,7 @@ export default async function HairstylistsPage() {
     <div className="min-h-screen bg-background">
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
         <Image
-          src="https://cdn.builder.io/api/v1/image/assets%2F444142b2cae54a19aeb8b5ba245feffe%2F1a4d70acbcdc4dbf89c5d9845bd9d8b5"
+          src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1920&q=80"
           alt="Our Hairstylists"
           fill
           className="object-cover"
