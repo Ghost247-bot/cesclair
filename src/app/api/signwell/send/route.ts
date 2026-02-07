@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { signWellClient } from '@/lib/signwell';
+import { signWellClient, isSignWellNotConfiguredError, toSignWellApiErrorResponse } from '@/lib/signwell';
 import { db } from '@/db';
 import { user } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
@@ -73,13 +73,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!signWellClient) {
-      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { 
-          error: 'SignWell API is not configured',
-          code: 'SIGNWELL_NOT_CONFIGURED'
-        },
-        { status: 500 }
+        { error: 'SignWell API is not configured. Set SIGNWELL_API_KEY in your environment.', code: 'SIGNWELL_NOT_CONFIGURED' },
+        { status: 503 }
       );
     }
 
@@ -146,25 +142,8 @@ export async function POST(request: NextRequest) {
       await signWellClient.getDocumentStatus(documentId);
     } catch (error) {
       console.error('Error getting document status from SignWell:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      // Check if it's a 404 or other error
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return NextResponse.json(
-          {
-            error: 'Document not found in SignWell',
-            code: 'DOCUMENT_NOT_FOUND',
-          },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json(
-        {
-          error: 'Failed to verify document in SignWell',
-          code: 'SIGNWELL_API_ERROR',
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        },
-        { status: 500 }
-      );
+      const { body, status } = toSignWellApiErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
 
     // Prepare recipients
@@ -181,15 +160,8 @@ export async function POST(request: NextRequest) {
       console.log(`Successfully sent document: id=${result.id}`);
     } catch (signWellError) {
       console.error('SignWell API error during send:', signWellError);
-      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
-      return NextResponse.json(
-        {
-          error: 'Failed to send document via SignWell',
-          code: 'SIGNWELL_API_ERROR',
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        },
-        { status: 500 }
-      );
+      const { body, status } = toSignWellApiErrorResponse(signWellError);
+      return NextResponse.json(body, { status });
     }
 
     return NextResponse.json(
@@ -207,12 +179,11 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('POST /api/signwell/send error:', errorMessage);
-    if (errorStack) {
-      console.error('Error stack:', errorStack);
+    if (isSignWellNotConfiguredError(error)) {
+      const { body, status } = toSignWellApiErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
-    
     return NextResponse.json(
       {
         error: 'Failed to send document',

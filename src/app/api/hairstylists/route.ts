@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { hairstylists } from '@/db/schema';
+import { hairstylists, user, account } from '@/db/schema';
 import { eq, like, or, and, desc } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
+import { nanoid } from 'nanoid';
 import { auth } from '@/lib/auth';
 
 // GET - List hairstylists (default: approved only; admin can pass status=all)
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create hairstylist (admin only)
+// POST - Create hairstylist (admin only). Also creates user + account in Better Auth tables when email is new.
 export async function POST(request: NextRequest) {
   try {
     const session = await auth.api.getSession({ headers: request.headers });
@@ -81,32 +83,88 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
-    const [existing] = await db.select().from(hairstylists).where(eq(hairstylists.email, normalizedEmail)).limit(1);
-    if (existing) {
+    const [existingHairstylist] = await db.select().from(hairstylists).where(eq(hairstylists.email, normalizedEmail)).limit(1);
+    if (existingHairstylist) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+    }
+
+    const [existingUser] = await db.select().from(user).where(eq(user.email, normalizedEmail)).limit(1);
+    const now = new Date();
+    let userId: string | null = null;
+
+    // Create user + account in Better Auth tables if this email is not already a user
+    if (!existingUser) {
+      userId = nanoid();
+      const accountId = nanoid();
+      const hashedPasswordAuth = await bcryptjs.hash(String(password), 10);
+
+      await db.insert(user).values({
+        id: userId,
+        name: String(name).trim(),
+        email: normalizedEmail,
+        role: 'hairstylist',
+        emailVerified: false,
+        image: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(account).values({
+        id: accountId,
+        accountId: normalizedEmail,
+        providerId: 'credential',
+        userId: userId,
+        password: hashedPasswordAuth,
+        accessToken: null,
+        refreshToken: null,
+        idToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        scope: null,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
-    const [created] = await db
-      .insert(hairstylists)
-      .values({
-        name: String(name).trim(),
-        email: normalizedEmail,
-        password: hashedPassword,
-        bio: bio?.trim() || null,
-        portfolioUrl: portfolioUrl?.trim() || null,
-        specialties: specialties?.trim() || null,
-        status: status || 'pending',
-      })
-      .returning();
+    try {
+      const [created] = await db
+        .insert(hairstylists)
+        .values({
+          name: String(name).trim(),
+          email: normalizedEmail,
+          password: hashedPassword,
+          bio: bio?.trim() || null,
+          portfolioUrl: portfolioUrl?.trim() || null,
+          specialties: specialties?.trim() || null,
+          status: status || 'pending',
+        })
+        .returning();
 
-    if (!created) {
-      return NextResponse.json({ error: 'Failed to create hairstylist' }, { status: 500 });
+      if (!created) {
+        if (userId) {
+          try {
+            await db.delete(user).where(eq(user.id, userId));
+          } catch (e) {
+            console.error('Cleanup user after hairstylist insert failure:', e);
+          }
+        }
+        return NextResponse.json({ error: 'Failed to create hairstylist' }, { status: 500 });
+      }
+
+      const { password: _, ...rest } = created;
+      return NextResponse.json(rest, { status: 201 });
+    } catch (hairstylistError) {
+      if (userId) {
+        try {
+          await db.delete(user).where(eq(user.id, userId));
+        } catch (cleanupError) {
+          console.error('Cleanup user after hairstylist insert failure:', cleanupError);
+        }
+      }
+      throw hairstylistError;
     }
-
-    const { password: _, ...rest } = created;
-    return NextResponse.json(rest, { status: 201 });
   } catch (error) {
     console.error('POST /api/hairstylists error:', error);
     return NextResponse.json(

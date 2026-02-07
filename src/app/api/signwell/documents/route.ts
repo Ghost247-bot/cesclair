@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { signWellClient } from '@/lib/signwell';
+import { signWellClient, isSignWellNotConfiguredError, toSignWellApiErrorResponse } from '@/lib/signwell';
 import { db } from '@/db';
 import { user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
-
-function isSignWellNotConfiguredError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const message = error.message.toLowerCase();
-  return message.includes('signwell_api_key') || 
-         message.includes('not set') || 
-         message.includes('not configured') ||
-         message.includes('not initialized');
-}
 
 // GET - List all documents from SignWell
 export async function GET(request: NextRequest) {
@@ -154,47 +145,18 @@ export async function GET(request: NextRequest) {
       }
     } catch (signWellError) {
       console.error('SignWell API error:', signWellError);
-      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
-      
-      if (isSignWellNotConfiguredError(signWellError)) {
-        return NextResponse.json(
-          {
-            error: 'SignWell API is not configured',
-            code: 'SIGNWELL_NOT_CONFIGURED'
-          },
-          { status: 503 }
-        );
-      }
-      
-      return NextResponse.json(
-        {
-          error: 'Failed to fetch documents from SignWell',
-          code: 'SIGNWELL_API_ERROR',
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        },
-        { status: 503 }
-      );
+      const { body, status } = toSignWellApiErrorResponse(signWellError);
+      return NextResponse.json(body, { status });
     }
 
     return NextResponse.json(result || { documents: [] }, { status: 200 });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('GET /api/signwell/documents error:', errorMessage);
-    if (errorStack) {
-      console.error('Error stack:', errorStack);
-    }
-    
     if (isSignWellNotConfiguredError(error)) {
-      return NextResponse.json(
-        {
-          error: 'SignWell API is not configured',
-          code: 'SIGNWELL_NOT_CONFIGURED'
-        },
-        { status: 503 }
-      );
+      const { body, status } = toSignWellApiErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
-    
     return NextResponse.json(
       {
         error: 'Failed to fetch documents',

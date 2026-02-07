@@ -1,6 +1,72 @@
 const SIGNWELL_API_BASE = process.env.SIGNWELL_API_BASE || 'https://www.signwell.com/api/v1';
 const SIGNWELL_API_KEY = process.env.SIGNWELL_API_KEY;
 
+/** Error thrown by SignWell client with a stable code for API responses */
+export class SignWellError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly statusCode?: number,
+    public readonly details?: unknown
+  ) {
+    super(message);
+    this.name = 'SignWellError';
+    Object.setPrototypeOf(this, SignWellError.prototype);
+  }
+}
+
+/** Check if an error indicates SignWell is not configured */
+export function isSignWellNotConfiguredError(error: unknown): boolean {
+  if (error instanceof SignWellError && error.code === 'SIGNWELL_NOT_CONFIGURED') return true;
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes('signwell_api_key') ||
+    msg.includes('not set') ||
+    msg.includes('not configured') ||
+    msg.includes('not initialized')
+  );
+}
+
+/** Turn a SignWell error into a consistent JSON body and HTTP status for API routes */
+export function toSignWellApiErrorResponse(error: unknown): {
+  body: { error: string; code: string; details?: string };
+  status: number;
+} {
+  if (isSignWellNotConfiguredError(error)) {
+    return {
+      body: {
+        error: 'SignWell API is not configured. Set SIGNWELL_API_KEY in your environment.',
+        code: 'SIGNWELL_NOT_CONFIGURED',
+      },
+      status: 503,
+    };
+  }
+  if (error instanceof SignWellError) {
+    const details = error.details != null ? String(error.details) : undefined;
+    return {
+      body: {
+        error: error.message,
+        code: error.code,
+        ...(details && { details }),
+      },
+      status: error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 502,
+    };
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  const isNotFound =
+    message.toLowerCase().includes('not found') ||
+    message.includes('404');
+  return {
+    body: {
+      error: isNotFound ? 'Document not found in SignWell' : `SignWell error: ${message}`,
+      code: isNotFound ? 'DOCUMENT_NOT_FOUND' : 'SIGNWELL_API_ERROR',
+      ...(process.env.NODE_ENV === 'development' && { details: message }),
+    },
+    status: isNotFound ? 404 : 502,
+  };
+}
+
 export interface SignWellDocument {
   id?: string;
   name: string;
@@ -54,8 +120,11 @@ export class SignWellClient {
   private baseUrl: string;
 
   constructor() {
-    if (!SIGNWELL_API_KEY) {
-      throw new Error('SIGNWELL_API_KEY environment variable is not set');
+    if (!SIGNWELL_API_KEY?.trim()) {
+      throw new SignWellError(
+        'SIGNWELL_API_KEY environment variable is not set. SignWell features are disabled.',
+        'SIGNWELL_NOT_CONFIGURED'
+      );
     }
     this.apiKey = SIGNWELL_API_KEY;
     this.baseUrl = SIGNWELL_API_BASE;
@@ -87,26 +156,34 @@ export class SignWellClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        let error;
+        let parsed: { message?: string; error?: string };
         try {
-          error = JSON.parse(errorText);
+          parsed = JSON.parse(errorText);
         } catch {
-          error = { message: errorText || response.statusText };
+          parsed = { message: errorText || response.statusText };
         }
-        const errorMessage = error.message || response.statusText || 'Unknown error';
+        const errorMessage = parsed.message || parsed.error || response.statusText || 'Unknown error';
+        const isNotFound = response.status === 404;
         console.error(`SignWell API error [${response.status}]:`, errorMessage);
-        throw new Error(`SignWell API error: ${errorMessage} (${response.status})`);
+        throw new SignWellError(
+          errorMessage,
+          isNotFound ? 'DOCUMENT_NOT_FOUND' : 'SIGNWELL_API_ERROR',
+          response.status,
+          parsed
+        );
       }
 
       return response.json();
     } catch (error) {
-      // Re-throw if it's already our formatted error
-      if (error instanceof Error && error.message.includes('SignWell API error')) {
-        throw error;
-      }
-      // Handle network errors or other fetch failures
+      if (error instanceof SignWellError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
       console.error('SignWell API request failed:', error);
-      throw new Error(`SignWell API request failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new SignWellError(
+        `Request failed: ${message}`,
+        'SIGNWELL_NETWORK_ERROR',
+        502,
+        process.env.NODE_ENV === 'development' ? message : undefined
+      );
     }
   }
 

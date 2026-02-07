@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signWellClient } from '@/lib/signwell';
+import { signWellClient, toSignWellApiErrorResponse } from '@/lib/signwell';
 import { db } from '@/db';
 import { contracts } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,13 +7,9 @@ import { eq } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   try {
     if (!signWellClient) {
-      console.error('SignWell client is not initialized. Check SIGNWELL_API_KEY environment variable.');
       return NextResponse.json(
-        { 
-          error: 'SignWell API is not configured',
-          code: 'SIGNWELL_NOT_CONFIGURED'
-        },
-        { status: 500 }
+        { error: 'SignWell API is not configured. Set SIGNWELL_API_KEY in your environment.', code: 'SIGNWELL_NOT_CONFIGURED' },
+        { status: 503 }
       );
     }
 
@@ -62,25 +58,8 @@ export async function GET(request: NextRequest) {
       console.log(`Document status: ${status.status}`);
     } catch (signWellError) {
       console.error('SignWell API error during status check:', signWellError);
-      const errorMessage = signWellError instanceof Error ? signWellError.message : String(signWellError);
-      // Check if it's a 404 or other error
-      if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-        return NextResponse.json(
-          {
-            error: 'Document not found in SignWell',
-            code: 'DOCUMENT_NOT_FOUND',
-          },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json(
-        {
-          error: 'Failed to get document status from SignWell',
-          code: 'SIGNWELL_API_ERROR',
-          details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        },
-        { status: 500 }
-      );
+      const { body, status } = toSignWellApiErrorResponse(signWellError);
+      return NextResponse.json(body, { status });
     }
 
     // Update contract in database if contractId is provided
@@ -122,17 +101,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('SignWell status error:', errorMessage);
-    if (errorStack) {
-      console.error('Error stack:', errorStack);
-    }
+    const { body, status } = toSignWellApiErrorResponse(error);
+    if (status !== 500) return NextResponse.json(body, { status });
     return NextResponse.json(
-      { 
-        error: 'Failed to get document status',
-        code: 'STATUS_ERROR',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-      },
+      { error: 'Failed to get document status', code: 'STATUS_ERROR', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined },
       { status: 500 }
     );
   }
