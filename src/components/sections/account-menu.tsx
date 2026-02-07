@@ -15,11 +15,11 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
   const { data: session, refetch } = useSession();
   const router = useRouter();
 
-  const handleSignOut = async () => {
-    await robustSignOut();
-    refetch();
-    router.push("/");
+  const handleSignOut = () => {
     onClose();
+    router.push("/");
+    refetch();
+    robustSignOut(); // end session in background so page logs out immediately
   };
 
   if (!isOpen) return null;

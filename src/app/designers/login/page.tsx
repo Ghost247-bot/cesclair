@@ -81,7 +81,7 @@ export default function DesignerLoginPage() {
     try {
       // Use better-auth for login
       const { data, error: authError } = await authClient.signIn.email({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 

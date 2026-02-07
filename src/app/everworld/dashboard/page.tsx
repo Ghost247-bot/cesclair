@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { authClient, useSession } from "@/lib/auth-client";
+import { useSession, robustSignOut } from "@/lib/auth-client";
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Star, Gift, TrendingUp, LogOut } from "lucide-react";
@@ -155,15 +156,17 @@ export default function CesworldDashboard() {
     }
   }, [session, isPending]);
 
-  const handleSignOut = async () => {
-    try {
-      await authClient.signOut();
-    } catch {
-      // Ignore sign-out errors - user may already be logged out
-    }
-    localStorage.removeItem("bearer_token");
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: "/everworld/login",
+    onLogout: robustSignOut,
+    enabled: !!session?.user,
+  });
+
+  const handleSignOut = () => {
+    router.push("/everworld/login");
     refetch();
-    router.push("/cesworld");
+    robustSignOut(); // end session in background
   };
 
   const getTierInfo = (tier: string) => {

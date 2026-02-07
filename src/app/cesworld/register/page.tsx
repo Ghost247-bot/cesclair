@@ -71,7 +71,7 @@ export default function CesworldRegister() {
     try {
       // Register user with better-auth
       const { error } = await authClient.signUp.email({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         name: formData.name,
         password: formData.password,
       });
@@ -87,7 +87,7 @@ export default function CesworldRegister() {
 
       // Auto-login after registration
       const { error: loginError } = await authClient.signIn.email({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
       });
 

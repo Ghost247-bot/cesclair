@@ -66,7 +66,7 @@ export default function CautionBanners() {
   if (visibleBanners.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2 space-y-2">
       {visibleBanners.map((banner) => {
         const config = typeConfig[banner.type] || typeConfig.warning;
         const Icon = config.icon;

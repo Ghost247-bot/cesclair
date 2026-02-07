@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 500);
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 2000);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
     const roleFilter = searchParams.get('role');

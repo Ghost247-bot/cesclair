@@ -82,7 +82,7 @@ export default function CesworldLogin() {
 
     try {
       const { data, error } = await authClient.signIn.email({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         rememberMe: formData.rememberMe,
       });
@@ -109,7 +109,7 @@ export default function CesworldLogin() {
               },
               credentials: 'include',
               body: JSON.stringify({
-                email: formData.email,
+                email: formData.email.trim().toLowerCase(),
                 password: formData.password,
               }),
             });

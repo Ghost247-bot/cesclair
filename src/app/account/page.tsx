@@ -1,9 +1,9 @@
 "use client";
 
 import HeaderNavigation from '@/components/sections/header-navigation';
-import CautionBanners from '@/components/caution-banner';
 import Link from 'next/link';
-import { useSession } from '@/lib/auth-client';
+import { useSession, robustSignOut } from '@/lib/auth-client';
+import { useInactivityLogout } from '@/lib/hooks/useInactivityLogout';
 import { Shield, Package, ArrowRight, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -42,6 +42,13 @@ export default function AccountPage() {
   const isAdmin = session?.user?.role === "admin";
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: '/cesworld/login',
+    onLogout: robustSignOut,
+    enabled: !!session?.user,
+  });
 
   useEffect(() => {
     if (session?.user) {
@@ -92,7 +99,6 @@ export default function AccountPage() {
       <main className="min-h-screen bg-background pt-[60px] md:pt-[64px]">
         <div className="container mx-auto px-6 md:px-8 py-12 md:py-16">
           <div className="max-w-2xl mx-auto space-y-4">
-            <CautionBanners />
             <h1 className="text-4xl md:text-5xl font-medium mb-8">My Account</h1>
             <div className="space-y-4">
               {isAdmin && (

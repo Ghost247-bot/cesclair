@@ -87,7 +87,7 @@ export default function CesworldLogin() {
 
     try {
       const { data, error } = await authClient.signIn.email({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         rememberMe: formData.rememberMe,
       });

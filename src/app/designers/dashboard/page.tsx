@@ -52,9 +52,9 @@ import {
 import Image from "next/image";
 import { SigningFrame } from "@/components/signwell/SigningFrame";
 import { authClient, useSession, robustSignOut } from "@/lib/auth-client";
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout";
 import { toast } from "sonner";
 import { normalizeImagePath } from "@/lib/utils";
-import CautionBanners from "@/components/caution-banner";
 import {
   Dialog,
   DialogContent,
@@ -480,11 +480,18 @@ export default function DesignerDashboardPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await robustSignOut();
+  const handleLogout = () => {
+    router.push("/designers/login");
     refetch();
-    router.push("/designers");
+    robustSignOut(); // end session in background
   };
+
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: "/designers/login",
+    onLogout: robustSignOut,
+    enabled: !!session?.user,
+  });
 
   const deleteDesign = async (designId: number) => {
     if (!confirm("Are you sure you want to delete this design?")) return;
@@ -1199,11 +1206,6 @@ export default function DesignerDashboardPage() {
             </div>
           </div>
           </section>
-
-          {/* Caution Banners */}
-          <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 mt-4">
-            <CautionBanners />
-          </div>
 
           {/* Stats Overview */}
         {stats && (

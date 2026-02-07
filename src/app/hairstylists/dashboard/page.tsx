@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -127,9 +128,20 @@ export default function HairstylistDashboardPage() {
     load();
   }, [router]);
 
-  const handleLogout = async () => {
+  const hairstylistLogout = async () => {
     await fetch("/api/hairstylists/logout", { method: "POST", credentials: "include" });
-    router.push("/hairstylists");
+  };
+
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: "/hairstylists/login",
+    onLogout: hairstylistLogout,
+    enabled: !!hairstylist,
+  });
+
+  const handleLogout = () => {
+    router.push("/hairstylists/login");
+    hairstylistLogout(); // end session in background
   };
 
   const handleSaveProfile = async () => {
@@ -371,7 +383,7 @@ export default function HairstylistDashboardPage() {
               <span className="font-medium">Contracts</span>
             </div>
             <p className="text-3xl font-semibold">{contracts.length}</p>
-            <p className="text-sm text-muted-foreground">assigned by admin</p>
+            <p className="text-sm text-muted-foreground">assigned by Cesworld</p>
           </div>
         </div>
 
@@ -445,7 +457,7 @@ export default function HairstylistDashboardPage() {
             <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p>No contracts yet.</p>
-              <p className="text-sm mt-1">Contracts assigned by admin will appear here.</p>
+              <p className="text-sm mt-1">Contracts Assigned by Cesworld will appear here.</p>
             </div>
           ) : (
             <div className="space-y-4">

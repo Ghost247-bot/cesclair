@@ -3,6 +3,7 @@ import "./globals.css";
 import "./dashboard-responsive.css";
 import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
+import CautionBanners from "@/components/caution-banner";
 import Footer from "@/components/sections/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -98,6 +99,9 @@ export default function RootLayout({
         <StructuredData />
         <ErrorReporter />
           <HeaderNavigation />
+          <div className="w-full border-b border-border/50">
+            <CautionBanners />
+          </div>
           <ClientScripts />
         {children}
         <Footer />

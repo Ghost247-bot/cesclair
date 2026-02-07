@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense, lazy, useMemo } from "react";
-import { useSession } from "@/lib/auth-client";
+import { useState, useEffect, useCallback, Suspense, lazy, useMemo } from "react";
+import { useSession, robustSignOut } from "@/lib/auth-client";
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import HeaderNavigation from "@/components/sections/header-navigation";
@@ -316,6 +317,8 @@ export default function AdminPage() {
       targetRole: 'all',
       targetUserId: '',
     });
+    const [cautionBannerUsers, setCautionBannerUsers] = useState<User[]>([]);
+    const [cautionBannerUsersLoading, setCautionBannerUsersLoading] = useState(false);
 
     // Debounced search queries
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -441,6 +444,13 @@ export default function AdminPage() {
   const isAdmin = userRole === "admin";
   const shouldShowContent = isAuthenticated && isAdmin && !roleLoading;
 
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: "/cesworld/login",
+    onLogout: robustSignOut,
+    enabled: !!session?.user && isAdmin,
+  });
+
   // Debug logging (remove in production)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -522,6 +532,7 @@ export default function AdminPage() {
     if (!sessionPending && !roleLoading && session?.user && isAdmin) {
       if (activeTab === "overview") {
         fetchDashboardOverview();
+        fetchCautionBanners();
       } else if (activeTab === "designers") {
         fetchDesigners();
       } else if (activeTab === "users") {
@@ -571,6 +582,30 @@ export default function AdminPage() {
     };
     fetchDesigns();
   }, [showCreateContractModal, showEditContractModal, selectedDesignerId]);
+
+  const fetchCautionBannerUsers = useCallback(async () => {
+    setCautionBannerUsersLoading(true);
+    try {
+      const r = await fetch("/api/admin/users?limit=2000", { credentials: "include" });
+      const data = r.ok ? await r.json() : [];
+      setCautionBannerUsers(Array.isArray(data) ? data : []);
+    } catch {
+      setCautionBannerUsers([]);
+    } finally {
+      setCautionBannerUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showCreateCautionBannerModal) return;
+    fetchCautionBannerUsers();
+  }, [showCreateCautionBannerModal, fetchCautionBannerUsers]);
+
+  useEffect(() => {
+    if (showCreateCautionBannerModal && cautionBannerForm.targetRole === "specific" && cautionBannerUsers.length === 0 && !cautionBannerUsersLoading) {
+      fetchCautionBannerUsers();
+    }
+  }, [showCreateCautionBannerModal, cautionBannerForm.targetRole, cautionBannerUsers.length, cautionBannerUsersLoading, fetchCautionBannerUsers]);
 
   // Fetch designers and hairstylists when contract modal opens
   useEffect(() => {
@@ -3282,6 +3317,33 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     </div>
                   </div>
 
+                  {/* Caution Banners - Quick access */}
+                  <div className="bg-white border border-border rounded-lg p-2.5 sm:p-3 md:p-4 lg:p-5 mb-3 sm:mb-4 md:mb-6 lg:mb-8 shadow-sm">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="p-1.5 sm:p-2 bg-amber-100 rounded-lg">
+                            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+                          </div>
+                          <h2 className="text-sm sm:text-base md:text-lg font-semibold">Caution Banners</h2>
+                        </div>
+                        <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">
+                          Site-wide warning or info messages shown to users and designers. {cautionBanners.filter(b => b.active).length} active, {cautionBanners.length} total.
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("banners")}
+                          className="px-4 sm:px-5 py-2 sm:py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm font-medium flex items-center gap-2"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          Manage Caution Banners
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                     {/* Quick Stats and Recent Activity */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5 mb-3 sm:mb-4 md:mb-6 lg:mb-8">
                       {/* Status Breakdown */}
@@ -4336,7 +4398,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                                     setCautionBannerForm({
                                       message: banner.message,
                                       type: banner.type,
-                                      targetRole: banner.targetRole === 'specific' ? 'all' : banner.targetRole,
+                                      targetRole: banner.targetUserId ? 'specific' : (banner.targetRole || 'all'),
                                       targetUserId: banner.targetUserId || '',
                                     });
                                     setShowCreateCautionBannerModal(true);
@@ -7829,14 +7891,23 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 </div>
                 {cautionBannerForm.targetRole === 'specific' && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Target User ID</label>
-                    <input
-                      type="text"
+                    <label className="block text-sm font-medium mb-1">Target User</label>
+                    <select
                       value={cautionBannerForm.targetUserId}
                       onChange={(e) => setCautionBannerForm(prev => ({ ...prev, targetUserId: e.target.value }))}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                      placeholder="Enter user ID"
-                    />
+                      disabled={cautionBannerUsersLoading}
+                    >
+                      <option value="">Select user...</option>
+                      {cautionBannerUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name || u.email} ({u.email}) {u.role ? `- ${u.role}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {cautionBannerUsersLoading && (
+                      <p className="text-xs text-muted-foreground mt-1">Loading users...</p>
+                    )}
                   </div>
                 )}
                 {/* Preview */}

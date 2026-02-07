@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { authClient, useSession, robustSignOut } from "@/lib/auth-client";
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Loader2, Star, Gift, TrendingUp, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import CautionBanners from "@/components/caution-banner";
 
 interface Member {
   id: number;
@@ -51,6 +51,13 @@ export default function CesworldDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "transactions" | "rewards">("overview");
+
+  // Auto logout after 5 minutes of inactivity; ends session and redirects to login
+  useInactivityLogout({
+    redirectTo: "/cesworld/login",
+    onLogout: robustSignOut,
+    enabled: !!session?.user,
+  });
 
   // Redirect if not authenticated or wrong role
   useEffect(() => {
@@ -224,10 +231,10 @@ export default function CesworldDashboard() {
     }
   }, [session, isPending]);
 
-  const handleSignOut = async () => {
-    await robustSignOut();
+  const handleSignOut = () => {
+    router.push("/cesworld/login");
     refetch();
-    router.push("/cesworld");
+    robustSignOut(); // end session in background
   };
 
   const getTierInfo = (tier: string) => {
@@ -361,11 +368,6 @@ export default function CesworldDashboard() {
             <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="text-button-secondary">SIGN OUT</span>
           </button>
-          </div>
-
-          {/* Caution Banners */}
-          <div className="mb-6">
-            <CautionBanners />
           </div>
 
           {/* Stats Cards */}
