@@ -1,34 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-// Dynamically import client components to avoid SSR issues
-const RouteMessengerScript = dynamic(() => import("@/components/RouteMessengerScript"), {
-  ssr: false,
-});
-
-const AntiCloneProtectionScript = dynamic(() => import("@/components/AntiCloneProtectionScript"), {
-  ssr: false,
-});
-
-const VisualEditsMessenger = dynamic(
-  async () => {
-    try {
-      const mod = await import("@/visual-edits/VisualEditsMessenger");
-      // Handle both named export (VisualEditsMessenger) and default export (HoverReceiver)
-      return mod.VisualEditsMessenger 
-        ? { default: mod.VisualEditsMessenger }
-        : { default: mod.default };
-    } catch (error) {
-      console.error("Failed to load VisualEditsMessenger:", error);
-      // Return a no-op component if import fails
-      return { default: () => null };
-    }
-  },
-  {
-    ssr: false,
-  }
-);
+import RouteMessengerScript from "@/components/RouteMessengerScript";
+import AntiCloneProtectionScript from "@/components/AntiCloneProtectionScript";
+import { VisualEditsMessenger } from "@/visual-edits/VisualEditsMessenger";
 
 /**
  * Client-side scripts wrapper component
@@ -49,4 +23,3 @@ export default function ClientScripts() {
 export function ClientScriptsFooter() {
   return <VisualEditsMessenger />;
 }
-

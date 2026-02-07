@@ -68,8 +68,7 @@ const nextConfig: NextConfig = {
   // Performance optimizations
   // Note: swcMinify is enabled by default in Next.js 15 and the option has been removed
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'framer-motion', 'recharts'],
-    optimizeCss: true,
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {

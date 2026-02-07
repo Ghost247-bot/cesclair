@@ -4,7 +4,6 @@ import "./dashboard-responsive.css";
 import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import Footer from "@/components/sections/footer";
-import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import { StructuredData } from "@/components/seo/structured-data";
 import ClientScripts, { ClientScriptsFooter } from "@/components/client-scripts";
@@ -98,17 +97,7 @@ export default function RootLayout({
       <body className="antialiased">
         <StructuredData />
         <ErrorReporter />
-        <HeaderNavigation />
-          <link rel="preconnect" href="https://media.everlane.com" crossOrigin="anonymous" />
-          <link rel="dns-prefetch" href="https://media.everlane.com" />
-          <link rel="preconnect" href="https://cdn.builder.io" crossOrigin="anonymous" />
-          <link rel="dns-prefetch" href="https://cdn.builder.io" />
-        <Script
-          id="route-messenger-script"
-          src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts/route-messenger.js"
-          strategy="lazyOnload"
-          defer
-        />
+          <HeaderNavigation />
           <ClientScripts />
         {children}
         <Footer />

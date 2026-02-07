@@ -1,17 +1,12 @@
-import { Suspense } from "react";
 import AnnouncementBar from "@/components/sections/announcement-bar";
 import HeroSection from "@/components/sections/hero-section";
-import { SkeletonImage } from "@/components/skeleton-loaders";
 import HomeRedirect from "@/components/home-redirect";
-
-// Lazy-loaded below-the-fold sections
-import dynamic from "next/dynamic";
-const CategoryGrid = dynamic(() => import("@/components/sections/category-grid"));
-const VideoFeatureHome = dynamic(() => import("@/components/sections/video-feature-home"));
-const SplitFeatureSweaters = dynamic(() => import("@/components/sections/split-feature-sweaters"));
-const VideoFeatureBottomLine = dynamic(() => import("@/components/sections/video-feature-bottom-line"));
-const ContentGrid = dynamic(() => import("@/components/sections/content-grid"));
-const SustainabilityBanner = dynamic(() => import("@/components/sections/sustainability-banner"));
+import CategoryGrid from "@/components/sections/category-grid";
+import VideoFeatureHome from "@/components/sections/video-feature-home";
+import SplitFeatureSweaters from "@/components/sections/split-feature-sweaters";
+import VideoFeatureBottomLine from "@/components/sections/video-feature-bottom-line";
+import ContentGrid from "@/components/sections/content-grid";
+import SustainabilityBanner from "@/components/sections/sustainability-banner";
 
 export default function Home() {
   return (
@@ -21,31 +16,16 @@ export default function Home() {
 
       <AnnouncementBar />
       <HeroSection />
-
-      <Suspense fallback={<SkeletonImage />}>
-        <CategoryGrid />
-      </Suspense>
-
-      <Suspense fallback={<SkeletonImage />}>
-        <VideoFeatureHome />
-      </Suspense>
+      <CategoryGrid />
+      <VideoFeatureHome />
 
       <div className="grid grid-cols-1 md:grid-cols-2">
-        <Suspense fallback={<SkeletonImage />}>
-          <SplitFeatureSweaters />
-        </Suspense>
-        <Suspense fallback={<SkeletonImage />}>
-          <VideoFeatureBottomLine />
-        </Suspense>
+        <SplitFeatureSweaters />
+        <VideoFeatureBottomLine />
       </div>
 
-      <Suspense fallback={<SkeletonImage />}>
-        <ContentGrid />
-      </Suspense>
-
-      <Suspense fallback={<SkeletonImage />}>
-        <SustainabilityBanner />
-      </Suspense>
+      <ContentGrid />
+      <SustainabilityBanner />
     </main>
   );
 }

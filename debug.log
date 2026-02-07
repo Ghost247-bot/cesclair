@@ -8,3 +8,190 @@
 2026-02-06T19:57:34.399Z [console][error] The resource http://localhost:3002/_next/static/css/app/layout.css?v=1770407668919 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 2026-02-06T19:58:16.402Z [console][error] The resource http://localhost:3002/_next/static/css/app/layout.css?v=1770407668919 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 2026-02-06T19:58:57.409Z [console][error] The resource http://localhost:3002/_next/static/css/app/layout.css?v=1770407668919 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+2026-02-06T23:03:43.250Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:03:43.282Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:03:43.304Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:01.176Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:04:01.177Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:02.353Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:04:02.353Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:04.666Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:04:04.686Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:04.710Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:15.012Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:04:15.036Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:15.058Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:04:15.036Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopConcurrentByScheduler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15252:9)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15227:15)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-do...
+2026-02-06T23:04:15.058Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419054303:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopConcurrentByScheduler (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15252:9)
+    at renderRootConcurrent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15227:15)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-do...
+2026-02-06T23:06:29.211Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:06:29.231Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.252Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.211Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:06:29.231Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.252Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.211Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:06:29.231Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.252Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:10:16.490Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:10:16.515Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:10:16.540Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.409Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:10.431Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.458Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.366Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:12.387Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.406Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.388Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15078:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15058:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client...
+2026-02-06T23:12:12.406Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15078:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15058:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client...
+2026-02-06T23:10:16.515Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:10:16.540Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.409Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:10.431Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.458Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.366Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:12.387Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.406Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.388Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15078:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15058:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client...
+2026-02-06T23:12:12.406Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+    at options.factory (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:712:31)
+    at __webpack_require__ (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:37:33)
+    at fn (http://localhost:3002/_next/static/chunks/webpack.js?v=1770419531708:369:21)
+    at requireModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:121:27)
+    at initializeModuleChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1078:21)
+    at readChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:952:11)
+    at react-stack-bottom-frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23078:18)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10482:24)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:845:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15258:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15078:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15058:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client...
+2026-02-06T23:06:29.211Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:06:29.231Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:06:29.252Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:10:16.490Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:10:16.515Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:10:16.540Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.409Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:10.431Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:10.458Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.366Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:12:12.387Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:12:12.406Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:27:08.356Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-06T23:27:08.380Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-06T23:27:08.409Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-07T00:15:00.296Z [console][warn] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+2026-02-07T00:15:00.843Z [console][log] __ORCHIDS_NAVIGATE__ http://localhost:3002/
+2026-02-07T00:15:00.851Z [console][error] %o
+
+%s TypeError: Cannot read properties of undefined (reading 'call') The above error occurred in the <Lazy> component. It was handled by the <ErrorBoundaryHandler> error boundary.
+2026-02-07T00:15:00.885Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-07T00:15:00.916Z [console][error] Application error: TypeError: Cannot read properties of undefined (reading 'call')
+2026-02-07T00:15:04.548Z [console][warn] [Fast Refresh] rebuilding
+2026-02-07T00:15:06.443Z [console][warn] [Fast Refresh] rebuilding
+2026-02-07T00:15:06.917Z [console][warn] [Fast Refresh] done in 473ms
+2026-02-07T00:15:07.878Z [console][warn] [Fast Refresh] done in 1435ms
+2026-02-07T00:15:08.037Z [console][log] __ORCHIDS_NAVIGATE__ http://localhost:3002/
+2026-02-07T00:16:21.350Z [console][warn] [Fast Refresh] rebuilding
