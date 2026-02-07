@@ -38,7 +38,9 @@ import {
   ShoppingBag,
   Truck,
   XCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  Scissors
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -144,7 +146,7 @@ interface CautionBanner {
 export default function AdminPage() {
   const router = useRouter();
   const { data: session, isPending: sessionPending } = useSession();
-  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders" | "documents" | "banners">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "designers" | "products" | "users" | "contracts" | "audit" | "portfolios" | "designs" | "orders" | "documents" | "banners" | "hairstylists">("overview");
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalDesigners: 0,
@@ -246,6 +248,27 @@ export default function AdminPage() {
   const [contractStatusFilter, setContractStatusFilter] = useState<string>("all");
   const [portfolioSearchQuery, setPortfolioSearchQuery] = useState("");
   const [portfolioStatusFilter, setPortfolioStatusFilter] = useState<string>("all");
+  // Hairstylists state
+  const [hairstylists, setHairstylists] = useState<Array<{
+    id: number;
+    name: string;
+    email: string;
+    bio: string | null;
+    portfolioUrl: string | null;
+    specialties: string | null;
+    status: string;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>>([]);
+  const [hairstylistsLoading, setHairstylistsLoading] = useState(false);
+  const [hairstylistSearchQuery, setHairstylistSearchQuery] = useState("");
+  const [hairstylistStatusFilter, setHairstylistStatusFilter] = useState<string>("all");
+  const [showCreateHairstylistModal, setShowCreateHairstylistModal] = useState(false);
+  const [createHairstylistForm, setCreateHairstylistForm] = useState({ name: '', email: '', password: '', bio: '', specialties: '', status: 'pending' });
+  const [creatingHairstylist, setCreatingHairstylist] = useState(false);
+  const [updatingHairstylistStatusId, setUpdatingHairstylistStatusId] = useState<number | null>(null);
   // Documents state
   const [documents, setDocuments] = useState<Array<{
     id: string;
@@ -512,6 +535,8 @@ export default function AdminPage() {
         } else if (activeTab === "banners") {
           fetchDesigners();
           fetchCautionBanners();
+        } else if (activeTab === "hairstylists") {
+          fetchHairstylists();
         }
     }
   }, [sessionPending, roleLoading, session, isAdmin, activeTab]);
@@ -720,6 +745,78 @@ export default function AdminPage() {
       toast.error("Failed to load designers. Please check your connection.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHairstylists = async () => {
+    try {
+      setHairstylistsLoading(true);
+      const response = await fetch("/api/hairstylists?limit=100&status=all", { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setHairstylists(Array.isArray(data) ? data : []);
+      } else {
+        toast.error("Failed to load hairstylists");
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') console.error(err);
+      toast.error("Failed to load hairstylists");
+    } finally {
+      setHairstylistsLoading(false);
+    }
+  };
+
+  const createHairstylist = async () => {
+    if (!createHairstylistForm.name?.trim() || !createHairstylistForm.email?.trim() || !createHairstylistForm.password?.trim()) {
+      toast.error("Name, email, and password are required");
+      return;
+    }
+    try {
+      setCreatingHairstylist(true);
+      const response = await fetch("/api/hairstylists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(createHairstylistForm),
+      });
+      if (response.ok) {
+        toast.success("Hairstylist created");
+        setShowCreateHairstylistModal(false);
+        setCreateHairstylistForm({ name: '', email: '', password: '', bio: '', specialties: '', status: 'pending' });
+        fetchHairstylists();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || "Failed to create hairstylist");
+      }
+    } catch (err) {
+      toast.error("Failed to create hairstylist");
+    } finally {
+      setCreatingHairstylist(false);
+    }
+  };
+
+  const updateHairstylistStatus = async (id: number, status: string) => {
+    try {
+      setUpdatingHairstylistStatusId(id);
+      const res = await fetch(`/api/hairstylists/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setHairstylists((prev) =>
+          prev.map((h) => (h.id === id ? { ...h, status } : h))
+        );
+        toast.success("Status updated");
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to update status");
+      }
+    } catch {
+      toast.error("Failed to update status");
+    } finally {
+      setUpdatingHairstylistStatusId(null);
     }
   };
 
@@ -2885,7 +2982,8 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         {/* Tabs Navigation */}
         <section className="bg-white border-b border-border sticky top-[48px] sm:top-[51px] md:top-[54px] lg:top-[57px] z-10">
           <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-            <div className="flex gap-0.5 sm:gap-0.75 md:gap-1 overflow-x-auto">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5 sm:gap-0.75 md:gap-1 overflow-x-auto min-w-0 flex-1">
               <button
                 onClick={() => setActiveTab("overview")}
                 className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "overview"
@@ -3002,6 +3100,32 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                 <FileTextIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
                 <span className="hidden sm:inline">Documents </span>({documents.length})
               </button>
+              <button
+                onClick={() => setActiveTab("hairstylists")}
+                className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-3 lg:py-3.5 xl:py-4 text-[10px] sm:text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === "hairstylists"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
+              >
+                <Scissors className="w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 inline mr-0.75 sm:mr-1 md:mr-1.5 lg:mr-2" />
+                <span className="hidden sm:inline">Hairstylists </span>({hairstylists.length})
+              </button>
+            </div>
+              {activeTab === "banners" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCautionBannerForm({ message: '', type: 'warning', targetRole: 'all', targetUserId: '' });
+                    setEditingCautionBanner(null);
+                    setShowCreateCautionBannerModal(true);
+                  }}
+                  className="flex-shrink-0 px-3 py-2 sm:px-4 sm:py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Add caution banner</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -4216,6 +4340,148 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Hairstylists Tab */}
+            {activeTab === "hairstylists" && (
+              <div>
+                <div className="mb-3 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-4">
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-4 flex-1">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Search by name, email, or specialties..."
+                        value={hairstylistSearchQuery}
+                        onChange={(e) => setHairstylistSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    <select
+                      value={hairstylistStatusFilter}
+                      onChange={(e) => setHairstylistStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                    >
+                      <option value="all">All</option>
+                      <option value="approved">Approved</option>
+                      <option value="pending">Pending</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateHairstylistModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Hairstylist
+                  </button>
+                </div>
+
+                {hairstylistsLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                    <p className="text-sm text-muted-foreground">Loading hairstylists...</p>
+                  </div>
+                ) : (() => {
+                  const q = hairstylistSearchQuery.toLowerCase().trim();
+                  let filtered = hairstylists;
+                  if (hairstylistStatusFilter !== 'all') {
+                    filtered = filtered.filter((h) => h.status === hairstylistStatusFilter);
+                  }
+                  if (q) {
+                    filtered = filtered.filter(
+                      (h) =>
+                        h.name?.toLowerCase().includes(q) ||
+                        h.email?.toLowerCase().includes(q) ||
+                        h.specialties?.toLowerCase().includes(q) ||
+                        h.bio?.toLowerCase().includes(q)
+                    );
+                  }
+                  return filtered.length === 0 ? (
+                    <div className="text-center py-8 bg-white border border-border rounded-lg">
+                      <Scissors className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+                      <p className="text-sm text-muted-foreground">
+                        {hairstylistSearchQuery || hairstylistStatusFilter !== 'all' ? 'No hairstylists match your filters.' : 'No hairstylists yet.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filtered.map((h) => (
+                        <div key={h.id} className="bg-white border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                          {h.bannerUrl ? (
+                            <div className="relative w-full h-32 bg-secondary">
+                              <img src={h.bannerUrl} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-full h-32 bg-secondary flex items-center justify-center">
+                              <Scissors className="w-10 h-10 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <div className="flex items-start gap-3 -mt-8">
+                              {h.avatarUrl ? (
+                                <img src={h.avatarUrl} alt="" className="w-12 h-12 rounded-full border-2 border-white object-cover" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full border-2 border-white bg-primary/10 flex items-center justify-center">
+                                  <Scissors className="w-6 h-6 text-primary" />
+                                </div>
+                              )}
+                              <div className="flex-1 pt-6">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-medium">{h.name}</h3>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${h.status === 'approved' ? 'bg-green-100 text-green-700' : h.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {h.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
+                                  <Mail className="w-3 h-3" />
+                                  <span className="truncate">{h.email}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {h.specialties && <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{h.specialties}</p>}
+                            <div className="mt-3 flex items-center gap-2">
+                              <label className="text-xs font-medium text-muted-foreground">Status:</label>
+                              <select
+                                value={h.status}
+                                onChange={(e) => updateHairstylistStatus(h.id, e.target.value)}
+                                disabled={updatingHairstylistStatusId === h.id}
+                                className="flex-1 text-xs px-2 py-1.5 border border-border rounded bg-white"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                              </select>
+                              {updatingHairstylistStatusId === h.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                            </div>
+                            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-border">
+                              <a href={`/hairstylists/${h.id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-primary text-white hover:bg-primary/90 rounded-lg text-sm font-medium">
+                                <ExternalLink className="w-4 h-4" />
+                                View Portfolio
+                              </a>
+                              <button
+                                onClick={() => router.push(`/hairstylists/${h.id}`)}
+                                className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-border hover:bg-secondary rounded-lg text-sm font-medium"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit Portfolio
+                              </button>
+                              <a
+                                href="/hairstylists/login"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+                              >
+                                Hairstylist login
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -7513,6 +7779,56 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                     className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {editingCautionBanner ? 'Update Banner' : 'Create Banner'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Hairstylist Modal */}
+        {showCreateHairstylistModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-lg w-full">
+              <div className="border-b border-border p-4 flex items-center justify-between">
+                <h3 className="text-lg font-medium">Add Hairstylist</h3>
+                <button onClick={() => { setShowCreateHairstylistModal(false); setCreateHairstylistForm({ name: '', email: '', password: '', bio: '', specialties: '', status: 'pending' }); }} className="p-2 hover:bg-secondary rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name *</label>
+                  <input value={createHairstylistForm.name} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="Full name" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email *</label>
+                  <input type="email" value={createHairstylistForm.email} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="email@example.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password *</label>
+                  <input type="password" value={createHairstylistForm.password} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, password: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="Min 6 characters" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Bio</label>
+                  <textarea value={createHairstylistForm.bio} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, bio: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="Short bio" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Specialties</label>
+                  <input value={createHairstylistForm.specialties} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, specialties: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" placeholder="e.g. Cuts, Color, Bridal" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Status</label>
+                  <select value={createHairstylistForm.status} onChange={(e) => setCreateHairstylistForm((f) => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <button onClick={() => { setShowCreateHairstylistModal(false); setCreateHairstylistForm({ name: '', email: '', password: '', bio: '', specialties: '', status: 'pending' }); }} className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors">Cancel</button>
+                  <button onClick={createHairstylist} disabled={creatingHairstylist || !createHairstylistForm.name?.trim() || !createHairstylistForm.email?.trim() || !createHairstylistForm.password?.trim()} className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {creatingHairstylist ? 'Creating...' : 'Create Hairstylist'}
                   </button>
                 </div>
               </div>

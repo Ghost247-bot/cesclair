@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, LogIn, Loader2 } from "lucide-react";
+import { ArrowLeft, LogIn, Loader2, Palette, FileText, LayoutDashboard, Scissors } from "lucide-react";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 
@@ -300,6 +300,60 @@ export default function DesignerLoginPage() {
                 </Link>
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits */}
+      <section className="py-16 md:py-24 bg-secondary">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <h2 className="text-2xl md:text-3xl font-medium mb-10 text-center">What you get as a designer</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <LayoutDashboard className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Dashboard</h3>
+              <p className="text-sm text-muted-foreground">Manage your designs and projects in one place.</p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <Palette className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Portfolio</h3>
+              <p className="text-sm text-muted-foreground">Showcase your work and grow your brand.</p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Contracts</h3>
+              <p className="text-sm text-muted-foreground">Handle contracts and collaborations securely.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Other ways to sign in */}
+      <section className="py-16 md:py-24">
+        <div className="container mx-auto px-4 max-w-md text-center">
+          <h2 className="text-xl font-medium mb-4">Other ways to sign in</h2>
+          <p className="text-muted-foreground text-sm mb-6">Are you a hairstylist or a member? Use the right login below.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/hairstylists/login"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+            >
+              <Scissors className="w-4 h-4" />
+              <span>Hairstylist Login</span>
+            </Link>
+            <Link
+              href="/cesworld/login"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Member Login</span>
+            </Link>
           </div>
         </div>
       </section>

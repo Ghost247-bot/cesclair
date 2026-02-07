@@ -326,8 +326,8 @@ const HeaderNavigation = () => {
               ))}
             </nav>
 
-            {/* Logo - Centered */}
-            <div className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto max-w-[calc(100%-140px)]">
+            {/* Logo - Centered (z-10 so it sits above nav and "DESIGNERS" doesn't overlap) */}
+            <div className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-auto max-w-[calc(100%-140px)]">
               <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
                 CESCLAIR
               </Link>
@@ -427,9 +427,9 @@ const HeaderNavigation = () => {
               ))}
             </nav>
 
-            {/* Logo - Centered on all screen sizes */}
+            {/* Logo - Centered on all screen sizes (z-10 so nav "DESIGNERS" doesn't overlap) */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 z-0 pointer-events-auto max-w-[calc(100%-140px)]"
+              className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-auto max-w-[calc(100%-140px)]"
             >
               <Link href="/" className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium tracking-wider hover:opacity-80 transition-opacity whitespace-nowrap block text-center">
                 CESCLAIR

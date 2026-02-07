@@ -69,6 +69,18 @@ https://cesclair.vercel.app
 
 ### 3. Auth Secret
 
+**Variable:** `BETTER_AUTH_URL` (optional)
+
+**Description:** Auth base URL. If not set, the app uses `NEXT_PUBLIC_SITE_URL` or Vercel’s `VERCEL_URL`.
+
+**Format:** Same as `NEXT_PUBLIC_SITE_URL`, e.g. `https://your-project.vercel.app`
+
+**How to set:** Add in Environment Variables for Production (and Preview if needed). Often left unset so the app uses `NEXT_PUBLIC_SITE_URL` / `VERCEL_URL` automatically.
+
+---
+
+### 3. Auth Secret
+
 **Variable:** `BETTER_AUTH_SECRET`
 
 **Description:** Secret key for authentication (must be 32+ characters)
@@ -155,6 +167,16 @@ openssl rand -base64 32
 
 ---
 
+### 7. Tawk.to Live Chat (optional)
+
+**Variables:**
+- `NEXT_PUBLIC_TAWK_PROPERTY_ID` – From [Tawk.to](https://www.tawk.to) → Administration → Channels → Widget
+- `NEXT_PUBLIC_TAWK_WIDGET_ID` – Same place (e.g. `default` or widget ID from embed URL)
+
+**How to set:** Add both in Environment Variables for Production (and Preview if you want chat on previews). If either is missing, the chat widget is disabled.
+
+---
+
 ## 📋 Complete Checklist
 
 Before deploying, ensure you have:
@@ -169,6 +191,9 @@ Before deploying, ensure you have:
 - [ ] `DOCUSIGN_PRIVATE_KEY` - (if using DocuSign)
 - [ ] `SIGNWELL_API_KEY` - (if using SignWell)
 - [ ] `SIGNWELL_API_BASE` - (if using SignWell)
+- [ ] `BETTER_AUTH_URL` - (optional; defaults from NEXT_PUBLIC_SITE_URL / VERCEL_URL)
+- [ ] `NEXT_PUBLIC_TAWK_PROPERTY_ID` - (if using Tawk.to chat)
+- [ ] `NEXT_PUBLIC_TAWK_WIDGET_ID` - (if using Tawk.to chat)
 
 ## 🔍 Verification
 

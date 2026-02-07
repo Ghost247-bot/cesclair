@@ -3,7 +3,7 @@
 import { useSession, authClient, robustSignOut } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, LogOut, Shield } from "lucide-react";
+import { User, LogOut, Shield, Scissors, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 
 interface AccountMenuProps {
@@ -93,16 +93,34 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
             <Link
               href="/cesworld/login"
               onClick={onClose}
-              className="block px-4 py-3 text-body hover:bg-secondary transition-colors"
+              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
             >
-              Sign In
+              <User className="w-4 h-4" />
+              <span>Sign In</span>
             </Link>
             <Link
               href="/cesworld/register"
               onClick={onClose}
-              className="block px-4 py-3 text-body hover:bg-secondary transition-colors"
+              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
             >
-              Create Account
+              <User className="w-4 h-4" />
+              <span>Create Account</span>
+            </Link>
+            <Link
+              href="/hairstylists/login"
+              onClick={onClose}
+              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors border-t border-border"
+            >
+              <Scissors className="w-4 h-4" />
+              <span>Hairstylist Login</span>
+            </Link>
+            <Link
+              href="/designers/login"
+              onClick={onClose}
+              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span>Designer Login</span>
             </Link>
           </div>
         )}

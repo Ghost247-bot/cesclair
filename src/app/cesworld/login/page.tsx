@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { authClient, useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Loader2, Eye, EyeOff, Gift, Star, Sparkles, Scissors, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CesworldLogin() {
@@ -371,6 +371,60 @@ export default function CesworldLogin() {
           </div>
         </div>
       </div>
+
+      {/* Benefits */}
+      <section className="py-16 md:py-24 bg-secondary">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <h2 className="text-2xl md:text-3xl font-medium mb-10 text-center">What you get as a member</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <Star className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Points & rewards</h3>
+              <p className="text-sm text-muted-foreground">Earn points on every purchase and redeem rewards.</p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <Gift className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Member benefits</h3>
+              <p className="text-sm text-muted-foreground">Exclusive access to offers and member-only content.</p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="font-medium mb-2">Account</h3>
+              <p className="text-sm text-muted-foreground">Track orders, favorites, and manage your profile.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Other ways to sign in */}
+      <section className="py-16 md:py-24">
+        <div className="container mx-auto px-4 max-w-md text-center">
+          <h2 className="text-xl font-medium mb-4">Other ways to sign in</h2>
+          <p className="text-muted-foreground text-sm mb-6">Are you a hairstylist or a designer? Use the right login below.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/hairstylists/login"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+            >
+              <Scissors className="w-4 h-4" />
+              <span>Hairstylist Login</span>
+            </Link>
+            <Link
+              href="/designers/login"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
+            >
+              <Briefcase className="w-4 h-4" />
+              <span>Designer Login</span>
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
     </>
   );

@@ -2,6 +2,7 @@
 
 import RouteMessengerScript from "@/components/RouteMessengerScript";
 import AntiCloneProtectionScript from "@/components/AntiCloneProtectionScript";
+import TawkChatWidget from "@/components/tawk-chat-widget";
 import { VisualEditsMessenger } from "@/visual-edits/VisualEditsMessenger";
 
 /**
@@ -21,5 +22,10 @@ export default function ClientScripts() {
  * Separate component for VisualEditsMessenger to place it after Footer
  */
 export function ClientScriptsFooter() {
-  return <VisualEditsMessenger />;
+  return (
+    <>
+      <VisualEditsMessenger />
+      <TawkChatWidget />
+    </>
+  );
 }

@@ -97,7 +97,9 @@ async function runAllMigrations() {
       '0004_add_banner_to_designers.sql',
       '0005_add_documents_table.sql',
       '0006_add_file_storage.sql',
-      '0007_add_contract_file_url.sql'
+      '0007_add_contract_file_url.sql',
+      '0008_add_caution_banners.sql',
+      '0009_add_hairstylists.sql'
     ];
 
     console.log('🚀 Starting to run all migrations...\n');

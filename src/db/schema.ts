@@ -314,6 +314,38 @@ export const cautionBanners = pgTable('caution_banners', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Hairstylists table - portfolio profiles (mirrors designers)
+export const hairstylists = pgTable('hairstylists', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  password: text('password').notNull(),
+  bio: text('bio'),
+  portfolioUrl: text('portfolio_url'),
+  specialties: text('specialties'),
+  status: text('status').notNull().default('pending'),
+  avatarUrl: text('avatar_url'),
+  bannerUrl: text('banner_url'),
+  bannerTitle: text('banner_title'),
+  bannerDescription: text('banner_description'),
+  bannerActive: boolean('banner_active').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Hairstylist works table - portfolio pieces (mirrors designs)
+export const hairstylistWorks = pgTable('hairstylist_works', {
+  id: serial('id').primaryKey(),
+  hairstylistId: integer('hairstylist_id').notNull().references(() => hairstylists.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  imageUrl: text('image_url'),
+  category: text('category'),
+  status: text('status').notNull().default('draft'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // File storage table for serverless environments (stores files as base64)
 export const fileStorage = pgTable('file_storage', {
   id: serial('id').primaryKey(),

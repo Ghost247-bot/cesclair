@@ -22,6 +22,8 @@ BETTER_AUTH_SECRET=[run: npm run generate-secret]
 NEXT_PUBLIC_SITE_URL=https://your-project.vercel.app
 ```
 
+Optional: `BETTER_AUTH_URL` (same as site URL if you want to pin it). For Tawk.to chat, add `NEXT_PUBLIC_TAWK_PROPERTY_ID` and `NEXT_PUBLIC_TAWK_WIDGET_ID`.
+
 **Select all environments:** Production, Preview, Development
 
 ### 3. Deploy (1 minute)
@@ -47,9 +49,10 @@ After deployment:
 
 ## 🔧 Optional Variables
 
+- `BETTER_AUTH_URL` - Auth base URL (defaults from site URL)
 - `DOCUSIGN_*` - If using DocuSign
-- `SIGNWELL_API_KEY` - If using SignWell
-- `SIGNWELL_API_BASE` - If using SignWell
+- `SIGNWELL_API_KEY`, `SIGNWELL_API_BASE` - If using SignWell
+- `NEXT_PUBLIC_TAWK_PROPERTY_ID`, `NEXT_PUBLIC_TAWK_WIDGET_ID` - If using Tawk.to chat
 
 ## ✅ Post-Deployment
 

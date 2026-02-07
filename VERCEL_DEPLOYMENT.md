@@ -2,6 +2,8 @@
 
 Complete setup guide for deploying your Next.js application to Vercel.
 
+**Quick setup:** See **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** for a short checklist and env list.
+
 ## ✅ Prerequisites
 
 - [x] Vercel account (free tier works)
@@ -111,14 +113,36 @@ Value: your-docusign-private-key
 Scope: ✓ Production ✓ Preview
 ```
 
-**9. SIGNWELL_API_KEY** (if using SignWell)
+**9. BETTER_AUTH_URL** (optional)
+```
+Variable: BETTER_AUTH_URL
+Value: https://your-project.vercel.app
+Scope: ✓ Production ✓ Preview
+```
+Same as your site URL if you want to explicitly set the auth base URL. If unset, the app uses NEXT_PUBLIC_SITE_URL or VERCEL_URL.
+
+**10. NEXT_PUBLIC_TAWK_PROPERTY_ID** (if using Tawk.to chat)
+```
+Variable: NEXT_PUBLIC_TAWK_PROPERTY_ID
+Value: your-tawk-property-id
+Scope: ✓ Production ✓ Preview
+```
+
+**11. NEXT_PUBLIC_TAWK_WIDGET_ID** (if using Tawk.to chat)
+```
+Variable: NEXT_PUBLIC_TAWK_WIDGET_ID
+Value: default (or your widget ID)
+Scope: ✓ Production ✓ Preview
+```
+
+**12. SIGNWELL_API_KEY** (if using SignWell)
 ```
 Variable: SIGNWELL_API_KEY
 Value: your-signwell-api-key
 Scope: ✓ Production ✓ Preview
 ```
 
-**10. SIGNWELL_API_BASE** (if using SignWell)
+**13. SIGNWELL_API_BASE** (if using SignWell)
 ```
 Variable: SIGNWELL_API_BASE
 Value: https://www.signwell.com/api/v1

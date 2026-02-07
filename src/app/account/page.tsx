@@ -1,6 +1,7 @@
 "use client";
 
 import HeaderNavigation from '@/components/sections/header-navigation';
+import CautionBanners from '@/components/caution-banner';
 import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 import { Shield, Package, ArrowRight, Loader2 } from 'lucide-react';
@@ -90,7 +91,8 @@ export default function AccountPage() {
       <HeaderNavigation />
       <main className="min-h-screen bg-background pt-[60px] md:pt-[64px]">
         <div className="container mx-auto px-6 md:px-8 py-12 md:py-16">
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <CautionBanners />
             <h1 className="text-4xl md:text-5xl font-medium mb-8">My Account</h1>
             <div className="space-y-4">
               {isAdmin && (
