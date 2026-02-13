@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, X, ChevronDown, Truck, Shield, RefreshCw, ShoppingBag, Heart, Plus, Grid3X3, List, SlidersHorizontal, Star } from "lucide-react";
+import { Search, X, ChevronDown, Truck, Shield, RefreshCw, ShoppingBag, Heart, Plus, Grid3X3, List, SlidersHorizontal, Star, Share2, Eye, Filter, ArrowRight, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { normalizeImagePath } from "@/lib/utils";
 import EnhancedCartDrawer from "@/components/sections/enhanced-cart-drawer";
+import { useProductNavigation } from "@/hooks/useProductNavigation";
+import { useProductActions } from "@/hooks/useProductActions";
+import { PRODUCTS_ROUTES, PRODUCT_SECTIONS } from "@/lib/routing/products-routes";
 
 interface Product {
   id: number;
@@ -45,9 +48,14 @@ interface FilterOptions {
   sortBy: string;
 }
 
-export default function ProductsPage() {
+function ProductsPageContent() {
   const { data: session } = useSession();
   
+  // Navigation and actions hooks
+  const navigation = useProductNavigation();
+  const actions = useProductActions();
+  
+  // Component state
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +67,16 @@ export default function ProductsPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [showCart, setShowCart] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set());
+  const [selectedColors, setSelectedColors] = useState<Set<string>>(new Set());
+  const [selectedSizes, setSelectedSizes] = useState<Set<string>>(new Set());
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [minRating, setMinRating] = useState(0);
+  const [showQuickView, setShowQuickView] = useState<number | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -184,7 +202,15 @@ export default function ProductsPage() {
     });
   };
 
-  const addSelectedToCart = async () => {
+  const handleAddToCart = async (product: Product, options?: { size?: string; color?: string }) => {
+    await actions.addToCart(product.id, {
+      size: options?.size,
+      color: options?.color,
+      onSuccess: () => setShowCart(true),
+    });
+  };
+
+  const handleAddSelectedToCart = async () => {
     if (selectedProducts.size === 0) {
       toast.error("Please select at least one product");
       return;
@@ -201,43 +227,102 @@ export default function ProductsPage() {
       return;
     }
 
-    try {
-      const promises = Array.from(selectedProducts).map(async (productId) => {
-        const product = products.find(p => p.id === productId);
-        if (!product || !product.id) return null;
+    const selectedItems = Array.from(selectedProducts).map(productId => {
+      const product = products.find(p => p.id === productId);
+      return {
+        productId,
+        size: product?.sizes?.[0],
+        color: product?.colors?.[0],
+      };
+    });
 
-        const response = await fetch("/api/cart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId,
-            quantity: 1,
-            size: product.sizes?.[0] || null,
-            color: product.colors?.[0] || null,
-          }),
+    await actions.addMultipleToCart(selectedItems, {
+      onSuccess: (successful, failed) => {
+        if (successful > 0) {
+          setSelectedProducts(new Set());
+          setShowCart(true);
+        }
+      },
+    });
+  };
+
+  const handleQuickView = async (productId: number) => {
+    setShowQuickView(productId);
+    await actions.openQuickView(productId, {
+      onSuccess: (product) => setQuickViewProduct(product as Product),
+      onError: () => setShowQuickView(null),
+    });
+  };
+
+  const handleShareProduct = async (product: Product) => {
+    await actions.shareProduct({
+      id: product.id,
+      name: product.name,
+      slug: product.slug,
+      price: product.price,
+      imageUrl: product.imageUrl || undefined,
+      stock: product.stock,
+      category: product.category || undefined,
+      brand: product.tags?.[0],
+      colors: product.colors,
+      sizes: product.sizes,
+    });
+  };
+
+  const handleToggleWishlist = async (productId: number) => {
+    await actions.toggleWishlist(productId, {
+      onSuccess: (isWishlisted) => {
+        setWishlist(prev => {
+          const newSet = new Set(prev);
+          if (isWishlisted) {
+            newSet.add(productId);
+          } else {
+            newSet.delete(productId);
+          }
+          return newSet;
         });
+      },
+    });
+  };
 
-        if (!response.ok) throw new Error(`Failed to add ${product.name} to cart`);
-        return await response.json();
-      });
+  const handleToggleCompare = (productId: number) => {
+    actions.toggleCompare(productId);
+  };
 
-      const results = await Promise.allSettled(promises);
-      const successful = results.filter(r => r.status === "fulfilled").length;
-      const failed = results.filter(r => r.status === "rejected").length;
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    navigation.navigateWithFilters({ category });
+  };
 
-      if (successful > 0) {
-        toast.success(`${successful} item${successful > 1 ? 's' : ''} added to cart`);
-        setSelectedProducts(new Set());
-        setShowCart(true);
-      }
+  const handleSortChange = (sort: string) => {
+    setSortBy(sort);
+    navigation.navigateWithFilters({ sort });
+  };
 
-      if (failed > 0) {
-        toast.error(`${failed} item${failed > 1 ? 's' : ''} failed to add to cart`);
-      }
-    } catch (error) {
-      console.error("Error adding selected items to cart:", error);
-      toast.error("Failed to add items to cart");
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      navigation.navigateToSearch(query);
     }
+  };
+
+  const handleFilterChange = (filters: any) => {
+    navigation.navigateWithFilters(filters);
+  };
+
+  const clearAllFilters = () => {
+    setSelectedCategory("");
+    setPriceRange([0, 1000]);
+    setSelectedBrands(new Set());
+    setSelectedColors(new Set());
+    setSelectedSizes(new Set());
+    setInStockOnly(false);
+    setMinRating(0);
+    navigation.clearFilters();
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    navigation.scrollToSection(sectionId, { offset: 80 });
   };
 
   if (isLoading) {
@@ -307,7 +392,7 @@ export default function ProductsPage() {
             </button>
           </div>
           <button
-            onClick={addSelectedToCart}
+            onClick={handleAddSelectedToCart}
             className="w-full bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2"
           >
             <ShoppingBag className="w-5 h-5" />
@@ -465,5 +550,17 @@ export default function ProductsPage() {
       {/* Enhanced Cart Drawer */}
       <EnhancedCartDrawer isOpen={showCart} onClose={() => setShowCart(false)} />
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+      </div>
+    }>
+      <ProductsPageContent />
+    </Suspense>
   );
 }

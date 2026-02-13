@@ -98,7 +98,6 @@ export default function CesworldLogin() {
           code: error.code,
           message: error.message,
           status: error.status,
-          cause: error.cause,
         });
         
         // Handle specific error codes
@@ -133,82 +132,47 @@ export default function CesworldLogin() {
         return;
       }
 
-      // Wait a bit for session to be set in cookies
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait a bit for session to be set
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Refetch session to get updated user data with role
-      refetch();
+      await refetch();
 
-      // Try to get role from session data first
-      const userEmail = (data && data.user && typeof data.user === 'object' && data.user.email) ? data.user.email : undefined;
-      if (data && data.user && typeof data.user === 'object' && data.user.role) {
-        toast.success("Welcome back to Cesworld!");
-        redirectBasedOnRole(data.user.role, userEmail);
-      } else {
-        // Fallback: try to fetch role from API
-        try {
-          const roleResponse = await fetch('/api/auth/check-role', {
-            credentials: 'include',
-          });
-          if (roleResponse.ok) {
-            let roleData = null;
+      // Get fresh session data
+      const freshSession = await authClient.getSession();
+      
+      if (freshSession?.data?.user) {
+        const userRole = (freshSession.data.user as any)?.role || 'member';
+        const userEmail = freshSession.data.user.email;
+        
+        toast.success("Welcome back!");
+        
+        // Simplified redirect logic
+        if (userRole === 'admin') {
+          router.push("/admin");
+        } else if (userRole === 'designer') {
+          // Check designer status first
+          if (userEmail) {
             try {
-              roleData = await roleResponse.json();
-            } catch (jsonError) {
-              console.error('Failed to parse role response:', jsonError);
-              roleData = null;
-            }
-            
-            // Safely extract role and email with comprehensive null checks
-            let role = 'member';
-            let roleUserEmail = userEmail;
-            
-            if (roleData && typeof roleData === 'object') {
-              if (typeof roleData.role === 'string') {
-                role = roleData.role;
+              const designerRes = await fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`);
+              const designerData = await designerRes.json();
+              if (designerData.exists && designerData.status === 'approved') {
+                router.push("/designers/dashboard");
+                return;
               }
-              if (roleData.user && typeof roleData.user === 'object' && typeof roleData.user.email === 'string') {
-                roleUserEmail = roleData.user.email;
-              }
-            }
-            
-            toast.success("Welcome back to Cesworld!");
-            redirectBasedOnRole(role, roleUserEmail);
-          } else {
-            // Fallback: check designers table
-            if (userEmail) {
-              try {
-                const designerRes = await fetch(`/api/designers/by-email?email=${encodeURIComponent(userEmail)}`);
-                const designerData = await designerRes.json();
-                if (designerData.exists && designerData.status === 'approved') {
-                  toast.success("Welcome back!");
-                  router.push("/designers/dashboard");
-                } else {
-                  toast.success("Welcome back to Cesworld!");
-                  router.push("/cesworld/dashboard");
-                }
-              } catch {
-                toast.success("Welcome back to Cesworld!");
-                router.push("/cesworld/dashboard");
-              }
-            } else {
-            toast.success("Welcome back to Cesworld!");
-            router.push("/cesworld/dashboard");
+            } catch (error) {
+              console.error('Error checking designer status:', error);
             }
           }
-        } catch (error) {
-          console.error('Role check error:', error);
-          // Fallback to default member dashboard - use email from data if available
-          const fallbackEmail = (data && data.user && typeof data.user === 'object' && data.user.email) ? data.user.email : undefined;
-          toast.success("Welcome back to Cesworld!");
-          if (fallbackEmail) {
-            redirectBasedOnRole('member', fallbackEmail);
-          } else {
           router.push("/cesworld/dashboard");
-          }
+        } else {
+          router.push("/cesworld/dashboard");
         }
+      } else {
+        toast.error("Login successful but session not set. Please try again.");
+        setIsLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       toast.error("An error occurred. Please try again.");
       setIsLoading(false);

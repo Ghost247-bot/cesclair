@@ -229,6 +229,14 @@ export const cartItems = pgTable('cart_items', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Wishlist items table
+export const wishlistItems = pgTable('wishlist_items', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: "cascade" }),
+  productId: integer('product_id').notNull().references(() => products.id, { onDelete: "cascade" }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Shipping addresses table
 export const shippingAddresses = pgTable('shipping_addresses', {
   id: serial('id').primaryKey(),

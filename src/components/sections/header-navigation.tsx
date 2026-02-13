@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, ShoppingBag, Menu, X, Minus, Plus, Package } from 'lucide-react';
+import { Search, User, ShoppingBag, Menu, X, Minus, Plus, Package, Heart } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,6 +37,8 @@ const HeaderNavigation = () => {
   const [cartSubtotal, setCartSubtotal] = useState('0.00');
   const [cartLoading, setCartLoading] = useState(false);
   const [updatingItem, setUpdatingItem] = useState<number | null>(null);
+  const [wishlistItems, setWishlistItems] = useState<number[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Ensure client-side only for scroll state to prevent hydration mismatch
@@ -98,6 +100,32 @@ const HeaderNavigation = () => {
     }
   };
 
+  // Fetch wishlist data
+  const fetchWishlist = async () => {
+    try {
+      setWishlistLoading(true);
+      
+      const response = await fetch('/api/wishlist', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      if (data.items) {
+        setWishlistItems(data.items.map((item: any) => item.productId));
+      } else {
+        setWishlistItems([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wishlist:', error);
+      setWishlistItems([]);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   // Only fetch cart when the drawer opens (not on every page load)
   useEffect(() => {
     if (isCartOpen) {
@@ -112,6 +140,17 @@ const HeaderNavigation = () => {
     };
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, []);
+
+  // Fetch wishlist on mount and listen for updates
+  useEffect(() => {
+    fetchWishlist();
+    
+    const handleWishlistUpdate = () => {
+      fetchWishlist();
+    };
+    window.addEventListener('wishlistUpdated', handleWishlistUpdate);
+    return () => window.removeEventListener('wishlistUpdated', handleWishlistUpdate);
   }, []);
 
   const updateQuantity = async (itemId: number, newQuantity: number) => {
@@ -308,18 +347,18 @@ const HeaderNavigation = () => {
             </div>
 
             {/* Desktop Navigation - Left */}
-            <nav className="hidden lg:flex items-center gap-8 flex-1">
+            <nav className="hidden lg:flex items-center gap-2 xl:gap-4 2xl:gap-6 flex-1">
               {navigationItems.map((item) => (
                 <div key={item.label} className="relative" suppressHydrationWarning>
                   {item.link ? (
                     <Link
                       href={item.link}
-                      className="text-navigation hover:opacity-70 transition-opacity relative group"
+                      className="text-navigation hover:opacity-70 transition-opacity relative group whitespace-nowrap"
                     >
                       {item.label}
                     </Link>
                   ) : (
-                    <button className="text-navigation hover:opacity-70 transition-opacity relative group">
+                    <button className="text-navigation hover:opacity-70 transition-opacity relative group whitespace-nowrap">
                       {item.label}
                     </button>
                   )}
@@ -336,7 +375,7 @@ const HeaderNavigation = () => {
 
             {/* Right Icons */}
             <div className="flex-shrink-0 z-20 ml-auto">
-              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-6">
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4 xl:gap-6">
                 <button
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
                   aria-label="Search"
@@ -363,6 +402,14 @@ const HeaderNavigation = () => {
                     <User className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
+                <Link
+                  href="/account/favorites"
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
+                  aria-label="Wishlist"
+                  title="Wishlist"
+                >
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Link>
                 <button
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0"
                   aria-label="Shopping bag"
@@ -401,7 +448,7 @@ const HeaderNavigation = () => {
             </div>
 
             {/* Desktop Navigation - Left */}
-            <nav className="hidden lg:flex items-center gap-8 flex-1">
+            <nav className="hidden lg:flex items-center gap-2 xl:gap-4 2xl:gap-6 flex-1">
               {navigationItems.map((item) => (
                 <div
                   key={item.label}
@@ -413,13 +460,13 @@ const HeaderNavigation = () => {
                   {item.link ? (
                     <Link
                       href={item.link}
-                      className="text-navigation hover:opacity-70 transition-opacity relative group"
+                      className="text-navigation hover:opacity-70 transition-opacity relative group whitespace-nowrap"
                     >
                       {item.label}
                       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300" />
                     </Link>
                   ) : (
-                    <button className="text-navigation hover:opacity-70 transition-opacity relative group">
+                    <button className="text-navigation hover:opacity-70 transition-opacity relative group whitespace-nowrap">
                       {item.label}
                       <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black group-hover:w-full transition-all duration-300" />
                     </button>
@@ -439,7 +486,7 @@ const HeaderNavigation = () => {
 
             {/* Right Icons */}
             <div className="flex-shrink-0 z-20 ml-auto">
-              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-6">
+              <div className="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4 xl:gap-6">
                 <button
                   onClick={() => setIsSearchOpen(true)}
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 
@@ -465,6 +512,19 @@ const HeaderNavigation = () => {
                   </button>
                   <AccountMenu isOpen={isAccountMenuOpen} onClose={() => setIsAccountMenuOpen(false)} />
                 </div>
+                <Link
+                  href="/account/favorites"
+                  className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 
+                  aria-label="Wishlist"
+                  title="Wishlist"
+                >
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                  {wishlistItems.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-black text-white text-[10px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
+                      {wishlistItems.length > 99 ? '99+' : wishlistItems.length}
+                    </span>
+                  )}
+                </Link>
                 <button
                   onClick={() => setIsCartOpen(true)}
                   className="p-1.5 sm:p-2 hover:opacity-70 transition-opacity relative z-20 flex-shrink-0" 

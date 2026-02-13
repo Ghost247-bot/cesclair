@@ -63,7 +63,7 @@ export default function ComparePage() {
     }
 
     try {
-      const response = await fetch("/api/cart/items", {
+      const response = await fetch("/api/cart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

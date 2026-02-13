@@ -31,7 +31,7 @@ const getBaseURL = () => {
 		return process.env.DEPLOY_PRIME_URL;
 	}
 	// Default to localhost for development
-	return "http://localhost:3002";
+	return "http://localhost:3000";
 };
 
 const baseURL = getBaseURL();
@@ -101,22 +101,31 @@ export const auth = betterAuth({
 		"https://www.cesclair.store",
 		"http://localhost:3000",
 		"http://localhost:3001",
-		"http://localhost:3002",
 		"http://localhost:3003",
+		"http://192.168.56.1:3000",
+		"http://192.168.56.1:3001",
+		"http://192.168.56.1:3003",
 		"http://127.0.0.1:3000",
 		"http://127.0.0.1:3001",
-		"http://127.0.0.1:3002",
 		"http://127.0.0.1:3003",
+		"http://127.0.0.1:60030",
+		"http://localhost:60030",
 	],
 	advanced: {
 		useSecureCookies: process.env.NODE_ENV === "production",
 	},
+	socialProviders: {
+		// Add social providers if needed in the future
+	},
+	redirect: true,
 });
 
 // Session validation helper
 export async function getCurrentUser(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: request.headers });
+    const session = await auth.api.getSession({ 
+      headers: request.headers 
+    });
     return session?.user || null;
   } catch (error) {
     console.error('Error getting current user:', error);

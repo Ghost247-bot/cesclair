@@ -244,11 +244,29 @@
   }
 
   .text-navigation {
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 500;
     line-height: 1.2;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  @media (min-width: 640px) {
+    .text-navigation {
+      font-size: 10px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .text-navigation {
+      font-size: 11px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .text-navigation {
+      font-size: 12px;
+    }
   }
 
   .text-label {

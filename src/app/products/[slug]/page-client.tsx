@@ -99,7 +99,7 @@ export default function ProductDetailPageClient() {
 
     setIsAddingToCart(true);
     try {
-      const response = await fetch("/api/cart/items", {
+      const response = await fetch("/api/cart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/index';
+import { db } from '@/db';
 import { reviews, products, user } from '@/db/schema';
 import { eq, and, desc, asc, count } from 'drizzle-orm';
 import { authClient } from '@/lib/auth-client';
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       .from(reviews)
       .where(and(eq(reviews.productId, parseInt(productId)), eq(reviews.approved, true)));
 
-    const totalCount = Number(totalCountResult.rows[0]?.count || 0);
+    const totalCount = Number(totalCountResult[0]?.count || 0);
 
     return NextResponse.json({
       reviews: reviewsData,
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await authClient.getSession();
-    if (!session?.user?.id) {
+    if (!session?.data?.user?.id) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       .from(reviews)
       .where(and(
         eq(reviews.productId, parseInt(productId)),
-        eq(reviews.userId, session.user.id)
+        eq(reviews.userId, session.data.user.id)
       ))
       .limit(1);
 
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
       .insert(reviews)
       .values({
         productId: parseInt(productId),
-        userId: session.user.id,
+        userId: session.data.user.id,
         rating,
         title,
         content,
