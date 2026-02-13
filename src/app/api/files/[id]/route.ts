@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+
+// Direct Neon connection - bypass the db proxy for now
+const connectionString = 'postgresql://neondb_owner:npg_Tpxjf7u6DCtH@ep-withered-shadow-a4gnj7n7-pooler.us-east-1.aws.neon.tech/neondb';
+const sql = neon(connectionString);
 
 export async function GET(
   request: NextRequest,
@@ -13,43 +18,33 @@ export async function GET(
       return new NextResponse('File not found', { status: 404 });
     }
 
-    // Fetch file from database using raw SQL for better performance with large files
-    const { Pool } = await import('@neondatabase/serverless');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    try {
-      const result = await pool.query(
-        'SELECT file_name, file_type, file_data, file_size FROM file_storage WHERE id = $1 LIMIT 1',
-        [parseInt(id)]
-      );
+    // Fetch file from database using direct SQL
+    const fileRecords = await sql`SELECT file_name, file_type, file_data, file_size FROM file_storage WHERE id = ${parseInt(id)} LIMIT 1`;
 
-      if (result.rows.length === 0) {
-        return new NextResponse('File not found', { status: 404 });
-      }
-
-      const fileRecord = result.rows[0];
-      
-      // Convert base64 back to buffer
-      const buffer = Buffer.from(fileRecord.file_data, 'base64');
-
-      // Determine content disposition based on download parameter
-      const contentDisposition = download 
-        ? `attachment; filename="${fileRecord.file_name}"`
-        : `inline; filename="${fileRecord.file_name}"`;
-
-      // Return file with proper content type
-      return new NextResponse(buffer, {
-        status: 200,
-        headers: {
-          'Content-Type': fileRecord.file_type,
-          'Content-Length': fileRecord.file_size.toString(),
-          'Content-Disposition': contentDisposition,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
-      });
-    } finally {
-      await pool.end();
+    if (!fileRecords || fileRecords.length === 0) {
+      return new NextResponse('File not found', { status: 404 });
     }
+
+    const fileRecord = fileRecords[0];
+      
+    // Convert base64 back to buffer
+    const buffer = Buffer.from(fileRecord.file_data, 'base64');
+
+    // Determine content disposition based on download parameter
+    const contentDisposition = download 
+      ? `attachment; filename="${fileRecord.file_name}"`
+      : `inline; filename="${fileRecord.file_name}"`;
+
+    // Return file with proper content type
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': fileRecord.file_type,
+        'Content-Length': fileRecord.file_size.toString(),
+        'Content-Disposition': contentDisposition,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
   } catch (error) {
     console.error('File serving error:', error);
     return new NextResponse('Internal server error', { status: 500 });

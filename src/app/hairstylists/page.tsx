@@ -4,90 +4,26 @@ import { Scissors, ArrowRight, Briefcase } from "lucide-react";
 import { normalizeImagePath } from "@/lib/utils";
 import HairstylistBanner from "@/components/HairstylistBanner";
 
-// Database imports for runtime data fetching
-// import { db } from "@/db";
-// import { hairstylists } from "@/db/schema";
-// import { eq, desc } from "drizzle-orm";
-
-// Mock data for build-time static generation
-const mockApprovedHairstylists = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    email: "sarah@hairstylist.com",
-    bio: "Professional hairstylist with 10+ years of experience in modern cuts and color techniques",
-    portfolioUrl: "https://portfolio.sarahjohnson.com",
-    specialties: "Coloring, Cutting, Styling, Extensions",
-    status: "approved",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80",
-    bannerUrl: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1920&q=80",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    email: "michael@hairstylist.com",
-    bio: "Creative hairstylist specializing in avant-garde styles and sustainable beauty practices",
-    portfolioUrl: "https://portfolio.michaelchen.com",
-    specialties: "Creative Cutting, Sustainable Beauty, Men's Grooming",
-    status: "approved",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-    bannerUrl: "https://images.unsplash.com/photo-1520880638454-ffb6c90f4d1c?auto=format&fit=crop&w=1920&q=80",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: 3,
-    name: "Emma Rodriguez",
-    email: "emma@hairstylist.com",
-    bio: "Expert colorist and stylist with a passion for creating personalized looks that enhance natural beauty",
-    portfolioUrl: "https://portfolio.emmarodriguez.com",
-    specialties: "Color Specialist, Balayage, Highlights, Keratin Treatments",
-    status: "approved",
-    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
-    bannerUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-];
-
 async function getApprovedHairstylists() {
-  // During build time, return mock data to avoid database calls
-  if (typeof window === 'undefined') {
-    return mockApprovedHairstylists;
-  }
-  
   try {
-    // Only import database at runtime
-    const { db } = await import('@/db');
-    const { hairstylists } = await import('@/db/schema');
-    const { eq, desc } = await import('drizzle-orm');
-    
-    const results = await db
-      .select({
-        id: hairstylists.id,
-        name: hairstylists.name,
-        email: hairstylists.email,
-        bio: hairstylists.bio,
-        portfolioUrl: hairstylists.portfolioUrl,
-        specialties: hairstylists.specialties,
-        status: hairstylists.status,
-        avatarUrl: hairstylists.avatarUrl,
-        bannerUrl: hairstylists.bannerUrl,
-        createdAt: hairstylists.createdAt,
-        updatedAt: hairstylists.updatedAt,
-      })
-      .from(hairstylists)
-      .where(eq(hairstylists.status, "approved"))
-      .orderBy(desc(hairstylists.createdAt))
-      .limit(50);
+    // Fetch from API endpoint which uses direct database connection
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/hairstylists`, {
+      cache: 'no-store', // Always fetch fresh data
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    return results;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch hairstylists: ${response.status}`);
+    }
+
+    const hairstylists = await response.json();
+    return hairstylists;
   } catch (error) {
     console.error('Error fetching hairstylists:', error);
-    // Fallback to mock data if database fails
-    return mockApprovedHairstylists;
+    // Return empty array if database fails - no mock data fallback
+    return [];
   }
 }
 
@@ -160,12 +96,34 @@ export default async function HairstylistsPage() {
                 >
                   {/* Banner Image */}
                   <div className="relative h-64 bg-gray-100 overflow-hidden">
-                    <HairstylistBanner
-                      src={stylist.bannerUrl}
-                      alt={`${stylist.name} portfolio banner`}
-                      className="group-hover:scale-105 transition-transform duration-500"
-                      priority={false}
-                    />
+                    {stylist.bannerUrl ? (
+                      <HairstylistBanner
+                        src={stylist.bannerUrl}
+                        alt={`${stylist.name} portfolio banner`}
+                        className="group-hover:scale-105 transition-transform duration-500"
+                        priority={false}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="text-center">
+                          <svg 
+                            className="w-16 h-16 text-gray-400 mx-auto mb-3" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={1.5} 
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+                            />
+                          </svg>
+                          <p className="text-sm text-gray-600 font-medium">Portfolio Banner</p>
+                          <p className="text-xs text-gray-500 mt-1">No banner uploaded</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}

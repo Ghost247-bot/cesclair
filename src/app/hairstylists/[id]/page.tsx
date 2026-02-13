@@ -40,6 +40,9 @@ interface Hairstylist {
   specialties: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  bannerTitle: string | null;
+  bannerDescription: string | null;
+  bannerActive: boolean;
   status: string;
   createdAt: string;
   updatedAt: string;

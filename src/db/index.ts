@@ -12,6 +12,7 @@ function getDb(): ReturnType<typeof drizzle> {
     throw new Error('DATABASE_URL environment variable is not set! Please configure it in your environment variables.');
   }
   if (!globalForDb.db) {
+    console.log('Creating database connection with:', connectionString.substring(0, 50) + '...');
     const sql = neon(connectionString);
     globalForDb.db = drizzle(sql, { schema });
   }

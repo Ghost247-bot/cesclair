@@ -1,10 +1,12 @@
 import bcrypt from 'bcrypt';
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { hairstylists, hairstylistWorks } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
 import { auth } from '@/lib/auth';
 import { getHairstylistSessionFromCookie } from '@/lib/hairstylist-session';
+
+// Direct Neon connection - bypass db proxy for now
+const connectionString = 'postgresql://neondb_owner:npg_Tpxjf7u6DCtH@ep-withered-shadow-a4gnj7n7-pooler.us-east-1.aws.neon.tech/neondb';
+const sql = neon(connectionString);
 
 export async function GET(
   request: NextRequest,
@@ -21,18 +23,33 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid hairstylist ID' }, { status: 400 });
     }
 
-    const [hairstylist] = await db
-      .select()
-      .from(hairstylists)
-      .where(eq(hairstylists.id, numericId))
-      .limit(1);
+    const hairstylists = await sql`SELECT id, name, email, bio, portfolio_url, specialties, status, avatar_url, banner_url, banner_title, banner_description, banner_active, created_at, updated_at FROM hairstylists WHERE id = ${numericId} LIMIT 1`;
 
-    if (!hairstylist) {
+    if (!hairstylists || hairstylists.length === 0) {
       return NextResponse.json({ error: 'Hairstylist not found' }, { status: 404 });
     }
 
-    const { password, ...rest } = hairstylist;
-    return NextResponse.json(rest, { status: 200 });
+    const hairstylist = hairstylists[0];
+    
+    // Convert field names to camelCase for consistency
+    const formattedHairstylist = {
+      id: hairstylist.id,
+      name: hairstylist.name,
+      email: hairstylist.email,
+      bio: hairstylist.bio,
+      portfolioUrl: hairstylist.portfolio_url,
+      specialties: hairstylist.specialties,
+      status: hairstylist.status,
+      avatarUrl: hairstylist.avatar_url,
+      bannerUrl: hairstylist.banner_url,
+      bannerTitle: hairstylist.banner_title,
+      bannerDescription: hairstylist.banner_description,
+      bannerActive: hairstylist.banner_active,
+      createdAt: hairstylist.created_at,
+      updatedAt: hairstylist.updated_at,
+    };
+
+    return NextResponse.json(formattedHairstylist, { status: 200 });
   } catch (error) {
     console.error('GET /api/hairstylists/[id] error:', error);
     return NextResponse.json(
@@ -62,7 +79,22 @@ export async function PUT(
     }
 
     const [existing] = await db
-      .select()
+      .select({
+        id: hairstylists.id,
+        name: hairstylists.name,
+        email: hairstylists.email,
+        bio: hairstylists.bio,
+        portfolioUrl: hairstylists.portfolioUrl,
+        specialties: hairstylists.specialties,
+        status: hairstylists.status,
+        avatarUrl: hairstylists.avatarUrl,
+        bannerUrl: hairstylists.bannerUrl,
+        bannerTitle: hairstylists.bannerTitle,
+        bannerDescription: hairstylists.bannerDescription,
+        bannerActive: hairstylists.bannerActive,
+        createdAt: hairstylists.createdAt,
+        updatedAt: hairstylists.updatedAt,
+      })
       .from(hairstylists)
       .where(eq(hairstylists.id, parseInt(id, 10)))
       .limit(1);
@@ -137,7 +169,22 @@ export async function DELETE(
     }
 
     const [existing] = await db
-      .select()
+      .select({
+        id: hairstylists.id,
+        name: hairstylists.name,
+        email: hairstylists.email,
+        bio: hairstylists.bio,
+        portfolioUrl: hairstylists.portfolioUrl,
+        specialties: hairstylists.specialties,
+        status: hairstylists.status,
+        avatarUrl: hairstylists.avatarUrl,
+        bannerUrl: hairstylists.bannerUrl,
+        bannerTitle: hairstylists.bannerTitle,
+        bannerDescription: hairstylists.bannerDescription,
+        bannerActive: hairstylists.bannerActive,
+        createdAt: hairstylists.createdAt,
+        updatedAt: hairstylists.updatedAt,
+      })
       .from(hairstylists)
       .where(eq(hairstylists.id, parseInt(id, 10)))
       .limit(1);
