@@ -5,6 +5,7 @@ import { normalizeImagePath } from "@/lib/utils";
 import { db } from "@/db";
 import { hairstylists } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import HairstylistBanner from "@/components/HairstylistBanner";
 
 async function getApprovedHairstylists() {
   const results = await db
@@ -98,20 +99,12 @@ export default async function HairstylistsPage() {
                 >
                   {/* Banner Image */}
                   <div className="relative h-64 bg-gray-100 overflow-hidden">
-                    {stylist.bannerUrl ? (
-                      <Image
-                        src={normalizeImagePath(stylist.bannerUrl)}
-                        alt={`${stylist.name} portfolio`}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Briefcase className="w-20 h-20 text-gray-300" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <HairstylistBanner
+                      src={stylist.bannerUrl}
+                      alt={`${stylist.name} portfolio banner`}
+                      className="group-hover:scale-105 transition-transform duration-500"
+                      priority={false}
+                    />
                   </div>
 
                   {/* Content */}
