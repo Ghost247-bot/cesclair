@@ -252,6 +252,8 @@ export default function AdminPage() {
   const [changingRoleUserId, setChangingRoleUserId] = useState<string | null>(null);
   const [changingMembershipUserId, setChangingMembershipUserId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  const [bulkStockValue, setBulkStockValue] = useState<string>("");
+  const [showBulkStockModal, setShowBulkStockModal] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [contractSearchQuery, setContractSearchQuery] = useState("");
   const [contractStatusFilter, setContractStatusFilter] = useState<string>("all");
@@ -2323,6 +2325,71 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         console.error("Failed to bulk delete products:", error);
       }
       toast.error("Failed to delete products");
+    }
+  };
+
+  const bulkUpdateStock = async () => {
+    if (selectedProducts.length === 0) {
+      toast.error("Please select products to update");
+      return;
+    }
+
+    if (!bulkStockValue.trim()) {
+      toast.error("Please enter a stock value");
+      return;
+    }
+
+    const stockValue = parseInt(bulkStockValue);
+    if (isNaN(stockValue) || stockValue < 0) {
+      toast.error("Please enter a valid stock number (0 or greater)");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to set stock to ${stockValue} for ${selectedProducts.length} product(s)?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/admin/products/bulk-stock", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          productIds: selectedProducts,
+          stock: stockValue
+        }),
+      });
+
+      if (response.ok) {
+        // Update local products
+        setProducts(products.map(p => 
+          selectedProducts.includes(p.id) 
+            ? { ...p, stock: stockValue }
+            : p
+        ));
+        setSelectedProducts([]);
+        setBulkStockValue("");
+        setShowBulkStockModal(false);
+        toast.success(`Successfully updated stock for ${selectedProducts.length} product(s)`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update stock");
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error("Failed to bulk update stock:", error);
+      }
+      toast.error("Failed to update stock");
+    }
+  };
+
+  const selectAllProducts = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      // Deselect all
+      setSelectedProducts([]);
+    } else {
+      // Select all
+      setSelectedProducts(filteredProducts.map(p => p.id));
     }
   };
 
@@ -5528,14 +5595,37 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                           className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         />
                       </div>
-                      <div className="flex gap-2">
-                        {selectedProducts.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {filteredProducts.length > 0 && (
                           <button
-                            onClick={bulkDeleteProducts}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                            onClick={selectAllProducts}
+                            className="px-4 py-2 border border-border text-foreground hover:bg-secondary transition-colors rounded-lg text-sm font-medium flex items-center gap-2"
                           >
-                            Delete Selected ({selectedProducts.length})
+                            <input
+                              type="checkbox"
+                              checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                              onChange={selectAllProducts}
+                              className="w-4 h-4"
+                              readOnly
+                            />
+                            {selectedProducts.length === filteredProducts.length && filteredProducts.length > 0 ? 'Deselect All' : 'Select All'}
                           </button>
+                        )}
+                        {selectedProducts.length > 0 && (
+                          <>
+                            <button
+                              onClick={() => setShowBulkStockModal(true)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                            >
+                              Update Stock ({selectedProducts.length})
+                            </button>
+                            <button
+                              onClick={bulkDeleteProducts}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                            >
+                              Delete Selected ({selectedProducts.length})
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -7530,6 +7620,55 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
         </div>
       )}
 
+      {/* Bulk Stock Update Modal */}
+      {showBulkStockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-5 md:p-6 max-w-md w-full">
+            <h2 className="text-2xl font-medium mb-4">
+              Update Stock for {selectedProducts.length} Product(s)
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Set the stock quantity for all selected products.
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                Stock Quantity
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={bulkStockValue}
+                onChange={(e) => setBulkStockValue(e.target.value)}
+                placeholder="Enter stock quantity"
+                className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Enter 0 for out of stock, or a positive number for available stock
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={bulkUpdateStock}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Update Stock
+              </button>
+              <button
+                onClick={() => {
+                  setShowBulkStockModal(false);
+                  setBulkStockValue("");
+                }}
+                className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload Document Modal for Designer */}
       {showUploadDocumentModal && uploadingDocumentForDesigner && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -7885,6 +8024,7 @@ refund,25.00,-25,Refund for Order #ORD-10001,ORD-10001,2024-01-25T10:00:00.000Z`
                       <option value="all">Everyone</option>
                       <option value="member">Members Only</option>
                       <option value="designer">Designers Only</option>
+                      <option value="hairstylist">Hairstylists Only</option>
                       <option value="specific">Specific User</option>
                     </select>
                   </div>

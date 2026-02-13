@@ -1,0 +1,10 @@
+export { default as RelatedProducts } from './RelatedProducts';
+export { default as ProductDetailsTabs } from './ProductDetailsTabs';
+export { default as CustomerReviews } from './CustomerReviews';
+export { default as SustainabilitySection } from './SustainabilitySection';
+export { default as CompleteTheLook } from './CompleteTheLook';
+export { default as ProductNavigation } from './ProductNavigation';
+export { default as ProductActions } from './ProductActions';
+export { default as ProductBreadcrumbs } from './ProductBreadcrumbs';
+export { default as ProductQuickView } from './ProductQuickView';
+export { default as ReviewForm } from './ReviewForm';

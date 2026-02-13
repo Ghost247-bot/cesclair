@@ -48,146 +48,137 @@ export default function HairstylistLoginPage() {
   };
 
   return (
-    <main className="pt-[60px] md:pt-[64px] min-h-screen bg-background">
-      <section className="bg-secondary py-12">
-        <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-white pt-[60px] md:pt-[64px]">
+      {/* Header */}
+      <div className="border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
           <Link
             href="/hairstylists"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Hairstylists
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-serif tracking-wide">Back to Hairstylists</span>
           </Link>
-          <h1 className="text-4xl md:text-5xl font-medium mb-4">HAIRSTYLIST LOGIN</h1>
-          <p className="text-muted-foreground max-w-2xl">
-            Access your hairstylist dashboard to manage your portfolio and profile.
-          </p>
         </div>
-      </section>
+      </div>
 
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto max-w-md px-4">
-          <div className="bg-white border border-border rounded-lg p-8">
-            <div className="flex items-center justify-center mb-8">
-              <Scissors className="w-12 h-12 text-primary" />
+      {/* Login Section */}
+      <div className="min-h-[calc(100vh-73px)] flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          {/* Logo/Icon */}
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Scissors className="w-10 h-10 text-gray-600" />
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  EMAIL ADDRESS
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-2">
-                  PASSWORD
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  autoComplete="off"
-                  className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Enter your password"
-                />
-              </div>
-
-              {error && (
-                <div className="p-4 bg-destructive/10 border border-destructive text-destructive text-sm rounded-lg">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-8 py-4 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    LOGGING IN...
-                  </span>
-                ) : (
-                  "LOGIN"
-                )}
-              </button>
-            </form>
-
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Contact an administrator to get a hairstylist account.
+            <h1 className="text-3xl md:text-4xl font-serif font-light text-gray-900 mb-2">
+              Hairstylist Login
+            </h1>
+            <p className="text-gray-600 font-serif italic">
+              Access your portfolio and manage your profile
             </p>
           </div>
-        </div>
-      </section>
 
-      {/* Benefits */}
-      <section className="py-16 md:py-24 bg-secondary">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <h2 className="text-2xl md:text-3xl font-medium mb-10 text-center">What you get as a hairstylist</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
-                <ImageIcon className="w-6 h-6" />
-              </div>
-              <h3 className="font-medium mb-2">Portfolio</h3>
-              <p className="text-sm text-muted-foreground">Showcase your work and attract more clients.</p>
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-serif">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent font-serif"
+                required
+              />
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
-                <UserCircle className="w-6 h-6" />
-              </div>
-              <h3 className="font-medium mb-2">Profile</h3>
-              <p className="text-sm text-muted-foreground">Manage your bio, contact info, and visibility.</p>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-serif">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent font-serif"
+                required
+              />
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-4">
-                <Sparkles className="w-6 h-6" />
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-600 text-sm font-serif">{error}</p>
               </div>
-              <h3 className="font-medium mb-2">Visibility</h3>
-              <p className="text-sm text-muted-foreground">Get discovered on our hairstylists directory.</p>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-serif tracking-wide flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Links */}
+          <div className="mt-8 text-center space-y-4">
+            <p className="text-sm text-gray-600 font-serif">
+              Don't have an account yet?
+            </p>
+            <div className="space-y-2">
+              <Link
+                href="/hairstylists/register"
+                className="block text-gray-900 hover:text-gray-700 font-serif underline"
+              >
+                Create a stylist account
+              </Link>
+              <Link
+                href="/hairstylists/forgot-password"
+                className="block text-gray-900 hover:text-gray-700 font-serif underline"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+          </div>
+
+          {/* Additional Info */}
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="text-center space-y-4">
+              <div className="flex items-center justify-center gap-4 text-gray-400">
+                <UserCircle className="w-5 h-5" />
+                <span className="text-sm font-serif">Secure Login</span>
+              </div>
+              <div className="flex items-center justify-center gap-4 text-gray-400">
+                <Sparkles className="w-5 h-5" />
+                <span className="text-sm font-serif">Portfolio Management</span>
+              </div>
+              <div className="flex items-center justify-center gap-4 text-gray-400">
+                <Briefcase className="w-5 h-5" />
+                <span className="text-sm font-serif">Professional Tools</span>
+              </div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Other ways to sign in */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4 max-w-md text-center">
-          <h2 className="text-xl font-medium mb-4">Other ways to sign in</h2>
-          <p className="text-muted-foreground text-sm mb-6">Are you a designer or a member? Use the right login below.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/designers/login"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
-            >
-              <Briefcase className="w-4 h-4" />
-              <span>Designer Login</span>
-            </Link>
-            <Link
-              href="/cesworld/login"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border hover:bg-secondary transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Member Login</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

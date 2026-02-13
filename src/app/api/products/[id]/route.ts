@@ -5,15 +5,24 @@ import { eq, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
 
     // Validate ID
-    if (!id || isNaN(parseInt(id))) {
+    if (!id || id.trim() === '') {
       return NextResponse.json(
-        { error: 'Valid ID is required', code: 'INVALID_ID' },
+        { error: 'Valid ID is required', code: 'INVALID_ID', receivedId: id },
+        { status: 400 }
+      );
+    }
+    
+    const idNum = parseInt(id);
+    if (isNaN(idNum) || idNum <= 0) {
+      return NextResponse.json(
+        { error: 'Valid numeric ID is required', code: 'INVALID_ID', receivedId: id },
         { status: 400 }
       );
     }
@@ -22,7 +31,7 @@ export async function GET(
     const product = await db
       .select()
       .from(products)
-      .where(eq(products.id, parseInt(id)))
+      .where(eq(products.id, idNum))
       .limit(1);
 
     if (product.length === 0) {
@@ -44,15 +53,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
 
     // Validate ID
-    if (!id || isNaN(parseInt(id))) {
+    if (!id || id.trim() === '') {
       return NextResponse.json(
         { error: 'Valid ID is required', code: 'INVALID_ID' },
+        { status: 400 }
+      );
+    }
+    
+    const idNum = parseInt(id);
+    if (isNaN(idNum) || idNum <= 0) {
+      return NextResponse.json(
+        { error: 'Valid numeric ID is required', code: 'INVALID_ID' },
         { status: 400 }
       );
     }
@@ -130,7 +148,7 @@ export async function PUT(
     const updated = await db
       .update(products)
       .set(updates)
-      .where(eq(products.id, parseInt(id)))
+      .where(eq(products.id, idNum))
       .returning();
 
     return NextResponse.json(updated[0], { status: 200 });
@@ -145,10 +163,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
@@ -175,7 +194,7 @@ export async function DELETE(
     // Delete product
     const deleted = await db
       .delete(products)
-      .where(eq(products.id, parseInt(id)))
+      .where(eq(products.id, idNum))
       .returning();
 
     return NextResponse.json(

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { cautionBanners, user } from "@/db/schema";
+import { cautionBanners, user, designers } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getHairstylistSessionFromRequest } from "@/lib/hairstylist-session";
 import { eq, and, or, desc } from "drizzle-orm";
 
 // GET - Fetch caution banners for current user (or all for admin)
@@ -29,25 +30,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(banners);
     }
 
-    // For regular users, return only active banners that target them
-    if (!session?.user) {
-      return NextResponse.json([]);
+    // Resolve effective role and user id for banner targeting
+    let effectiveRole: string | null = null;
+    let effectiveUserId: string | null = null;
+
+    if (session?.user) {
+      effectiveRole = (session.user as any).role || "member";
+      effectiveUserId = session.user.id;
+      // If user is an approved designer (by email), they should see designer-targeted banners
+      const email = session.user.email?.trim()?.toLowerCase();
+      if (email) {
+        const designerRow = await db
+          .select({ id: designers.id, status: designers.status })
+          .from(designers)
+          .where(eq(designers.email, email))
+          .limit(1);
+        if (designerRow.length > 0 && designerRow[0].status === "approved") {
+          effectiveRole = "designer";
+        }
+      }
+    } else {
+      // No Better Auth session — check hairstylist session (hairstylist dashboard)
+      const hairstylistSession = getHairstylistSessionFromRequest(request);
+      if (hairstylistSession) {
+        effectiveRole = "hairstylist";
+        effectiveUserId = null;
+      }
     }
 
-    const userRole = (session.user as any).role || "member";
-    const userId = session.user.id;
-
+    // When we have an identity, return matching banners; otherwise return only "all" so everyone sees site-wide banners
     const banners = await db
       .select()
       .from(cautionBanners)
       .where(
         and(
           eq(cautionBanners.active, true),
-          or(
-            eq(cautionBanners.targetRole, "all"),
-            eq(cautionBanners.targetRole, userRole),
-            eq(cautionBanners.targetUserId, userId)
-          )
+          effectiveRole !== null
+            ? or(
+                eq(cautionBanners.targetRole, "all"),
+                eq(cautionBanners.targetRole, effectiveRole),
+                ...(effectiveUserId ? [eq(cautionBanners.targetUserId, effectiveUserId)] : [])
+              )
+            : eq(cautionBanners.targetRole, "all")
         )
       )
       .orderBy(desc(cautionBanners.createdAt));

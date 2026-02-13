@@ -338,6 +338,7 @@ export default function Footer() {
 
   return (
     <motion.footer
+      id="footer"
       initial={false}
       animate={footerControls}
       className="bg-white text-[#333333] font-sans"

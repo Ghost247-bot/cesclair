@@ -33,7 +33,7 @@ export default async function DesignersPage() {
   const approvedDesigners = await getApprovedDesigners();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white pt-[60px] md:pt-[64px]">
       {/* Hero Section with Background Image */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
         <Image

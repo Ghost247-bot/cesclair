@@ -5,6 +5,7 @@ import ErrorReporter from "@/components/ErrorReporter";
 import HeaderNavigation from "@/components/sections/header-navigation";
 import CautionBanners from "@/components/caution-banner";
 import Footer from "@/components/sections/footer";
+import ScrollToFooter from "@/components/scroll-to-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { StructuredData } from "@/components/seo/structured-data";
 import ClientScripts, { ClientScriptsFooter } from "@/components/client-scripts";
@@ -103,7 +104,9 @@ export default function RootLayout({
             <CautionBanners />
           </div>
           <ClientScripts />
-        {children}
+        <ScrollToFooter>
+          {children}
+        </ScrollToFooter>
         <Footer />
         <ClientScriptsFooter />
         <Toaster />

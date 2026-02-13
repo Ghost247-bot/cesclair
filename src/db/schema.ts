@@ -67,12 +67,32 @@ export const verification = pgTable("verification", {
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
+  slug: text('slug'), // Remove unique constraint temporarily
   description: text('description'),
   price: text('price').notNull(),
   category: text('category'),
   imageUrl: text('image_url'),
   stock: integer('stock').default(0),
   sku: text('sku').unique(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Reviews table
+export const reviews = pgTable('reviews', {
+  id: serial('id').primaryKey(),
+  productId: integer('product_id').references(() => products.id, { onDelete: 'cascade' }),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(), // 1-5 stars
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  verified: boolean('verified').default(false), // Verified purchase
+  approved: boolean('approved').default(false), // Admin approval
+  helpful: integer('helpful').default(0), // Helpful votes
+  notHelpful: integer('not_helpful').default(0), // Not helpful votes
+  size: text('size'), // Product size purchased
+  color: text('color'), // Product color purchased
+  images: text('images'), // JSON array of image URLs
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

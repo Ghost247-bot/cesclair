@@ -48,6 +48,21 @@ export async function getHairstylistSessionFromCookie(): Promise<HairstylistSess
   return parseHairstylistSessionToken(token);
 }
 
+/** Read hairstylist session from request Cookie header (use in Route Handlers for reliable cookie access) */
+export function getHairstylistSessionFromRequest(request: Request): HairstylistSessionPayload | null {
+  const cookieHeader = request.headers.get("cookie");
+  if (!cookieHeader) return null;
+  const match = new RegExp(`${COOKIE_NAME}=([^;]+)`).exec(cookieHeader);
+  let token = match?.[1]?.trim();
+  if (!token) return null;
+  try {
+    token = decodeURIComponent(token);
+  } catch {
+    // token may not be encoded
+  }
+  return parseHairstylistSessionToken(token);
+}
+
 export function getHairstylistCookieName(): string {
   return COOKIE_NAME;
 }

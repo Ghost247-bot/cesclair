@@ -7,6 +7,7 @@ import { normalizeImagePath } from '@/lib/utils';
 interface ProductFromDB {
   id: number;
   name: string;
+  slug: string;
   price: string;
   description: string | null;
   category: string | null;
@@ -120,7 +121,7 @@ export default function ProductListClient({
           price={parseFloat(product.price) || 0}
           image={normalizeImagePath(product.imageUrl)}
           colors={1}
-          href={`/products/${product.id}`}
+          href={product.slug ? `/products/${product.slug}` : `/products/${product.id}`}
         />
       ))}
     </div>

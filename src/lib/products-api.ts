@@ -73,29 +73,50 @@ export async function fetchProductsByCategory(category: string, limit: number = 
 }
 
 /**
- * Fetch a single product by ID
+ * Fetch a single product by slug (preferred) or ID (fallback)
  */
-export async function fetchProductById(id: string | number): Promise<ProductFromDB | null> {
+export async function fetchProductByIdentifier(identifier: string | number): Promise<ProductFromDB | null> {
   try {
+    const idStr = identifier.toString();
+    
+    // First try slug-based API
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${id}`,
+      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/slug/${encodeURIComponent(idStr)}`,
       {
         cache: 'no-store',
       }
     );
     
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`Failed to fetch product: ${response.statusText}`);
+    if (response.ok) {
+      return await response.json();
     }
     
-    return await response.json();
+    // If slug API fails and identifier is numeric, try ID API as fallback
+    if (!isNaN(Number(identifier))) {
+      const idResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${identifier}`,
+        {
+          cache: 'no-store',
+        }
+      );
+      
+      if (idResponse.ok) {
+        return await idResponse.json();
+      }
+    }
+    
+    return null;
   } catch (error) {
-    console.error('Error fetching product by ID:', error);
+    console.error('Error fetching product by identifier:', error);
     return null;
   }
+}
+
+/**
+ * Fetch a single product by ID (legacy function - use fetchProductByIdentifier)
+ */
+export async function fetchProductById(id: string | number): Promise<ProductFromDB | null> {
+  return fetchProductByIdentifier(id);
 }
 
 /**

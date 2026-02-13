@@ -62,6 +62,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import CautionBanners from "@/components/caution-banner";
 
 interface Designer {
   id: number;
@@ -1162,6 +1163,9 @@ export default function DesignerDashboardPage() {
   return (
     <>
       <main className="pt-[48px] sm:pt-[51px] md:pt-[54px] lg:pt-[57px] min-h-screen bg-background">
+        <div className="w-full border-b border-border/50">
+          <CautionBanners />
+        </div>
         {/* Header */}
         <section className="bg-secondary py-6 sm:py-7 md:py-8 border-b border-border">
           <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">

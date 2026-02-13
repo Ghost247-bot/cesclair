@@ -123,15 +123,16 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Ensure output is compatible with Netlify
   // Don't use 'export' output mode - Netlify plugin handles this
   // output is undefined by default, which is correct for Netlify
   
   // Ensure proper asset handling for Netlify
   trailingSlash: false,
+  // Add turbopack root configuration
+  turbopack: {
+    root: '.',
+  },
 };
 
 export default nextConfig;
