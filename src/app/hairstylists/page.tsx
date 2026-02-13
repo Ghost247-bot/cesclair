@@ -2,12 +2,41 @@ import Link from "next/link";
 import Image from "next/image";
 import { Scissors, ArrowRight, Briefcase } from "lucide-react";
 import { normalizeImagePath } from "@/lib/utils";
-import { db } from "@/db";
-import { hairstylists } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
 import HairstylistBanner from "@/components/HairstylistBanner";
 
+// Database imports removed to prevent build-time database calls
+// import { db } from "@/db";
+// import { hairstylists } from "@/db/schema";
+// import { eq, desc } from "drizzle-orm";
+
+// Mock data for build-time static generation
+const mockApprovedHairstylists = [
+  {
+    id: 1,
+    name: "Sample Hairstylist",
+    email: "hairstylist@example.com",
+    bio: "Professional hairstylist with 10+ years of experience",
+    portfolioUrl: "https://portfolio.example.com",
+    specialties: "Coloring, Cutting, Styling",
+    status: "approved",
+    avatarUrl: "/uploads/hairstylists/avatars/placeholder-avatar.jpg",
+    bannerUrl: "/uploads/hairstylists/banners/placeholder-banner.jpg",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+];
+
 async function getApprovedHairstylists() {
+  // During build time, return mock data to avoid database calls
+  if (typeof window === 'undefined') {
+    return mockApprovedHairstylists;
+  }
+  
+  // Only import database at runtime
+  const { db } = await import('@/db');
+  const { hairstylists } = await import('@/db/schema');
+  const { eq, desc } = await import('drizzle-orm');
+  
   const results = await db
     .select({
       id: hairstylists.id,

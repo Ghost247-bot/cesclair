@@ -18,7 +18,7 @@ function getDb(): ReturnType<typeof drizzle> {
   return globalForDb.db;
 }
 
-// Lazy-initialized so build (e.g. Vercel) can run without DATABASE_URL at import time
+// Lazy-initialized so build (e.g., Vercel) can run without DATABASE_URL at import time
 export const db = new Proxy({} as ReturnType<typeof drizzle>, {
   get(_, prop) {
     return getDb()[prop as keyof ReturnType<typeof drizzle>];

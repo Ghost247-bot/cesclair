@@ -51,6 +51,10 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "BETTER_AUTH_SECRET": "@auth_secret",
+    "NEXT_PUBLIC_SITE_URL": "@site_url"
+  }
 }
-
