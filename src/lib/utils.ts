@@ -75,6 +75,7 @@ export function determineProductCategory(title?: string, description?: string): 
 /**
  * Normalizes image paths for Next.js Image component
  * - Files in public folder are served directly (no /api/ prefix needed)
+ * - Handles /api/files/ paths for database-stored images
  * - Handles external URLs
  * - Handles absolute paths from public folder
  * - Returns placeholder if image is missing
@@ -90,11 +91,16 @@ export function normalizeImagePath(imagePath: string | null | undefined, placeho
     return imagePath;
   }
 
+  // Handle /api/files/ paths (database-stored images)
+  if (imagePath.startsWith('/api/files/')) {
+    return imagePath;
+  }
+
   // If it starts with /uploads/, serve directly from public folder (Next.js serves public files at root)
-  // Only use API route if the file doesn't exist in public (fallback to database)
+  // Only use API route if file doesn't exist in public (fallback to database)
   if (imagePath.startsWith('/uploads/')) {
     // Try direct path first (for files in public folder)
-    // If file doesn't exist, the browser will show broken image, but we can add error handling in components
+    // If file doesn't exist, browser will show broken image, but we can add error handling in components
     return imagePath;
   }
 
