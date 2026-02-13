@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Users, ArrowRight, Briefcase } from "lucide-react";
 import { normalizeImagePath } from "@/lib/utils";
 
-// Database imports removed to prevent build-time database calls
+// Database imports for runtime data fetching
 // import { db } from "@/db";
 // import { designers } from "@/db/schema";
 // import { eq, desc } from "drizzle-orm";
@@ -12,14 +12,40 @@ import { normalizeImagePath } from "@/lib/utils";
 const mockApprovedDesigners = [
   {
     id: 1,
-    name: "Sample Designer",
-    email: "designer@example.com",
-    bio: "Creative fashion designer with 5+ years of experience",
-    portfolioUrl: "https://portfolio.example.com",
-    specialties: "Fashion Design, Illustration, Branding",
+    name: "Alexandra Rivera",
+    email: "alexandra@designer.com",
+    bio: "Fashion designer specializing in sustainable luxury womenswear with a focus on ethical production",
+    portfolioUrl: "https://portfolio.alexandrarivera.com",
+    specialties: "Sustainable Fashion, Luxury Womenswear, Ethical Production",
     status: "approved",
-    avatarUrl: "/uploads/hairstylists/avatars/placeholder-avatar.jpg",
-    bannerUrl: "/uploads/hairstylists/banners/placeholder-banner.jpg",
+    avatarUrl: "https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 2,
+    name: "James Mitchell",
+    email: "james@designer.com",
+    bio: "Contemporary menswear designer blending classic tailoring with modern streetwear aesthetics",
+    portfolioUrl: "https://portfolio.jamesmitchell.com",
+    specialties: "Menswear, Streetwear, Tailoring, Accessories",
+    status: "approved",
+    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1520880638454-ffb6c90f4d1c?auto=format&fit=crop&w=1920&q=80",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 3,
+    name: "Sofia Chen",
+    email: "sofia@designer.com",
+    bio: "Avant-garde designer known for experimental silhouettes and innovative textile techniques",
+    portfolioUrl: "https://portfolio.sofiachen.com",
+    specialties: "Avant-garde, Textile Innovation, Experimental Design",
+    status: "approved",
+    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1920&q=80",
     createdAt: new Date(),
     updatedAt: new Date(),
   }
@@ -31,31 +57,37 @@ async function getApprovedDesigners() {
     return mockApprovedDesigners;
   }
   
-  // Only import database at runtime
-  const { db } = await import('@/db');
-  const { designers } = await import('@/db/schema');
-  const { eq, desc } = await import('drizzle-orm');
-  
-  const results = await db
-    .select({
-      id: designers.id,
-      name: designers.name,
-      email: designers.email,
-      bio: designers.bio,
-      portfolioUrl: designers.portfolioUrl,
-      specialties: designers.specialties,
-      status: designers.status,
-      avatarUrl: designers.avatarUrl,
-      bannerUrl: designers.bannerUrl,
-      createdAt: designers.createdAt,
-      updatedAt: designers.updatedAt,
-    })
-    .from(designers)
-    .where(eq(designers.status, "approved"))
-    .orderBy(desc(designers.createdAt))
-    .limit(50);
+  try {
+    // Only import database at runtime
+    const { db } = await import('@/db');
+    const { designers } = await import('@/db/schema');
+    const { eq, desc } = await import('drizzle-orm');
+    
+    const results = await db
+      .select({
+        id: designers.id,
+        name: designers.name,
+        email: designers.email,
+        bio: designers.bio,
+        portfolioUrl: designers.portfolioUrl,
+        specialties: designers.specialties,
+        status: designers.status,
+        avatarUrl: designers.avatarUrl,
+        bannerUrl: designers.bannerUrl,
+        createdAt: designers.createdAt,
+        updatedAt: designers.updatedAt,
+      })
+      .from(designers)
+      .where(eq(designers.status, "approved"))
+      .orderBy(desc(designers.createdAt))
+      .limit(50);
 
-  return results;
+    return results;
+  } catch (error) {
+    console.error('Error fetching designers:', error);
+    // Fallback to mock data if database fails
+    return mockApprovedDesigners;
+  }
 }
 
 export default async function DesignersPage() {

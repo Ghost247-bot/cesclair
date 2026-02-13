@@ -4,7 +4,7 @@ import { Scissors, ArrowRight, Briefcase } from "lucide-react";
 import { normalizeImagePath } from "@/lib/utils";
 import HairstylistBanner from "@/components/HairstylistBanner";
 
-// Database imports removed to prevent build-time database calls
+// Database imports for runtime data fetching
 // import { db } from "@/db";
 // import { hairstylists } from "@/db/schema";
 // import { eq, desc } from "drizzle-orm";
@@ -13,14 +13,40 @@ import HairstylistBanner from "@/components/HairstylistBanner";
 const mockApprovedHairstylists = [
   {
     id: 1,
-    name: "Sample Hairstylist",
-    email: "hairstylist@example.com",
-    bio: "Professional hairstylist with 10+ years of experience",
-    portfolioUrl: "https://portfolio.example.com",
-    specialties: "Coloring, Cutting, Styling",
+    name: "Sarah Johnson",
+    email: "sarah@hairstylist.com",
+    bio: "Professional hairstylist with 10+ years of experience in modern cuts and color techniques",
+    portfolioUrl: "https://portfolio.sarahjohnson.com",
+    specialties: "Coloring, Cutting, Styling, Extensions",
     status: "approved",
-    avatarUrl: "/uploads/hairstylists/avatars/placeholder-avatar.jpg",
-    bannerUrl: "/uploads/hairstylists/banners/placeholder-banner.jpg",
+    avatarUrl: "https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1920&q=80",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 2,
+    name: "Michael Chen",
+    email: "michael@hairstylist.com",
+    bio: "Creative hairstylist specializing in avant-garde styles and sustainable beauty practices",
+    portfolioUrl: "https://portfolio.michaelchen.com",
+    specialties: "Creative Cutting, Sustainable Beauty, Men's Grooming",
+    status: "approved",
+    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1520880638454-ffb6c90f4d1c?auto=format&fit=crop&w=1920&q=80",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 3,
+    name: "Emma Rodriguez",
+    email: "emma@hairstylist.com",
+    bio: "Expert colorist and stylist with a passion for creating personalized looks that enhance natural beauty",
+    portfolioUrl: "https://portfolio.emmarodriguez.com",
+    specialties: "Color Specialist, Balayage, Highlights, Keratin Treatments",
+    status: "approved",
+    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&q=80",
+    bannerUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1920&q=80",
     createdAt: new Date(),
     updatedAt: new Date(),
   }
@@ -32,31 +58,37 @@ async function getApprovedHairstylists() {
     return mockApprovedHairstylists;
   }
   
-  // Only import database at runtime
-  const { db } = await import('@/db');
-  const { hairstylists } = await import('@/db/schema');
-  const { eq, desc } = await import('drizzle-orm');
-  
-  const results = await db
-    .select({
-      id: hairstylists.id,
-      name: hairstylists.name,
-      email: hairstylists.email,
-      bio: hairstylists.bio,
-      portfolioUrl: hairstylists.portfolioUrl,
-      specialties: hairstylists.specialties,
-      status: hairstylists.status,
-      avatarUrl: hairstylists.avatarUrl,
-      bannerUrl: hairstylists.bannerUrl,
-      createdAt: hairstylists.createdAt,
-      updatedAt: hairstylists.updatedAt,
-    })
-    .from(hairstylists)
-    .where(eq(hairstylists.status, "approved"))
-    .orderBy(desc(hairstylists.createdAt))
-    .limit(50);
+  try {
+    // Only import database at runtime
+    const { db } = await import('@/db');
+    const { hairstylists } = await import('@/db/schema');
+    const { eq, desc } = await import('drizzle-orm');
+    
+    const results = await db
+      .select({
+        id: hairstylists.id,
+        name: hairstylists.name,
+        email: hairstylists.email,
+        bio: hairstylists.bio,
+        portfolioUrl: hairstylists.portfolioUrl,
+        specialties: hairstylists.specialties,
+        status: hairstylists.status,
+        avatarUrl: hairstylists.avatarUrl,
+        bannerUrl: hairstylists.bannerUrl,
+        createdAt: hairstylists.createdAt,
+        updatedAt: hairstylists.updatedAt,
+      })
+      .from(hairstylists)
+      .where(eq(hairstylists.status, "approved"))
+      .orderBy(desc(hairstylists.createdAt))
+      .limit(50);
 
-  return results;
+    return results;
+  } catch (error) {
+    console.error('Error fetching hairstylists:', error);
+    // Fallback to mock data if database fails
+    return mockApprovedHairstylists;
+  }
 }
 
 export default async function HairstylistsPage() {
