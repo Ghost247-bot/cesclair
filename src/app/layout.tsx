@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./dashboard-responsive.css";
 import ErrorReporter from "@/components/ErrorReporter";
-import HeaderNavigation from "@/components/sections/header-navigation";
+import HeaderNavigation from "@/components/sections/enhanced-header-navigation";
 import CautionBanners from "@/components/caution-banner";
 import Footer from "@/components/sections/footer";
 import ScrollToFooter from "@/components/scroll-to-footer";

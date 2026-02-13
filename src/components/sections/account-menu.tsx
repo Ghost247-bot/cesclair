@@ -9,20 +9,37 @@ import { toast } from "sonner";
 interface AccountMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  className?: string;
 }
 
-export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
-  const { data: session, refetch } = useSession();
+interface AccountMenuButtonProps {
+  href: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+}
+
+const AccountMenuButton: React.FC<AccountMenuButtonProps> = ({ href, children, onClick, className }) => (
+  <Link
+    href={href}
+    onClick={onClick}
+    className={`flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors ${className || ''}`}
+  >
+    {children}
+  </Link>
+);
+
+export default function AccountMenu({ isOpen, onClose, className }: AccountMenuProps) {
+  const { data: session } = useSession();
   const router = useRouter();
 
   const handleSignOut = () => {
     onClose();
     router.push("/");
-    refetch();
     robustSignOut(); // end session in background so page logs out immediately
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !session?.user) return null;
 
   return (
     <>
@@ -31,100 +48,49 @@ export default function AccountMenu({ isOpen, onClose }: AccountMenuProps) {
         onClick={onClose}
       />
       <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-border shadow-lg z-50">
-        {session?.user ? (
+        <div className={`px-4 py-3 ${className || ''}`}>
           <div className="py-2">
             <div className="px-4 py-3 border-b border-border">
               <p className="text-body-small font-medium">{session.user.name}</p>
               <p className="text-caption text-muted-foreground">{session.user.email}</p>
             </div>
-            
-            <Link
-              href="/account"
-              onClick={onClose}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span>My Account</span>
-            </Link>
-
-            {session.user.role === "member" && (
-              <Link
-                href="/cesworld/dashboard"
-                onClick={onClose}
-                className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-              >
-                <User className="w-4 h-4" />
-                <span>CESWORLD Dashboard</span>
-              </Link>
-            )}
-
-            {session.user.role === "designer" && (
-              <Link
-                href="/designers/dashboard"
-                onClick={onClose}
-                className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-              >
-                <User className="w-4 h-4" />
-                <span>Designer Dashboard</span>
-              </Link>
-            )}
-
-            {session.user.role === "admin" && (
-              <Link
-                href="/admin"
-                onClick={onClose}
-                className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-              >
-                <Shield className="w-4 h-4" />
-                <span>Admin Panel</span>
-              </Link>
-            )}
-
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors w-full text-left border-t border-border"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
           </div>
-        ) : (
-          <div className="py-2">
-            <Link
-              href="/cesworld/login"
-              onClick={onClose}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-            >
+          
+          <AccountMenuButton href="/account">
+            <User className="w-4 h-4" />
+            <span>My Account</span>
+          </AccountMenuButton>
+          
+          {session.user.role === "member" && (
+            <AccountMenuButton href="/cesworld/dashboard">
               <User className="w-4 h-4" />
-              <span>Sign In</span>
-            </Link>
-            <Link
-              href="/cesworld/register"
-              onClick={onClose}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-            >
+              <span>CESWORLD Dashboard</span>
+            </AccountMenuButton>
+          )}
+          
+          {session.user.role === "designer" && (
+            <AccountMenuButton href="/designers/dashboard">
               <User className="w-4 h-4" />
-              <span>Create Account</span>
-            </Link>
-            <Link
-              href="/hairstylists/login"
-              onClick={onClose}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors border-t border-border"
-            >
-              <Scissors className="w-4 h-4" />
-              <span>Hairstylist Login</span>
-            </Link>
-            <Link
-              href="/designers/login"
-              onClick={onClose}
-              className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors"
-            >
-              <Briefcase className="w-4 h-4" />
-              <span>Designer Login</span>
-            </Link>
-          </div>
-        )}
+              <span>Designer Dashboard</span>
+            </AccountMenuButton>
+          )}
+          
+          {session.user.role === "admin" && (
+            <AccountMenuButton href="/admin">
+              <Shield className="w-4 h-4" />
+              <span>Admin Panel</span>
+            </AccountMenuButton>
+          )}
+          
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-3 px-4 py-3 text-body hover:bg-secondary transition-colors w-full text-left border-t border-border"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
     </>
   );
-}
+};
